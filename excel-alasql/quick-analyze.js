@@ -2,10 +2,11 @@
  * Excel 快速分析工具（单文件版本）
  *
  * 用法:
- *   npx --yes --package=alasql --package=xlsx node quick-analyze.js <文件路径>
+ *   1. 首次使用需要安装依赖: npm install（或 pnpm install）
+ *   2. 运行: node quick-analyze.js <文件路径>
  *
  * 示例:
- *   npx --yes --package=alasql --package=xlsx node quick-analyze.js excel/故障树.xlsx
+ *   node quick-analyze.js excel/故障树.xlsx
  */
 
 const { promise: alasql } = require("alasql");
@@ -14,9 +15,24 @@ const path = require("path");
 const excelFile = process.argv[2];
 
 if (!excelFile) {
+  console.error("Excel 快速分析工具 v1.0.0");
+  console.error("");
   console.error("用法: node quick-analyze.js <Excel文件路径>");
-  console.error("\n示例:");
+  console.error("");
+  console.error("首次使用需要先在 skills 目录下执行: pnpm install");
+  console.error("");
+  console.error("示例:");
   console.error("  node quick-analyze.js excel/故障树.xlsx");
+  process.exit(1);
+}
+
+// 加载 alasql（需要先执行 pnpm install）
+try {
+  require("alasql");
+} catch (e) {
+  console.error("错误: 无法加载 alasql 模块");
+  console.error("");
+  console.error("请先在 skills 目录下执行: pnpm install");
   process.exit(1);
 }
 
