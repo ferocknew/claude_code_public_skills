@@ -52,10 +52,7 @@ function showHelp() {
 Excel 通用查询工具 v1.2.0
 
 用法:
-  1. 首次使用: npm install（或 pnpm install）
-  2. 运行: node run.js <文件路径> [操作]
-
-  Windows 用户也可以使用: run.bat <文件路径> [操作]
+  node skill.js <文件路径> [操作]
 
 参数:
   文件路径   Excel 文件路径（必需）
@@ -68,13 +65,13 @@ Excel 通用查询工具 v1.2.0
 
 示例:
   # 数据概览
-  node run.js excel/故障树.xlsx
+  node skill.js data.xlsx
 
   # 关键词搜索
-  node run.js excel/故障树.xlsx "中间事件"
+  node skill.js data.xlsx "关键词"
 
   # 导出 JSON
-  node run.js excel/故障树.xlsx "*" > output.json
+  node skill.js data.xlsx "*" > output.json
 
 快捷选项:
   -h, --help     显示此帮助信息
@@ -82,7 +79,7 @@ Excel 通用查询工具 v1.2.0
 
 提示:
   - 支持中文文件名和列名
-  - 复杂查询建议使用 examples 目录下的示例脚本
+  - 无需安装依赖
 `);
 }
 

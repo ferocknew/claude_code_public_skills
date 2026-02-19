@@ -1,7 +1,7 @@
 ---
 name: excel-alasql
 description: 当用户要求"读取 Excel 文件"、"解析 Excel"、"查询 Excel 数据"、"将 Excel 转换为 JSON"、"使用 SQL 分析 Excel"、"使用 AlaSQL"时，或者需要在 JavaScript/Node.js 环境中使用 SQL 查询处理 Excel 文件（.xlsx、.xls、.csv）时使用此 skill。
-version: 2.0.0
+version: 3.0.0
 ---
 
 # 使用 AlaSQL 处理 Excel 文件
@@ -14,42 +14,36 @@ AlaSQL 是一个功能强大的 JavaScript 库,允许直接对 Excel 文件运�
 
 ## 运行方式
 
-### 首次使用：安装依赖
-
-**1. 全局安装 pnpm（仅需一次）：**
+**直接运行，无需安装依赖：**
 
 ```bash
-npm install -g pnpm
-```
+# 数据概览
+node skill.js <文件路径>
 
-**2. 在 skills 目录下执行 pnpm install：**
+# 关键词搜索
+node skill.js <文件路径> "关键词"
 
-```bash
-pnpm install
+# 导出 JSON
+node skill.js <文件路径> "*" > output.json
+
+# 快速分析
+node skill-analyze.js <文件路径>
 ```
 
 ### 使用方式
 
-**安装依赖后即可使用：**
-
 ```bash
 # 数据概览
-node run.js <文件路径>
+node skill.js <文件路径>
 
 # 关键词搜索
-node run.js <文件路径> "关键词"
+node skill.js <文件路径> "关键词"
 
 # 导出 JSON
-node run.js <文件路径> "*" > output.json
+node skill.js <文件路径> "*" > output.json
 
-# 快速分析工具
-node quick-analyze.js <文件路径>
-```
-
-**Windows 用户也可以使用批处理脚本：**
-
-```cmd
-run.bat <文件路径>
+# 快速分析
+node skill-analyze.js <文件路径>
 ```
 
 ---
@@ -247,52 +241,28 @@ await alasql(
 
 ## 快速开始
 
-### 首次使用：安装依赖
-
-**1. 全局安装 pnpm（仅需一次，如果已安装可跳过）：**
+**直接运行，无需安装：**
 
 ```bash
-npm install -g pnpm
+node skill.js <文件路径>
 ```
 
-**2. 在 skills 目录下执行（仅首次需要）：**
-
-```bash
-pnpm install
-```
-
-### 使用方式
+### 使用示例
 
 #### Linux/macOS/WSL/Git Bash
 
 ```bash
-# 数据概览
-node run.js excel/故障树.xlsx
-
-# 或使用 bash 包装脚本（更简洁）
-bash run.sh excel/故障树.xlsx
-
-# 关键词搜索
-node run.js excel/故障树.xlsx "中间事件"
-
-# 导出 JSON
-node run.js excel/故障树.xlsx "*" > output.json
+node skill.js excel/故障树.xlsx
+node skill.js excel/故障树.xlsx "中间事件"
+node skill.js excel/故障树.xlsx "*" > output.json
 ```
 
 #### Windows (CMD/PowerShell)
 
 ```cmd
-REM 使用批处理脚本（推荐）
-run.bat excel\故障树.xlsx
-
-REM 或直接使用 node（需先执行 pnpm install）
-node run.js excel\故障树.xlsx
-
-REM 关键词搜索
-run.bat excel\故障树.xlsx "中间事件"
+node skill.js excel\故障树.xlsx
+node skill.js excel\故障树.xlsx "中间事件"
 ```
-
-### 方式三：Windows 批处理脚本
 
 ```cmd
 cd C:\path\to\skills\excel-alasql
@@ -310,9 +280,9 @@ run.bat excel\故障树.xlsx "中间事件"
 
 | 操作 | 说明 | 示例 |
 |------|------|------|
-| **无参数** | 显示数据概览 | `run.js data.xlsx` |
-| **关键词** | 全文搜索所有列 | `run.js data.xlsx "关键词"` |
-| **"*"** | 导出为 JSON | `run.js data.xlsx "*"` |
+| **无参数** | 显示数据概览 | `skill.js data.xlsx` |
+| **关键词** | 全文搜索所有列 | `skill.js data.xlsx "关键词"` |
+| **"*"** | 导出为 JSON | `skill.js data.xlsx "*"` |
 
 ---
 
@@ -321,37 +291,13 @@ run.bat excel\故障树.xlsx "中间事件"
 ### Linux/macOS/WSL/Git Bash
 
 ```bash
-# 方式一：使用 node（需先 pnpm install）
-node run.js excel/故障树.xlsx
-
-# 方式二：使用 bash 包装脚本（更简洁）
-bash run.sh excel/故障树.xlsx
-
-# 方式三：直接执行（需先 chmod +x）
-./run.js excel/故障树.xlsx
+node skill.js excel/故障树.xlsx
 ```
 
 ### Windows (CMD/PowerShell)
 
 ```cmd
-REM 方式一：使用批处理脚本（推荐）
-run.bat excel\故障树.xlsx
-
-REM 方式二：直接使用 node（需先 pnpm install）
-node run.js excel\故障树.xlsx
-
-REM 方式三：在 Git Bash 中
-bash run.sh excel\故障树.xlsx
-```
-
----
-
-## 方式四：详细分析工具 `analyze.sh`（Linux/macOS）
-
-**需要更详细的分析报告时使用**
-
-```bash
-bash analyze.sh excel/故障树.xlsx
+node skill.js excel\故障树.xlsx
 ```
 
 **输出内容:**
@@ -402,39 +348,18 @@ node script.js
 
 ## 工具文件说明
 
-| 文件 | 平台 | 说明 |
-|------|------|------|
-| **run.js** | 跨平台 | Node.js 脚本，通用性强 |
-| **run.sh** | Linux/macOS | Bash 包装脚本，命令更简洁 |
-| **run.bat** | Windows | 批处理脚本，Windows 原生支持 |
-| **analyze.sh** | Linux/macOS | 详细数据分析 |
-| **README.md** | - | 完整使用文档 |
-| **QUICK_START.md** | - | 快速开始指南 |
+| 文件 | 说明 |
+|------|------|
+| **skill.js** | 主工具，包含所有依赖，无需安装 |
+| **skill-analyze.js** | 快速分析工具 |
 
 ---
 
 ## 常见问题
 
-### Q: 我该用哪种方式？
-
-**A: 根据平台选择：**
-- **Windows**: 使用 `run.bat` 或 `pnpm install && node run.js`
-- **macOS/Linux**: 使用 `bash run.sh` 或 `pnpm install && node run.js`
-- **WSL/Git Bash**: 任何方式都可以
-
-### Q: 为什么 Windows 上 npx 方式不工作？
-
-**A:** npx 的 `--package` 参数在 Windows 上有兼容性问题，临时安装的包无法被 node 的 require 找到。
-
-**解决方案：**
-1. 使用 `run.bat` 批处理脚本（推荐）
-2. 或执行 `pnpm install` 后使用 `node run.js`
-
 ### Q: 首次使用需要做什么？
 
-**A:** 分两步：
-1. 全局安装 pnpm（仅需一次）：`npm install -g pnpm`
-2. 在 skills 目录下执行：`pnpm install`
+**A:** 无需任何安装，直接运行 `node skill.js <文件>` 即可！
 
 ### Q: 支持复杂 SQL 查询吗？
 
@@ -442,14 +367,3 @@ node script.js
 1. 使用关键词搜索（全文）
 2. 导出 JSON 后用 jq/Python 处理
 3. 创建自定义脚本进行 JavaScript 筛选
-
----
-
-## 跨平台兼容性
-
-| 平台 | 推荐工具 | 备选方案 |
-|------|----------|----------|
-| Windows 10/11 | `run.bat` | `run.js` (Git Bash) |
-| macOS | `run.sh` | `run.js` |
-| Linux | `run.sh` | `run.js` |
-| WSL (Windows) | `run.sh` | `run.js` |
