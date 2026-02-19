@@ -21,6 +21,32 @@ function getTimestamp() {
   return `${yy}${MM}${DD}.${HH}${mm}${ss}`;
 }
 
+// 更新 SKILL.md 中的版本号
+function updateSkillVersion(version) {
+  const skillMdPath = path.join(__dirname, "SKILL.md");
+  if (!fs.existsSync(skillMdPath)) {
+    console.log("⚠ SKILL.md 不存在，跳过版本号更新");
+    return;
+  }
+
+  let content = fs.readFileSync(skillMdPath, "utf8");
+  const versionLine = `skill_version: ${version}`;
+
+  // 检查是否已有 skill_version
+  if (content.includes("skill_version:")) {
+    content = content.replace(/skill_version: [\d.]+/, versionLine);
+  } else {
+    // 在 version 字段后添加 skill_version
+    content = content.replace(
+      /version: [\d.]+\n/,
+      `version: 3.0.0\nskill_version: ${version}\n`
+    );
+  }
+
+  fs.writeFileSync(skillMdPath, content);
+  console.log(`✓ SKILL.md 版本号已更新: ${version}`);
+}
+
 const version = getTimestamp();
 
 console.log("开始打包...\n");
@@ -50,6 +76,9 @@ try {
     banner: {
       js: `// Excel 工具 v${version} - 包含所有依赖，无需安装\n`,
     },
+    define: {
+      '__VERSION': `"${version}"`,
+    },
   });
   console.log(`✓ run.js -> skill.js (v${version})`);
 } catch (e) {
@@ -69,6 +98,9 @@ try {
     banner: {
       js: `// Excel 快速分析工具 v${version} - 包含所有依赖，无需安装\n`,
     },
+    define: {
+      '__VERSION': `"${version}"`,
+    },
   });
   console.log(`✓ quick-analyze.js -> skill-analyze.js (v${version})`);
 } catch (e) {
@@ -80,3 +112,6 @@ console.log(`版本号: v${version}`);
 console.log("\n使用方式:");
 console.log("  node skill.js <文件路径>");
 console.log("  node skill-analyze.js <文件路径>");
+
+// 更新 SKILL.md 中的版本号
+updateSkillVersion(version);

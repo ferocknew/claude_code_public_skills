@@ -29,6 +29,9 @@
 const fs = require("fs");
 const path = require("path");
 
+// 版本号（打包时会通过 __VERSION 注入）
+const SKILL_VERSION = typeof __VERSION !== "undefined" ? __VERSION : "1.2.0-dev";
+
 // 加载 alasql（需要先执行 pnpm install）
 let alasql;
 try {
@@ -49,7 +52,7 @@ const operation = process.argv[3];
 // 显示帮助
 function showHelp() {
   console.log(`
-Excel 通用查询工具 v1.2.0
+Excel 通用查询工具 v${SKILL_VERSION}
 
 用法:
   node skill.js <文件路径> [操作]
@@ -85,7 +88,7 @@ Excel 通用查询工具 v1.2.0
 
 // 显示版本
 function showVersion() {
-  console.log("Excel 通用查询工具 v1.0.0");
+  console.log(`Excel 通用查询工具 v${SKILL_VERSION}`);
   console.log("基于 AlaSQL + SheetJS");
   console.log("跨平台支持: Windows, macOS, Linux");
 }
