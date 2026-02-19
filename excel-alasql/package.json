@@ -1,4 +1,10 @@
 {
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
   "dependencies": {
     "alasql": "^1.7.3",
     "xlsx": "^0.18.5"
