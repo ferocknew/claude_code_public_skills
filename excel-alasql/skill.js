@@ -1,5 +1,5 @@
 #!/usr/bin/env -S npx -y -p alasql@1.7.3 -p xlsx node
-// Excel 工具 v260219.122822 - 包含所有依赖，无需安装
+// Excel 工具 v260219.123126 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -84320,6 +84320,7 @@ var require_alasql_fs = __commonJS({
 // run.js
 var fs = require("fs");
 var path = require("path");
+var SKILL_VERSION = true ? "260219.123126" : "1.2.0-dev";
 var alasql;
 try {
   alasql = require_alasql_fs().promise;
@@ -84335,7 +84336,7 @@ var excelFile = process.argv[2];
 var operation = process.argv[3];
 function showHelp() {
   console.log(`
-Excel \u901A\u7528\u67E5\u8BE2\u5DE5\u5177 v1.2.0
+Excel \u901A\u7528\u67E5\u8BE2\u5DE5\u5177 v${SKILL_VERSION}
 
 \u7528\u6CD5:
   node skill.js <\u6587\u4EF6\u8DEF\u5F84> [\u64CD\u4F5C]
@@ -84369,7 +84370,7 @@ Excel \u901A\u7528\u67E5\u8BE2\u5DE5\u5177 v1.2.0
 `);
 }
 function showVersion() {
-  console.log("Excel \u901A\u7528\u67E5\u8BE2\u5DE5\u5177 v1.0.0");
+  console.log(`Excel \u901A\u7528\u67E5\u8BE2\u5DE5\u5177 v${SKILL_VERSION}`);
   console.log("\u57FA\u4E8E AlaSQL + SheetJS");
   console.log("\u8DE8\u5E73\u53F0\u652F\u6301: Windows, macOS, Linux");
 }
