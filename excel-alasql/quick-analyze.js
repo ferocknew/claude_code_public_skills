@@ -12,6 +12,9 @@
 const { promise: alasql } = require("alasql");
 const path = require("path");
 
+// 版本号（打包时会通过 __VERSION 注入）
+const SKILL_VERSION = typeof __VERSION !== "undefined" ? __VERSION : "1.0.0-dev";
+
 const excelFile = process.argv[2];
 
 if (!excelFile) {
