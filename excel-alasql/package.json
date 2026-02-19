@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "alasql": "^4.17.0",
+    "xlsx": "^0.18.5"
+  }
+}
