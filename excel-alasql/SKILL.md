@@ -12,21 +12,45 @@ version: 2.0.0
 
 AlaSQL 是一个功能强大的 JavaScript 库,允许直接对 Excel 文件运行 SQL 查询,无需将其导入传统数据库。**特别擅长处理 CSV、JSON 格式和内存中的 SQL 查询**。
 
-## 运行方式（无需安装）
+## 运行方式
+
+### 首次使用：安装依赖
+
+**1. 全局安装 pnpm（仅需一次）：**
 
 ```bash
-# Windows/macOS/Linux 通用
-npx --yes --package=alasql --package=xlsx node script.js
-
-# 指定版本
-npx --yes --package=alasql@1.7.3 --package=xlsx@0.18.5 node script.js
+npm install -g pnpm
 ```
 
-**优点:**
-- ✅ **跨平台兼容**（Windows, macOS, Linux）
-- ✅ **不产生 node_modules 目录**
-- ✅ **无需手动安装**
-- ✅ **使用 npm 缓存**（首次下载，之后很快）
+**2. 在 skills 目录下执行 pnpm install：**
+
+```bash
+pnpm install
+```
+
+### 使用方式
+
+**安装依赖后即可使用：**
+
+```bash
+# 数据概览
+node run.js <文件路径>
+
+# 关键词搜索
+node run.js <文件路径> "关键词"
+
+# 导出 JSON
+node run.js <文件路径> "*" > output.json
+
+# 快速分析工具
+node quick-analyze.js <文件路径>
+```
+
+**Windows 用户也可以使用批处理脚本：**
+
+```cmd
+run.bat <文件路径>
+```
 
 ---
 
@@ -223,42 +247,52 @@ await alasql(
 
 ## 快速开始
 
-### 方法一：使用 Node.js 脚本（跨平台推荐）🌐
+### 首次使用：安装依赖
 
-**支持 Windows、macOS、Linux**
+**1. 全局安装 pnpm（仅需一次，如果已安装可跳过）：**
 
 ```bash
-# 进入 skill 目录
-cd /root/.claude/skills/excel-alasql
-
-# 数据概览
-npx --yes --package=alasql --package=xlsx node run.js excel/故障树.xlsx
-
-# 关键词搜索
-npx --yes --package=alasql --package=xlsx node run.js excel/故障树.xlsx "中间事件"
-
-# 导出 JSON
-npx --yes --package=alasql --package=xlsx node run.js excel/故障树.xlsx "*" > output.json
+npm install -g pnpm
 ```
 
-### 方法二：使用 Bash 脚本（Linux/macOS/WSL）
-
-**一行命令，更简洁**
+**2. 在 skills 目录下执行（仅首次需要）：**
 
 ```bash
-cd /root/.claude/skills/excel-alasql
+pnpm install
+```
 
+### 使用方式
+
+#### Linux/macOS/WSL/Git Bash
+
+```bash
 # 数据概览
+node run.js excel/故障树.xlsx
+
+# 或使用 bash 包装脚本（更简洁）
 bash run.sh excel/故障树.xlsx
 
 # 关键词搜索
-bash run.sh excel/故障树.xlsx "中间事件"
+node run.js excel/故障树.xlsx "中间事件"
 
 # 导出 JSON
-bash run.sh excel/故障树.xlsx "*" > output.json
+node run.js excel/故障树.xlsx "*" > output.json
 ```
 
-### 方法三：Windows 批处理脚本
+#### Windows (CMD/PowerShell)
+
+```cmd
+REM 使用批处理脚本（推荐）
+run.bat excel\故障树.xlsx
+
+REM 或直接使用 node（需先执行 pnpm install）
+node run.js excel\故障树.xlsx
+
+REM 关键词搜索
+run.bat excel\故障树.xlsx "中间事件"
+```
+
+### 方式三：Windows 批处理脚本
 
 ```cmd
 cd C:\path\to\skills\excel-alasql
@@ -284,29 +318,35 @@ run.bat excel\故障树.xlsx "中间事件"
 
 ## 完整示例
 
-### Linux/macOS/WSL
+### Linux/macOS/WSL/Git Bash
 
 ```bash
-# 使用 run.js（跨平台）
-npx --yes --package=alasql --package=xlsx node run.js excel/故障树.xlsx
+# 方式一：使用 node（需先 pnpm install）
+node run.js excel/故障树.xlsx
 
-# 或使用 run.sh（更简洁）
+# 方式二：使用 bash 包装脚本（更简洁）
 bash run.sh excel/故障树.xlsx
+
+# 方式三：直接执行（需先 chmod +x）
+./run.js excel/故障树.xlsx
 ```
 
-### Windows
+### Windows (CMD/PowerShell)
 
 ```cmd
-REM 使用 run.bat
+REM 方式一：使用批处理脚本（推荐）
 run.bat excel\故障树.xlsx
 
-REM 或在 Git Bash 中使用 run.sh
+REM 方式二：直接使用 node（需先 pnpm install）
+node run.js excel\故障树.xlsx
+
+REM 方式三：在 Git Bash 中
 bash run.sh excel\故障树.xlsx
 ```
 
 ---
 
-## 方法四：详细分析工具 `analyze.sh`（Linux/macOS）
+## 方式四：详细分析工具 `analyze.sh`（Linux/macOS）
 
 **需要更详细的分析报告时使用**
 
@@ -321,22 +361,24 @@ bash analyze.sh excel/故障树.xlsx
 
 ---
 
-## 方法五：运行示例脚本
+## 方式五：运行示例脚本
+
+**前提：需要先在父目录执行 `pnpm install`**
 
 ```bash
 cd .claude/skills/excel-alasql/examples
 
 # 快速开始
-npx --yes --package=alasql --package=xlsx node quick-start.js
+node quick-start.js
 
 # 测试中文文件名
-npx --yes --package=alasql --package=xlsx node chinese-filename.js
+node chinese-filename.js
 
 # 综合测试
-npx --yes --package=alasql --package=xlsx node comprehensive-test.js
+node comprehensive-test.js
 ```
 
-### 方法三：创建自定义脚本
+### 方式六：创建自定义脚本
 
 对于复杂分析需求，可以创建临时脚本：
 
@@ -351,7 +393,10 @@ const data = await alasql(
 console.log(data);
 ```
 
-运行: `npx --yes --package=alasql --package=xlsx node script.js`
+运行方式（**前提：需要先 pnpm install**）：
+```bash
+node script.js
+```
 
 ---
 
@@ -370,20 +415,26 @@ console.log(data);
 
 ## 常见问题
 
-### Q: 我该用哪个脚本？
+### Q: 我该用哪种方式？
 
 **A: 根据平台选择：**
-- **Windows**: `run.bat` 或 `run.js`
-- **macOS**: `run.sh` 或 `run.js`
-- **Linux**: `run.sh` 或 `run.js`
-- **跨平台**: `run.js` 最通用
+- **Windows**: 使用 `run.bat` 或 `pnpm install && node run.js`
+- **macOS/Linux**: 使用 `bash run.sh` 或 `pnpm install && node run.js`
+- **WSL/Git Bash**: 任何方式都可以
 
-### Q: npx 命令太长怎么办？
+### Q: 为什么 Windows 上 npx 方式不工作？
 
-**A:**
-1. Linux/macOS 使用 `run.sh`，命令更短
-2. Windows 使用 `run.bat`
-3. 或者创建 npm script 别名
+**A:** npx 的 `--package` 参数在 Windows 上有兼容性问题，临时安装的包无法被 node 的 require 找到。
+
+**解决方案：**
+1. 使用 `run.bat` 批处理脚本（推荐）
+2. 或执行 `pnpm install` 后使用 `node run.js`
+
+### Q: 首次使用需要做什么？
+
+**A:** 分两步：
+1. 全局安装 pnpm（仅需一次）：`npm install -g pnpm`
+2. 在 skills 目录下执行：`pnpm install`
 
 ### Q: 支持复杂 SQL 查询吗？
 

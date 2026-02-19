@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git ls-tree:*)"
+      "Bash(git ls-tree:*)",
+      "Bash(npx --yes --package=alasql@1.7.3 --package=xlsx@0.18.5 node run.js ../test/故障树.xlsx)",
+      "Bash(chmod:*)",
+      "Bash(npx -y -p alasql@1.7.3 -p xlsx node -e \"const {promise:alasql}=require\\(''alasql''\\);console.log\\(''✓ alasql loaded successfully, version:'', alasql.toString\\(\\).substring\\(0,50\\)\\);\")",
+      "Bash(node run.js)",
+      "Bash(npm install:*)",
+      "Bash(node:*)"
     ]
   }
 }
