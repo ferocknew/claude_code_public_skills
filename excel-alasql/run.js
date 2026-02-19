@@ -1,8 +1,12 @@
+#!/usr/bin/env -S npx -y -p alasql@1.7.3 -p xlsx node
 /**
  * Excel 通用查询工具（跨平台版本）
  *
  * 用法:
- *   npx --yes --package=alasql --package=xlsx node run.js <文件路径> [操作]
+ *   1. 首次使用需要安装依赖: pnpm install
+ *   2. 然后运行: node run.js <文件路径> [操作]
+ *
+ *   Windows 用户也可以使用: run.bat <文件路径> [操作]
  *
  * 参数:
  *   文件路径   Excel 文件路径（必需）
@@ -14,30 +18,27 @@
  *   "*"        导出全部数据为 JSON
  *
  * 示例:
- *   # 数据概览
- *   npx --yes --package=alasql --package=xlsx node run.js excel/故障树.xlsx
- *
- *   # 关键词搜索
- *   npx --yes --package=alasql --package=xlsx node run.js excel/故障树.xlsx "中间事件"
- *
- *   # 导出 JSON
- *   npx --yes --package=alasql --package=xlsx node run.js excel/故障树.xlsx "*" > output.json
+ *   node run.js excel/故障树.xlsx              # 数据概览
+ *   node run.js excel/故障树.xlsx "中间事件"   # 关键词搜索
+ *   node run.js excel/故障树.xlsx "*" > output.json  # 导出 JSON
  *
  * 作者: Claude Code
- * 版本: 1.1.0
+ * 版本: 1.2.0
  */
 
 const fs = require("fs");
 const path = require("path");
 
-// 加载 alasql（兼容 npx 和本地安装）
+// 加载 alasql（需要先执行 pnpm install）
 let alasql;
 try {
   alasql = require("alasql").promise;
 } catch (e) {
   console.error("错误: 无法加载 alasql 模块");
-  console.error("请使用: npm install alasql xlsx");
-  console.error("或使用完整命令: npx --yes --package=alasql --package=xlsx node run.js <文件>");
+  console.error("");
+  console.error("请先在 skills 目录下执行: pnpm install");
+  console.error("");
+  console.error("Windows 用户也可以使用: run.bat <文件路径>");
   process.exit(1);
 }
 
@@ -48,10 +49,13 @@ const operation = process.argv[3];
 // 显示帮助
 function showHelp() {
   console.log(`
-Excel 通用查询工具 v1.0 (跨平台版本)
+Excel 通用查询工具 v1.2.0
 
 用法:
-  npx --yes --package=alasql --package=xlsx node run.js <文件路径> [操作]
+  1. 首次使用: npm install（或 pnpm install）
+  2. 运行: node run.js <文件路径> [操作]
+
+  Windows 用户也可以使用: run.bat <文件路径> [操作]
 
 参数:
   文件路径   Excel 文件路径（必需）
@@ -64,13 +68,13 @@ Excel 通用查询工具 v1.0 (跨平台版本)
 
 示例:
   # 数据概览
-  npx --yes --package=alasql --package=xlsx node run.js excel/故障树.xlsx
+  node run.js excel/故障树.xlsx
 
   # 关键词搜索
-  npx --yes --package=alasql --package=xlsx node run.js excel/故障树.xlsx "中间事件"
+  node run.js excel/故障树.xlsx "中间事件"
 
   # 导出 JSON
-  npx --yes --package=alasql --package=xlsx node run.js excel/故障树.xlsx "*" > output.json
+  node run.js excel/故障树.xlsx "*" > output.json
 
 快捷选项:
   -h, --help     显示此帮助信息
