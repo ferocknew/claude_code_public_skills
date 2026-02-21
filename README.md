@@ -11,6 +11,7 @@
 | `makepad-进化` | Makepad Evolution | 自我改进的 Makepad 开发技能系统 |
 | `obsidian-bases` | Obsidian Bases | 创建和编辑 Obsidian Bases (.base) 文件，支持视图、过滤器、公式 |
 | `obsidian-json-canvas` | JSON Canvas | 创建和编辑 JSON Canvas (.canvas) 文件，支持节点、边、分组 |
+| `use-http-mcp` | HTTP MCP Tool | HTTP 请求工具，使用 Node.js 原生 fetch API，支持 GET/POST/PUT/DELETE/PATCH、Basic Auth、Bearer Token、文件上传下载 |
 
 ## 技能文件结构
 
