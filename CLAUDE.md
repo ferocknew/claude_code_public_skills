@@ -32,8 +32,32 @@ Detailed content...
 | `makepad-进化` | Self-improving Makepad development skill system |
 | `obsidian-bases` | Create/edit Obsidian Bases (.base) files with views, filters, formulas |
 | `obsidian-json-canvas` | Create/edit JSON Canvas (.canvas) files with nodes, edges, groups |
+| `use-http-mcp` | HTTP request tool using Node.js native fetch API, supports GET/POST/PUT/DELETE/PATCH, Basic Auth, Bearer Token, file upload/download |
 
 ## Development Commands
+
+### Use-HTTP-MCP Skill
+
+The `use-http-mcp` skill uses esbuild for bundling into standalone scripts.
+
+```bash
+# Install dependencies
+cd use-http-mcp
+pnpm install
+
+# Build standalone script (bundles run.js -> skill.js)
+npm run build
+
+# Run the unbundled version (requires Node.js 18+)
+node run.js get <url>
+node run.js post <url> '{"key": "value"}'
+
+# Run the bundled version (no dependencies required)
+node skill.js get <url>
+node skill.js post <url> '{"key": "value"}'
+```
+
+**Version numbering**: The build script generates timestamp-based versions in format `YYMMDD.HHmmSS` and automatically updates `skill_version` in `SKILL.md`.
 
 ### Excel-AlaSQL Skill
 
