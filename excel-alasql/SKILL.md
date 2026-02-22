@@ -1,8 +1,7 @@
 ---
 name: excel-alasql
 description: 当用户要求"读取 Excel 文件"、"解析 Excel"、"查询 Excel 数据"、"将 Excel 转换为 JSON"、"使用 SQL 分析 Excel"、"使用 AlaSQL"时，或者需要在 JavaScript/Node.js 环境中使用 SQL 查询处理 Excel 文件（.xlsx、.xls、.csv）时使用此 skill。
-version: 3.1.0
-skill_version: 260222.222905
+version: 260222.223055
 ---
 
 # 使用 AlaSQL 处理 Excel 文件

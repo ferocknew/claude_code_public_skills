@@ -1,4 +1,4 @@
-// Excel 快速分析工具 v260222.222905 - 包含所有依赖，无需安装
+// Excel 快速分析工具 v260222.223055 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
