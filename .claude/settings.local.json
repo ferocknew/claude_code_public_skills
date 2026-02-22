@@ -21,7 +21,8 @@
       "Bash(cd /Users/fuyingjun/Downloads/code/claude_code_public_skills/excel-alasql && npm run build)",
       "Bash(find /Users/fuyingjun/Downloads/code/claude_code_public_skills/excel-alasql/test -name \"*.xlsx\" -o -name \"*.xls\" -o -name \"*.csv\" 2>/dev/null | head -20)",
       "Bash(ls -la /Users/fuyingjun/Downloads/code/claude_code_public_skills/excel-alasql/test/*.xlsx)",
-      "Bash(pnpm info alasql version)"
+      "Bash(pnpm info alasql version)",
+      "Bash(git checkout build.js)"
     ]
   }
 }
