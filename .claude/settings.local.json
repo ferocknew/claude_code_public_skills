@@ -17,7 +17,8 @@
       "mcp__memory__add_observations",
       "Bash(npm install && npm run build)",
       "Bash(curl -N -H \"Authorization: Bearer 123123123\" -H \"Accept: text/event-stream\" \"https://smcp.hk4.iw8.win/mcp\" --max-time 5 2>/dev/null || true)",
-      "Bash(pnpm run build)"
+      "Bash(pnpm run build)",
+      "Bash(cd /Users/fuyingjun/Downloads/code/claude_code_public_skills/excel-alasql && npm run build)"
     ]
   }
 }

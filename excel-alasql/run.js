@@ -50,6 +50,13 @@ Excel 通用查询工具 v${SKILL_VERSION}
   # 带 LIMIT 限制结果数量
   node skill.js D:/data/data.xlsx "SELECT * FROM a LIMIT 10"
 
+  # 聚合函数（COUNT, SUM）
+  node skill.js D:/data/data.xlsx "SELECT c7, COUNT(*) FROM a GROUP BY c7"
+  node skill.js D:/data/data.xlsx "SELECT c7, SUM(c10) FROM a GROUP BY c7"
+
+  # 多列分组统计
+  node skill.js D:/data/data.xlsx "SELECT c7, c16, COUNT(*) FROM a GROUP BY c7, c16"
+
 表名说明:
   - a: 第 1 个 Sheet
   - b: 第 2 个 Sheet
@@ -167,6 +174,8 @@ if (!sqlQuery) {
   console.log(`  node skill.js ${excelFile} "SELECT * FROM a WHERE c0 = '中间事件'"`);
   console.log(`  node skill.js ${excelFile} "SELECT * FROM a WHERE c2 LIKE '%电源%'"`);
   console.log(`  node skill.js ${excelFile} "SELECT a.c0, b.c0 FROM a JOIN b ON a.c1 = b.c1"`);
+  console.log(`  node skill.js ${excelFile} "SELECT c7, COUNT(*) FROM a GROUP BY c7"`);
+  console.log(`  node skill.js ${excelFile} "SELECT c7, SUM(c10) FROM a GROUP BY c7"`);
   console.log("\n" + "=".repeat(70));
   process.exit(0);
 }
@@ -193,7 +202,14 @@ try {
     // 尝试检测结果来自哪个表
     const firstRowKeys = Object.keys(result[0]);
 
-    // 如果所有列都是 c0, c1, c2... 格式，说明是单表查询
+    // 判断是否包含聚合函数列（如 COUNT, SUM, AVG, MAX, MIN 等）
+    const hasAggregation = firstRowKeys.some(k =>
+      /^(COUNT|SUM|AVG|MAX|MIN|GROUPING|COUNT_\*|[\w_]+\(|[\w_]+)\s*(\(|as)/i.test(k) ||
+      // 检查是否是非 c\d+ 格式的列（可能是聚合或别名列）
+      !/^c\d+$/.test(k)
+    );
+
+    // 如果所有列都是 c0, c1, c2... 格式，说明是单表查询（无聚合）
     if (firstRowKeys.every(k => /^c\d+$/.test(k))) {
       // 找到对应的映射表
       const mapping = columnMappings['a']; // 默认使用第一个表的映射
@@ -206,6 +222,23 @@ try {
           return r;
         });
       }
+    } else if (hasAggregation) {
+      // 混合模式：既有映射列又有聚合列
+      // 只转换 c0, c1... 格式的列，保留聚合列和别名列
+      finalResult = result.map(row => {
+        const r = {};
+        for (const [k, v] of Object.entries(row)) {
+          if (/^c\d+$/.test(k)) {
+            // 这是一个映射列，尝试转换
+            const mapping = columnMappings['a'];
+            r[mapping?.[k] || k] = v;
+          } else {
+            // 聚合列或别名列，保持原样
+            r[k] = v;
+          }
+        }
+        return r;
+      });
     }
   }
 
@@ -224,10 +257,14 @@ try {
   console.log("\n💡 提示:");
   console.log("  - 表名使用 a, b, c... 代表第 1, 2, 3... 个 Sheet");
   console.log("  - 列名使用 c0, c1, c2... 代表第 1, 2, 3... 列");
+  console.log("  - 支持聚合函数: COUNT(*), SUM(c0), AVG(c0), MAX(c0), MIN(c0)");
+  console.log("  - 支持 GROUP BY 分组统计");
   console.log("  - 使用 LIMIT 限制结果数量，避免数据溢出");
   console.log("\n示例:");
   console.log("  SELECT * FROM a WHERE c0 = '值' LIMIT 10");
   console.log("  SELECT a.c0, b.c0 FROM a JOIN b ON a.c1 = b.c1 LIMIT 5");
+  console.log("  SELECT c7, COUNT(*) FROM a GROUP BY c7");
+  console.log("  SELECT c7, SUM(c10) FROM a WHERE c16 = '不合格' GROUP BY c7");
   process.exit(1);
 }
 

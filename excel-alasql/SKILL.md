@@ -2,7 +2,7 @@
 name: excel-alasql
 description: 当用户要求"读取 Excel 文件"、"解析 Excel"、"查询 Excel 数据"、"将 Excel 转换为 JSON"、"使用 SQL 分析 Excel"、"使用 AlaSQL"时，或者需要在 JavaScript/Node.js 环境中使用 SQL 查询处理 Excel 文件（.xlsx、.xls、.csv）时使用此 skill。
 version: 3.0.0
-skill_version: 260220.000532
+skill_version: 260222.205120
 ---
 
 # 使用 AlaSQL 处理 Excel 文件
@@ -341,14 +341,37 @@ node skill.js D:/data/data.xlsx "SELECT * FROM ? WHERE c2 LIKE '%模块%' AND c0
 | 排序 | `SELECT * ORDER BY c1 DESC` |
 | 限制行数 | `SELECT * WHERE c0 = '值' LIMIT 10` |
 | 组合查询 | `SELECT * WHERE c0 = 'A' AND c2 LIKE '%关键词%' ORDER BY c1 LIMIT 5` |
+| **计数统计** | `SELECT c7, COUNT(*) FROM a GROUP BY c7` |
+| **求和统计** | `SELECT c7, SUM(c10) FROM a GROUP BY c7` |
+| **多列分组** | `SELECT c7, c16, COUNT(*) FROM a GROUP BY c7, c16` |
 
 ### SQL 限制
 
 - **仅支持 SELECT 查询**，禁止 UPDATE/DELETE/INSERT/CREATE/DROP/ALTER/TRUNCATE/REPLACE
-- 聚合函数（COUNT/SUM/AVG 等）支持有限
+- **支持聚合函数**：COUNT(*), SUM(c0), AVG(c0), MAX(c0), MIN(c0)
+- **支持 GROUP BY 分组统计**
 - 支持 JOIN 查询（多 Sheet 联合）
 - 表名使用 a, b, c... 代表各个 Sheet
 - 列名使用 c0, c1, c2... 代表各列（自动映射回中文列名）
+
+### 聚合函数示例
+
+```bash
+# 统计各分类的记录数
+node skill.js data.xlsx "SELECT c7, COUNT(*) FROM a GROUP BY c7"
+
+# 统计各分类的总和
+node skill.js data.xlsx "SELECT c7, SUM(c10) FROM a GROUP BY c7"
+
+# 多列分组统计
+node skill.js data.xlsx "SELECT c7, c16, COUNT(*) FROM a GROUP BY c7, c16"
+
+# 带条件的分组统计
+node skill.js data.xlsx "SELECT c7, SUM(c10) FROM a WHERE c16 = '不合格' GROUP BY c7"
+
+# 组合聚合函数
+node skill.js data.xlsx "SELECT c7, COUNT(*), SUM(c10), AVG(c10) FROM a GROUP BY c7"
+```
 
 ---
 
