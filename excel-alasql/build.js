@@ -30,17 +30,11 @@ function updateSkillVersion(version) {
   }
 
   let content = fs.readFileSync(skillMdPath, "utf8");
-  const versionLine = `skill_version: ${version}`;
+  const versionLine = `version: ${version}`;
 
-  // 检查是否已有 skill_version
-  if (content.includes("skill_version:")) {
-    content = content.replace(/skill_version: [\d.]+/, versionLine);
-  } else {
-    // 在 version 字段后添加 skill_version
-    content = content.replace(
-      /version: [\d.]+\n/,
-      `version: 3.0.0\nskill_version: ${version}\n`
-    );
+  // 更新 version 字段为时间戳格式
+  if (content.includes("version:")) {
+    content = content.replace(/version: [\d.]+/, versionLine);
   }
 
   fs.writeFileSync(skillMdPath, content);

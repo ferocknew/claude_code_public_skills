@@ -1,5 +1,5 @@
 #!/usr/bin/env -S npx -y -p alasql@4.17.0 -p xlsx node
-// Excel 工具 v260222.222905 - 包含所有依赖，无需安装
+// Excel 工具 v260222.223055 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -88001,7 +88001,7 @@ var require_alasql_fs = __commonJS({
 // run.js
 var fs = require("fs");
 var XLSX = require_xlsx();
-var SKILL_VERSION = true ? "260222.222905" : "2.0.0-dev";
+var SKILL_VERSION = true ? "260222.223055" : "2.0.0-dev";
 var alasql = require_alasql_fs();
 var excelFile = process.argv[2];
 var sqlQuery = process.argv[3];
