@@ -1,5 +1,5 @@
 #!/usr/bin/env -S npx -y -p alasql@1.7.3 -p xlsx node
-// Excel 工具 v260220.000532 - 包含所有依赖，无需安装
+// Excel 工具 v260222.205120 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -117541,7 +117541,7 @@ var require_alasql_fs = __commonJS({
 // run.js
 var fs = require("fs");
 var XLSX = require_xlsx();
-var SKILL_VERSION = true ? "260220.000532" : "2.0.0-dev";
+var SKILL_VERSION = true ? "260222.205120" : "2.0.0-dev";
 var alasql = require_alasql_fs();
 var excelFile = process.argv[2];
 var sqlQuery = process.argv[3];
@@ -117571,6 +117571,13 @@ Excel \u901A\u7528\u67E5\u8BE2\u5DE5\u5177 v${SKILL_VERSION}
 
   # \u5E26 LIMIT \u9650\u5236\u7ED3\u679C\u6570\u91CF
   node skill.js D:/data/data.xlsx "SELECT * FROM a LIMIT 10"
+
+  # \u805A\u5408\u51FD\u6570\uFF08COUNT, SUM\uFF09
+  node skill.js D:/data/data.xlsx "SELECT c7, COUNT(*) FROM a GROUP BY c7"
+  node skill.js D:/data/data.xlsx "SELECT c7, SUM(c10) FROM a GROUP BY c7"
+
+  # \u591A\u5217\u5206\u7EC4\u7EDF\u8BA1
+  node skill.js D:/data/data.xlsx "SELECT c7, c16, COUNT(*) FROM a GROUP BY c7, c16"
 
 \u8868\u540D\u8BF4\u660E:
   - a: \u7B2C 1 \u4E2A Sheet
@@ -117660,6 +117667,8 @@ if (!sqlQuery) {
   console.log(`  node skill.js ${excelFile} "SELECT * FROM a WHERE c0 = '\u4E2D\u95F4\u4E8B\u4EF6'"`);
   console.log(`  node skill.js ${excelFile} "SELECT * FROM a WHERE c2 LIKE '%\u7535\u6E90%'"`);
   console.log(`  node skill.js ${excelFile} "SELECT a.c0, b.c0 FROM a JOIN b ON a.c1 = b.c1"`);
+  console.log(`  node skill.js ${excelFile} "SELECT c7, COUNT(*) FROM a GROUP BY c7"`);
+  console.log(`  node skill.js ${excelFile} "SELECT c7, SUM(c10) FROM a GROUP BY c7"`);
   console.log("\n" + "=".repeat(70));
   process.exit(0);
 }
@@ -117677,6 +117686,10 @@ try {
   let finalResult = result;
   if (Array.isArray(result) && result.length > 0) {
     const firstRowKeys = Object.keys(result[0]);
+    const hasAggregation = firstRowKeys.some(
+      (k) => /^(COUNT|SUM|AVG|MAX|MIN|GROUPING|COUNT_\*|[\w_]+\(|[\w_]+)\s*(\(|as)/i.test(k) || // 检查是否是非 c\d+ 格式的列（可能是聚合或别名列）
+      !/^c\d+$/.test(k)
+    );
     if (firstRowKeys.every((k) => /^c\d+$/.test(k))) {
       const mapping = columnMappings["a"];
       if (mapping) {
@@ -117688,6 +117701,19 @@ try {
           return r;
         });
       }
+    } else if (hasAggregation) {
+      finalResult = result.map((row) => {
+        const r = {};
+        for (const [k, v] of Object.entries(row)) {
+          if (/^c\d+$/.test(k)) {
+            const mapping = columnMappings["a"];
+            r[mapping?.[k] || k] = v;
+          } else {
+            r[k] = v;
+          }
+        }
+        return r;
+      });
     }
   }
   console.log(`\u2713 \u67E5\u8BE2\u7ED3\u679C: ${finalResult.length} \u6761\u8BB0\u5F55
@@ -117708,10 +117734,14 @@ try {
   console.log("\n\u{1F4A1} \u63D0\u793A:");
   console.log("  - \u8868\u540D\u4F7F\u7528 a, b, c... \u4EE3\u8868\u7B2C 1, 2, 3... \u4E2A Sheet");
   console.log("  - \u5217\u540D\u4F7F\u7528 c0, c1, c2... \u4EE3\u8868\u7B2C 1, 2, 3... \u5217");
+  console.log("  - \u652F\u6301\u805A\u5408\u51FD\u6570: COUNT(*), SUM(c0), AVG(c0), MAX(c0), MIN(c0)");
+  console.log("  - \u652F\u6301 GROUP BY \u5206\u7EC4\u7EDF\u8BA1");
   console.log("  - \u4F7F\u7528 LIMIT \u9650\u5236\u7ED3\u679C\u6570\u91CF\uFF0C\u907F\u514D\u6570\u636E\u6EA2\u51FA");
   console.log("\n\u793A\u4F8B:");
   console.log("  SELECT * FROM a WHERE c0 = '\u503C' LIMIT 10");
   console.log("  SELECT a.c0, b.c0 FROM a JOIN b ON a.c1 = b.c1 LIMIT 5");
+  console.log("  SELECT c7, COUNT(*) FROM a GROUP BY c7");
+  console.log("  SELECT c7, SUM(c10) FROM a WHERE c16 = '\u4E0D\u5408\u683C' GROUP BY c7");
   process.exit(1);
 }
 console.log("\n" + "=".repeat(70));
