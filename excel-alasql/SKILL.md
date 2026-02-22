@@ -1,8 +1,8 @@
 ---
 name: excel-alasql
 description: 当用户要求"读取 Excel 文件"、"解析 Excel"、"查询 Excel 数据"、"将 Excel 转换为 JSON"、"使用 SQL 分析 Excel"、"使用 AlaSQL"时，或者需要在 JavaScript/Node.js 环境中使用 SQL 查询处理 Excel 文件（.xlsx、.xls、.csv）时使用此 skill。
-version: 3.0.0
-skill_version: 260222.205120
+version: 3.1.0
+skill_version: 260222.222905
 ---
 
 # 使用 AlaSQL 处理 Excel 文件
@@ -205,9 +205,12 @@ await alasql(
 - 不保留复杂的 Excel 特性（公式、宏、图表）
 - SQL 功能集有限（相比 PostgreSQL/MySQL）
 - **仅支持查询，不支持修改操作**（UPDATE/DELETE/INSERT/CREATE/DROP/ALTER/TRUNCATE/REPLACE 被禁用）
+- **不支持 AS 别名语法**：`COUNT(*) as count` 不支持，请直接使用 `COUNT(*)`
 - **建议使用 LIMIT 限制结果数量**，防止数据溢出
 
 **推荐场景**：常规 Excel 文件（< 100MB，< 5 万行）的数据分析和统计任务
+
+**注意**：本 skill 使用 AlaSQL v4.16.0，性能和稳定性相比早期版本有显著提升。
 
 ---
 
