@@ -1,4 +1,4 @@
-#!/usr/bin/env -S npx -y -p alasql@1.7.3 -p xlsx node
+#!/usr/bin/env -S npx -y -p alasql@4.17.0 -p xlsx node
 /**
  * Excel 通用查询工具（跨平台版本）
  *
@@ -202,12 +202,19 @@ try {
     // 尝试检测结果来自哪个表
     const firstRowKeys = Object.keys(result[0]);
 
-    // 判断是否包含聚合函数列（如 COUNT, SUM, AVG, MAX, MIN 等）
-    const hasAggregation = firstRowKeys.some(k =>
-      /^(COUNT|SUM|AVG|MAX|MIN|GROUPING|COUNT_\*|[\w_]+\(|[\w_]+)\s*(\(|as)/i.test(k) ||
+    // 检查是否包含聚合函数或别名
+    const hasAggregation = firstRowKeys.some(k => {
+      // 检查是否包含聚合函数（如 COUNT(*)、SUM(c1) 等）
+      const hasAggFunction = /^(COUNT|SUM|AVG|MAX|MIN|GROUPING|COUNT_\*)\s*\(/i.test(k);
+
+      // 检查是否是 AS 别名（包含 as 关键字）
+      const hasAsAlias = /.*\s+as\s+.*/i.test(k);
+
       // 检查是否是非 c\d+ 格式的列（可能是聚合或别名列）
-      !/^c\d+$/.test(k)
-    );
+      const isNonCColumn = !/^c\d+$/.test(k);
+
+      return hasAggFunction || hasAsAlias || isNonCColumn;
+    });
 
     // 如果所有列都是 c0, c1, c2... 格式，说明是单表查询（无聚合）
     if (firstRowKeys.every(k => /^c\d+$/.test(k))) {

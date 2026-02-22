@@ -59,6 +59,7 @@ if (!fs.existsSync(path.join(__dirname, "node_modules"))) {
 
 // React Native 相关包（仅在 RN 环境使用，Node.js 不需要）
 const external = [
+  "react-native",
   "react-native-fs",
   "react-native-fetch-blob",
 ];
