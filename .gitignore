@@ -1,7 +1,9 @@
 .idea
+.claude
+.gitnexus
 node_modules
 .env
 test
 /use_http_mcp/mcp_list/
 /use_http_mcp/sessions/
-/.gitnexus/
+
