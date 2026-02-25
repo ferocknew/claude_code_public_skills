@@ -7,6 +7,7 @@
 | 技能目录 | 名称 | 描述 |
 |---------|------|------|
 | `agent-browser` | Browser Automation | 浏览器自动化，用于网页测试、表单填充、截图和数据提取 |
+| `db_client` | Database Client | 数据库客户端，支持 MySQL、PostgreSQL、SQLite，以及 SSH 隧道连接远程数据库 |
 | `excel-alasql` | Excel with AlaSQL | 使用 SQL 查询处理 Excel 文件（.xlsx、.xls、.csv），支持中文文件名和列名 |
 | `makepad-进化` | Makepad Evolution | 自我改进的 Makepad 开发技能系统 |
 | `obsidian-bases` | Obsidian Bases | 创建和编辑 Obsidian Bases (.base) 文件，支持视图、过滤器、公式 |
