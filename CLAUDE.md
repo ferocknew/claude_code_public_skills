@@ -28,6 +28,7 @@ Detailed content...
 | Skill | Purpose |
 |-------|---------|
 | `agent-browser` | Browser automation, form filling, screenshots, web testing |
+| `db_client` | Database client supporting MySQL, PostgreSQL, SQLite with SSH tunnel connection |
 | `excel-alasql` | SQL query processing for Excel files (.xlsx, .xls, .csv), supports Chinese filenames and column names |
 | `makepad-进化` | Self-improving Makepad development skill system |
 | `obsidian-bases` | Create/edit Obsidian Bases (.base) files with views, filters, formulas |
@@ -81,6 +82,27 @@ node skill-analyze.js <file-path>
 ```
 
 **Version numbering**: The build script generates timestamp-based versions in format `YYMMDD.HHmmSS` and automatically updates `skill_version` in `SKILL.md`.
+
+### DB Client Skill
+
+The `db_client` skill uses esbuild for bundling dependencies into standalone scripts.
+
+```bash
+# Install dependencies
+cd db_client
+pnpm install
+
+# Build standalone script (bundles run.js -> skill.js)
+npm run build
+
+# Run the unbundled version (requires dependencies)
+node run.js mysql host:localhost,port:3306,user:root,password:123,database:testdb
+
+# SSH tunnel connection
+node run.js mysql --ssh host:server.com,user:ubuntu,password:sshpass --db host:localhost,port:3306,user:root,password:123,database:testdb
+```
+
+**Native modules**: `better-sqlite3` (SQLite) and `ssh2` (SSH tunnel) cannot be bundled and must be installed in the runtime environment.
 
 ## Architecture Highlights
 
