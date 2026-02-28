@@ -32,6 +32,7 @@ Detailed content...
 | `doc_reader` | Read Microsoft Word documents (.docx) and convert to Markdown or HTML format |
 | `excel-alasql` | SQL query processing for Excel files (.xlsx, .xls, .csv), supports Chinese filenames and column names |
 | `makepad-进化` | Self-improving Makepad development skill system |
+| `obsidian_cli` | Interact with Obsidian vault using CLI - read, search, create notes, manage tasks, tags, properties |
 | `obsidian-bases` | Create/edit Obsidian Bases (.base) files with views, filters, formulas |
 | `obsidian-json-canvas` | Create/edit JSON Canvas (.canvas) files with nodes, edges, groups |
 | `use-http-mcp` | HTTP request tool using Node.js native fetch API, supports GET/POST/PUT/DELETE/PATCH, Basic Auth, Bearer Token, file upload/download |

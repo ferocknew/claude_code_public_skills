@@ -11,6 +11,7 @@
 | `doc_reader` | DOCX Reader | 读取 Microsoft Word 文档（.docx）并转换为 Markdown 或 HTML 格式 |
 | `excel-alasql` | Excel with AlaSQL | 使用 SQL 查询处理 Excel 文件（.xlsx、.xls、.csv），支持中文文件名和列名 |
 | `makepad-进化` | Makepad Evolution | 自我改进的 Makepad 开发技能系统 |
+| `obsidian_cli` | Obsidian CLI | 使用 Obsidian CLI 与本地知识库交互 - 读取笔记、搜索、创建笔记、管理任务、标签、属性 |
 | `obsidian-bases` | Obsidian Bases | 创建和编辑 Obsidian Bases (.base) 文件，支持视图、过滤器、公式 |
 | `obsidian-json-canvas` | JSON Canvas | 创建和编辑 JSON Canvas (.canvas) 文件，支持节点、边、分组 |
 | `use-http-mcp` | HTTP MCP Tool | HTTP 请求工具，使用 Node.js 原生 fetch API，支持 GET/POST/PUT/DELETE/PATCH、Basic Auth、Bearer Token、文件上传下载 |
