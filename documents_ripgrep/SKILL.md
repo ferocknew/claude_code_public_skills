@@ -1,7 +1,7 @@
 ---
 name: documents-ripgrep
 description: 当用户要求"搜索文档内容"、"在文件中查找关键词"、"搜索 Office 文件"、"全文检索"、"使用 ripgrep 搜索"时，或者需要在大量文档（包括文本文件和 Office 文件）中搜索特定内容时使用此 skill。
-version: 260303.121642
+version: 260303.123455
 ---
 
 # 使用 ripgrep 搜索文档内容
@@ -57,7 +57,7 @@ node skill.js <目录路径> <关键词> -w
 | **XLSX** | Excel 2007+ 格式 | ✅ 完全支持 |
 | **PPTX** | PowerPoint 2007+ 格式 | ✅ 完全支持 |
 
-**注意**：旧版 Office 文件（.doc, .xls, .ppt）需要另存为新版本才能被搜索。
+> ⚠️ 不支持 PDF 和旧版 Office 文件（.doc, .xls, .ppt），请转换为新版格式。
 
 ---
 
@@ -144,24 +144,11 @@ node skill.js ~/Documents "function" --no-office
 
 ## 依赖安装
 
-### 全局安装（推荐）
-
 ```bash
-# 使用 pnpm
 pnpm add -g textract
-pnpm add -g @vscode/ripgrep
-
-# 或使用 npm
-npm install -g textract
-npm install -g @vscode/ripgrep
 ```
 
-### textract 额外依赖
-
-textract 可能需要一些系统依赖来处理特定格式：
-
-- **macOS**: `brew install poppler antiword`
-- **Ubuntu**: `apt-get install poppler-utils antiword`
+> .docx/.xlsx/.pptx 纯 JS 实现，无需额外系统依赖。
 
 ---
 
@@ -182,11 +169,35 @@ textract 可能需要一些系统依赖来处理特定格式：
 
 ---
 
+## 输出格式
+
+搜索结果以 Markdown 列表格式输出：
+
+```markdown
+- /absolute/path/to/file.md
+  - ...上下文 **关键词** 上下文...
+  - ...另一处 **关键词** 上下文...
+- /absolute/path/to/another.docx
+  - ...上下文 **关键词** 上下文...
+```
+
+**格式说明：**
+- 每个文件作为一级列表项（显示绝对路径）
+- 每个匹配作为二级列表项
+- 关键词使用 `**粗体**` 高亮
+- 上下文显示关键词前后各 20 个字符
+
+---
+
 ## 常见问题
 
-### Q: 为什么搜不到 .doc 文件？
+### Q: 支持 PDF 文件吗？
 
-**A:** 旧版 Office 格式（.doc, .xls, .ppt）不支持。请将文件另存为新版本格式（.docx, .xlsx, .pptx）。
+**A:** 不支持。本工具专注于文本文件和 Office 2007+ 格式（.docx, .xlsx, .pptx）。
+
+### Q: 支持 .doc/.xls/.ppt 旧版格式吗？
+
+**A:** 不支持。请将文件另存为新版格式（.docx, .xlsx, .pptx）。
 
 ### Q: 如何搜索特定类型的文件？
 

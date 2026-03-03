@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 文档搜索工具 v260303.121642
+// 文档搜索工具 v260303.123455
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -19,7 +19,7 @@ var require_lib = __commonJS({
 var fs = require("fs");
 var path = require("path");
 var { execSync, spawn } = require("child_process");
-var SKILL_VERSION = true ? "260303.121642" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260303.123455" : "1.0.0-dev";
 var OFFICE_EXTENSIONS = [".docx", ".xlsx", ".pptx"];
 var TEXT_EXTENSIONS = [
   ".txt",
@@ -187,18 +187,28 @@ function searchWithRipgrep() {
     }
     rgArgs.push("--type-add", "text:*{txt,md,json,js,ts,jsx,tsx,py,java,c,cpp,h,hpp,css,scss,html,xml,yaml,yml,sh,bash,zsh,csv,log,ini,conf,cfg,go,rs,rb,php,lua,sql,vue,svelte,astro}");
     rgArgs.push("-t", "text");
+    rgArgs.push("--glob", "!node_modules/**");
+    rgArgs.push("--glob", "!**/skill.js");
+    rgArgs.push("--glob", "!**/skill-analyze.js");
+    rgArgs.push("--glob", "!**/*.min.js");
     rgArgs.push(searchKeyword);
     rgArgs.push(targetPath);
     let rgPath;
     try {
-      rgPath = require_lib().rgPath;
+      const rgModule = require_lib();
+      rgPath = rgModule.rgPath;
+      if (!fs.existsSync(rgPath)) {
+        rgPath = null;
+      }
     } catch {
+      rgPath = null;
+    }
+    if (!rgPath) {
       rgPath = "rg";
     }
     const output = execSync(`"${rgPath}" ${rgArgs.map((a) => `"${a}"`).join(" ")}`, {
       encoding: "utf-8",
-      maxBuffer: 50 * 1024 * 1024,
-      cwd: targetPath
+      maxBuffer: 50 * 1024 * 1024
     }).toString();
     const lines = output.split("\n").filter(Boolean);
     let count = 0;
@@ -208,11 +218,15 @@ function searchWithRipgrep() {
         const data = JSON.parse(line);
         if (data.type === "match") {
           const match = data.data;
+          const submatch = match.submatches[0];
           results.push({
             file: match.path.text,
             line: match.line_number,
-            column: match.submatches[0]?.start || 0,
-            content: match.lines.text.trim(),
+            column: submatch?.start || 0,
+            content: match.lines.text,
+            // 保留原始内容，不 trim
+            matchStart: submatch?.start || 0,
+            matchEnd: submatch?.end || 0,
             type: "text"
           });
           count++;
@@ -295,7 +309,9 @@ function searchInOfficeFiles() {
           file: filePath,
           line: i + 1,
           column: match.index,
-          content: line.trim().substring(0, 200),
+          content: line.trim(),
+          matchStart: match.index,
+          matchEnd: match.index + match[0].length,
           type: "office"
         });
         count++;
@@ -309,6 +325,38 @@ function escapeRegExp(string) {
 }
 searchWithRipgrep();
 searchInOfficeFiles();
+function getContextSnippet(rawContent, matchStart, matchEnd, contextLength = 20) {
+  const buffer = Buffer.from(rawContent, "utf-8");
+  function byteToCharOffset(byteOffset) {
+    let charOffset = 0;
+    let byteCount = 0;
+    while (byteCount < byteOffset && charOffset < rawContent.length) {
+      const charCode = rawContent.charCodeAt(charOffset);
+      if (charCode <= 127) byteCount += 1;
+      else if (charCode <= 2047) byteCount += 2;
+      else if (charCode <= 65535) byteCount += 3;
+      else byteCount += 4;
+      charOffset++;
+    }
+    return charOffset;
+  }
+  const charStart = byteToCharOffset(matchStart);
+  const charEnd = byteToCharOffset(matchEnd);
+  const trimmed = rawContent.trim();
+  const leadingSpaces = rawContent.length - rawContent.trimStart().length;
+  const adjustedStart = Math.max(0, charStart - leadingSpaces);
+  const adjustedEnd = Math.min(trimmed.length, charEnd - leadingSpaces);
+  const contextStart = Math.max(0, adjustedStart - contextLength);
+  const contextEnd = Math.min(trimmed.length, adjustedEnd + contextLength);
+  const keyword = trimmed.substring(adjustedStart, adjustedEnd);
+  const before = trimmed.substring(contextStart, adjustedStart);
+  const after = trimmed.substring(adjustedEnd, contextEnd);
+  let snippet = "";
+  if (contextStart > 0) snippet += "...";
+  snippet += before + "**" + keyword + "**" + after;
+  if (contextEnd < trimmed.length) snippet += "...";
+  return snippet;
+}
 console.log("\n" + "=".repeat(70));
 console.log(`\u{1F4CA} \u641C\u7D22\u7ED3\u679C: ${results.length} \u4E2A\u5339\u914D`);
 console.log("=".repeat(70) + "\n");
@@ -317,24 +365,27 @@ if (results.length === 0) {
 } else {
   const grouped = {};
   for (const result of results) {
-    if (!grouped[result.file]) {
-      grouped[result.file] = [];
+    const absPath = path.resolve(result.file);
+    if (!grouped[absPath]) {
+      grouped[absPath] = [];
     }
-    grouped[result.file].push(result);
+    grouped[absPath].push(result);
   }
-  const displayResults = results.slice(0, options.maxResults);
-  for (const result of displayResults) {
-    const typeIcon = result.type === "office" ? "\u{1F4E6}" : "\u{1F4C4}";
-    console.log(`${typeIcon} ${result.file}:${result.line}`);
-    console.log(`   ${result.content}`);
-    console.log();
+  console.log("```markdown");
+  for (const [filePath, matches] of Object.entries(grouped)) {
+    console.log(`- ${filePath}`);
+    for (const match of matches) {
+      const snippet = getContextSnippet(
+        match.content,
+        match.matchStart,
+        match.matchEnd
+      );
+      console.log(`  - ${snippet}`);
+    }
   }
-  if (results.length > options.maxResults) {
-    console.log(`... \u8FD8\u6709 ${results.length - options.maxResults} \u4E2A\u7ED3\u679C\u672A\u663E\u793A`);
-  }
+  console.log("```");
   console.log("\n" + "\u2500".repeat(70));
-  console.log(`\u603B\u8BA1: ${results.length} \u4E2A\u5339\u914D`);
-  console.log(`\u6587\u4EF6\u6570: ${Object.keys(grouped).length}`);
+  console.log(`\u603B\u8BA1: ${results.length} \u4E2A\u5339\u914D\uFF0C${Object.keys(grouped).length} \u4E2A\u6587\u4EF6`);
 }
 console.log("\n" + "=".repeat(70));
 console.log("\u2705 \u5B8C\u6210\uFF01");
