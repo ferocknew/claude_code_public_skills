@@ -1,14 +1,70 @@
-### 技术方案
-- nodejs + tesseract + ripgrep
-- 文件类型：
-  - 所有文本文件 （ripgrep 搜索）
-  - tesseract 支持文件 （不额外装其他模块）
-    - .docx
-    - .xlsx
-    - .pptx
-- 旧版 Office 提示需要另存成新版本才可以被搜索到。
+# documents-ripgrep
 
-### 需要全局安装
-- pnpm （npm 也可以，但是推荐pnpm，更先进）
-- pnpm add -g textract  
-- pnpm add -g @vscode/ripgrep
+使用 ripgrep 和 textract 搜索文档内容的工具。
+
+## 技术方案
+
+- **ripgrep**：高效搜索文本文件
+- **textract**：提取 Office 文件文本内容
+
+### 支持的文件类型
+
+**文本文件（ripgrep 直接搜索）：**
+- 代码文件：.js, .ts, .py, .java, .c, .cpp, .go, .rs, .rb, .php 等
+- 配置文件：.json, .yaml, .yml, .ini, .conf
+- 标记文件：.md, .txt, .html, .xml, .css
+- 脚本文件：.sh, .bash, .zsh, .sql
+
+**Office 文件（textract 提取）：**
+- .docx（Word 2007+）
+- .xlsx（Excel 2007+）
+- .pptx（PowerPoint 2007+）
+
+> ⚠️ 旧版 Office 文件（.doc, .xls, .ppt）需要另存为新版本才能被搜索。
+
+## 快速开始
+
+```bash
+# 基本搜索
+node skill.js <目录路径> <搜索关键词>
+
+# 区分大小写
+node skill.js <目录路径> <关键词> -s
+
+# 正则表达式
+node skill.js <目录路径> <正则表达式> -e
+
+# 全词匹配
+node skill.js <目录路径> <关键词> -w
+
+# 限制结果数量
+node skill.js <目录路径> <关键词> -m 50
+```
+
+## 命令行选项
+
+| 选项 | 说明 |
+|------|------|
+| `-h, --help` | 显示帮助信息 |
+| `-s, --case-sensitive` | 区分大小写 |
+| `-e, --regex` | 使用正则表达式 |
+| `-w, --word` | 全词匹配 |
+| `--no-office` | 跳过 Office 文件搜索 |
+| `-m, --max-results N` | 最大结果数量（默认 100） |
+
+## 全局安装（可选）
+
+```bash
+pnpm add -g textract
+pnpm add -g @vscode/ripgrep
+```
+
+## 开发
+
+```bash
+# 安装依赖
+pnpm install
+
+# 打包
+pnpm build
+```
