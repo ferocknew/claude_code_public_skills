@@ -1,5 +1,5 @@
 ---
-name: documents-ripgrep
+name: documents_ripgrep
 description: 当用户要求"搜索文档内容"、"在文件中查找关键词"、"搜索 Office 文件"、"全文检索"、"使用 ripgrep 搜索"时，或者需要在大量文档（包括文本文件和 Office 文件）中搜索特定内容时使用此 skill。
 version: 260303.123455
 ---
