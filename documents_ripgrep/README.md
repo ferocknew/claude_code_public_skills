@@ -20,7 +20,7 @@
 - .xlsx（Excel 2007+）
 - .pptx（PowerPoint 2007+）
 
-> ⚠️ 旧版 Office 文件（.doc, .xls, .ppt）需要另存为新版本才能被搜索。
+> ⚠️ 不支持 PDF 和旧版 Office 文件（.doc, .xls, .ppt）。
 
 ## 快速开始
 
@@ -56,8 +56,9 @@ node skill.js <目录路径> <关键词> -m 50
 
 ```bash
 pnpm add -g textract
-pnpm add -g @vscode/ripgrep
 ```
+
+> .docx/.xlsx/.pptx 无需额外系统依赖，纯 JS 实现。
 
 ## 开发
 
