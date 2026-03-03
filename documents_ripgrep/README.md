@@ -66,6 +66,14 @@ pnpm add -g textract
 # 安装依赖
 pnpm install
 
-# 打包
+# 打包（使用 esbuild 将依赖打包进 skill.js）
 pnpm build
 ```
+
+## 性能优化
+
+- **并行处理**：每批并发处理 5 个 Office 文件
+- **智能缓存**：在 `~/.cache/documents_ripgrep` 缓存已解析的文本
+  - 缓存键：`sha1.文件修改时间.txt`
+  - 文件修改后缓存自动失效
+  - 30 天后自动清理过期缓存

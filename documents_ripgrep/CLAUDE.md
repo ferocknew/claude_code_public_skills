@@ -33,7 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 安装依赖
 ```bash
-npm install
+pnpm install
 ```
 
 ### 运行主工具
@@ -45,7 +45,7 @@ node run.js <目录路径> <搜索关键词>
 node run.js <目录路径> <正则表达式> -e
 
 # 打包
-node build.js
+pnpm build
 ```
 
 ---
