@@ -73,10 +73,16 @@ curl "https://r.jina.ai/https://medium.com/@user/article-title"
 
 | 格式 | 说明 | 适用场景 |
 |------|------|----------|
-| `markdown`（默认） | Markdown 格式 | 阅读、分析、存储 |
-| `text` | 纯文本格式 | 快速浏览、最节省 Token |
+| `text` | 纯文本格式 | **强烈推荐**：快速浏览、节省 Token（约 1x） |
+| `markdown`（默认） | Markdown 格式 | 仅限需要下载保存时使用（约 8-10x） |
 | `html` | 原始 HTML | 需要保留 HTML 结构 |
 | `json` | JSON 格式 | 程序化处理 |
+
+> ⚠️ **重要提示**：`markdown` 格式的输出量大约是 `text` 格式的 **8-10 倍**！
+>
+> - **日常使用**：强烈建议使用 `text` 格式，内容足够且节省 Token
+> - **需要保存**：仅在需要下载保存网页时使用 `markdown` 格式
+> - `text` 格式会移除链接和格式，但核心内容完整保留
 
 ### JSON 格式返回结构
 
@@ -169,11 +175,15 @@ curl "https://r.jina.ai/https://docs.anthropic.com/claude/docs" \
 
 | 场景 | 推荐格式 | 示例 |
 |------|----------|-------|
-| 读取社交媒体帖子 | `text` | Twitter/X 线程内容 |
-| 获取技术文档 | `markdown` | API 文档、教程 |
-| 抓取新闻文章 | `text` | 新闻正文内容 |
+| 读取社交媒体帖子 | `text` ⭐ | Twitter/X 线程内容 |
+| 获取技术文档 | `text` ⭐ | API 文档、教程 |
+| 抓取新闻文章 | `text` ⭐ | 新闻正文内容 |
+| 快速浏览网页 | `text` ⭐ | 任何网页内容 |
+| 下载保存网页 | `markdown` | 需要保留链接和格式 |
 | 程序化处理 | `json` | 需要结构化数据 |
-| 保留页面结构 | `html` | 需要分析 HTML 元素 |
+| 分析 HTML 结构 | `html` | 需要解析 DOM 元素 |
+
+> ⭐ = 推荐格式，节省 Token 且内容完整
 
 ---
 
@@ -207,11 +217,18 @@ curl "https://r.jina.ai/https://docs.anthropic.com/claude/docs" \
 
 ## 最佳实践
 
-### 快速获取内容
+### 快速获取内容（推荐）
 
 ```bash
-# 一行命令获取纯文本
+# 默认使用 text 格式，节省 Token
 curl -s "https://r.jina.ai/https://example.com" -H "X-Return-Format: text"
+```
+
+### 下载保存网页
+
+```bash
+# 仅在需要保存时使用 markdown 格式
+curl -s "https://r.jina.ai/https://example.com" -o webpage.md
 ```
 
 ### 获取结构化数据
