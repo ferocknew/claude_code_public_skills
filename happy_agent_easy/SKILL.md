@@ -1,12 +1,22 @@
 ---
 name: happy_agent_easy
 description: 当用户要求"查看 Happy Agent 会话"、"管理远程 Agent"、"获取会话状态"、"查看会话历史"、"发送消息到 Agent"时，或者需要与 Happy Coder Agent 进行远程交互时使用此 skill。
-version: 260311.114030
+version: 260311.114447
 ---
 
 # Happy Agent Easy - 简化的 Happy Agent 客户端
 
 本 skill 提供对 Happy Agent CLI 的简化封装，优化输出格式以减少 token 消耗，并提供更语义化的信息供 LLM 使用。
+
+## 重要提示
+
+**发送消息后必须确认执行结果：**
+- 使用 `send` 命令发送消息后，LLM 应等待 3～5 秒，然后使用 `history` 命令查看目标会话的回复
+- 这是因为目标 Agent 需要时间处理消息并生成响应
+- 示例流程：
+  1. `send <session-id> "你的问题"`
+  2. 等待 3～5 秒
+  3. `history <session-id> 5` 查看最新回复
 
 ## 概述
 
