@@ -1,7 +1,7 @@
 ---
 name: happy_agent_easy
 description: 当用户要求"查看 Happy Agent 会话"、"管理远程 Agent"、"获取会话状态"、"查看会话历史"、"发送消息到 Agent"时，或者需要与 Happy Coder Agent 进行远程交互时使用此 skill。
-version: 260311.115346
+version: 260311.120022
 ---
 
 # Happy Agent Easy - 简化的 Happy Agent 客户端
@@ -23,6 +23,34 @@ version: 260311.115346
 ## 定时任务（CronCreate）
 
 使用 Claude Code 内置的 `CronCreate` 工具可以创建定时任务，定期给目标会话发送消息。
+
+### 重要限制
+
+⚠️ **使用前必读：**
+
+1. **最小粒度为 1 分钟**：CronCreate 只支持分钟及以上周期，不支持秒级定时任务。标准 cron 不支持秒级调度。
+
+2. **最长有效期 3 天**：定时任务会在创建后 3 天自动过期并停止执行。如需长期运行，需要在过期前重新创建任务。
+
+3. **必须在消息中强制要求回调**：发送定时任务消息时，务必在内容中明确要求对方 Agent 完成后通知你，否则无法得知任务执行结果。
+
+### 回调通知的正确写法
+
+**❌ 错误示例（无法收到通知）：**
+```
+定时检查服务器状态
+```
+
+**✅ 正确示例（强制要求回调）：**
+```
+定时检查服务器状态。
+
+【重要】任务完成后，请立即使用以下命令通知我：
+happy-agent send <你的session-id> "[完成通知] 服务器状态检查已完成"
+
+或者回复：
+"任务已完成，请使用 happy-agent history <目标session-id> 查看详情"
+```
 
 ### 特性
 
@@ -46,18 +74,24 @@ version: 260311.115346
 ### 使用示例
 
 ```javascript
-// 创建每分钟执行的定时任务
+// 创建每分钟执行的定时任务（含回调指令）
 CronCreate({
   cron: "* * * * *",
   recurring: true,
-  prompt: "使用 happy_agent_easy skill 给 <session-id> 发送消息：'定时检查任务'"
+  prompt: `使用 happy_agent_easy skill 给 <session-id> 发送消息：
+'定时检查任务
+
+【重要】完成后请使用 happy-agent send <你的session> "[完成通知] 定时检查已完成" 通知我'`
 })
 
-// 创建一次性任务（指定具体时间）
+// 创建一次性任务（指定具体时间，含回调）
 CronCreate({
   cron: "30 14 11 3 *",  // 3月11日 14:30
   recurring: false,
-  prompt: "使用 happy_agent_easy skill 给 <session-id> 发送消息：'提醒事项'"
+  prompt: `使用 happy_agent_easy skill 给 <session-id> 发送消息：
+'提醒事项
+
+【重要】完成后请使用 happy-agent send <你的session> "[完成通知] 提醒事项已处理" 通知我'`
 })
 
 // 查看当前任务
@@ -71,7 +105,7 @@ CronDelete({ id: "任务ID" })
 
 当目标 Agent 完成任务后，需要通知发起方，有两种方式：
 
-**方式一：使用 --callback 参数**
+**方式一：使用 --callback 参数（推荐用于 send 命令）**
 
 ```bash
 node skill.js send <目标session> "你的任务" --callback <你的session>
@@ -79,7 +113,9 @@ node skill.js send <目标session> "你的任务" --callback <你的session>
 
 这会在消息中附加隐藏指令，提示对方完成后通知你。
 
-**方式二：在消息中明确要求回复**
+**方式二：在消息中明确要求回复（推荐用于 CronCreate 定时任务）**
+
+定时任务消息中**必须**使用此方式，确保能收到执行结果通知：
 
 ```bash
 node skill.js send <目标session> "完成任务后请使用 happy-agent send <你的session> '任务完成' 通知我"
@@ -87,10 +123,11 @@ node skill.js send <目标session> "完成任务后请使用 happy-agent send <�
 
 ### 定时任务最佳实践
 
-1. **避免整点执行**: 建议使用 `3 * * * *` 而非 `0 * * * *`，减少并发压力
-2. **添加回调**: 在 prompt 中包含 `--callback` 或明确要求回复
-3. **及时清理**: 任务完成后用 `CronDelete` 删除，避免资源浪费
-4. **监控执行**: 定期用 `history` 检查目标会话是否正常响应
+1. **强制添加回调指令**: 必须在消息中明确要求对方完成后通知你，这是获知任务执行结果的唯一可靠方式
+2. **避免整点执行**: 建议使用 `3 * * * *` 而非 `0 * * * *`，减少并发压力
+3. **注意过期时间**: 任务最长 3 天，长期任务需在过期前重新创建
+4. **及时清理**: 任务完成后用 `CronDelete` 删除，避免资源浪费
+5. **监控执行**: 定期用 `history` 检查目标会话是否正常响应
 
 ## 概述
 
