@@ -1,7 +1,7 @@
 ---
 name: happy_agent_easy
 description: 当用户要求"查看 Happy Agent 会话"、"管理远程 Agent"、"获取会话状态"、"查看会话历史"、"发送消息到 Agent"时，或者需要与 Happy Coder Agent 进行远程交互时使用此 skill。
-version: 260311.114447
+version: 260311.115346
 ---
 
 # Happy Agent Easy - 简化的 Happy Agent 客户端
@@ -17,6 +17,80 @@ version: 260311.114447
   1. `send <session-id> "你的问题"`
   2. 等待 3～5 秒
   3. `history <session-id> 5` 查看最新回复
+
+---
+
+## 定时任务（CronCreate）
+
+使用 Claude Code 内置的 `CronCreate` 工具可以创建定时任务，定期给目标会话发送消息。
+
+### 特性
+
+- **最小粒度**: 1 分钟（标准 cron 不支持秒级）
+- **自动过期**: 3 天后自动停止
+- **会话级别**: 任务仅在当前会话有效，退出 Claude 后任务消失
+- **管理命令**: `CronList` 查看任务，`CronDelete` 删除任务
+
+### Cron 表达式格式
+
+标准 5 字段格式: `M H DoM Mon DoW`
+
+```
+分钟 小时 日 月 星期
+* * * * *     每分钟
+*/5 * * * *   每 5 分钟
+0 * * * *     每小时整点
+0 9 * * 1-5   工作日早 9 点
+```
+
+### 使用示例
+
+```javascript
+// 创建每分钟执行的定时任务
+CronCreate({
+  cron: "* * * * *",
+  recurring: true,
+  prompt: "使用 happy_agent_easy skill 给 <session-id> 发送消息：'定时检查任务'"
+})
+
+// 创建一次性任务（指定具体时间）
+CronCreate({
+  cron: "30 14 11 3 *",  // 3月11日 14:30
+  recurring: false,
+  prompt: "使用 happy_agent_easy skill 给 <session-id> 发送消息：'提醒事项'"
+})
+
+// 查看当前任务
+CronList()
+
+// 删除任务
+CronDelete({ id: "任务ID" })
+```
+
+### 任务回调通知
+
+当目标 Agent 完成任务后，需要通知发起方，有两种方式：
+
+**方式一：使用 --callback 参数**
+
+```bash
+node skill.js send <目标session> "你的任务" --callback <你的session>
+```
+
+这会在消息中附加隐藏指令，提示对方完成后通知你。
+
+**方式二：在消息中明确要求回复**
+
+```bash
+node skill.js send <目标session> "完成任务后请使用 happy-agent send <你的session> '任务完成' 通知我"
+```
+
+### 定时任务最佳实践
+
+1. **避免整点执行**: 建议使用 `3 * * * *` 而非 `0 * * * *`，减少并发压力
+2. **添加回调**: 在 prompt 中包含 `--callback` 或明确要求回复
+3. **及时清理**: 任务完成后用 `CronDelete` 删除，避免资源浪费
+4. **监控执行**: 定期用 `history` 检查目标会话是否正常响应
 
 ## 概述
 
