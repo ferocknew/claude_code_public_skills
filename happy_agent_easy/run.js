@@ -38,6 +38,8 @@ Happy Agent Easy v${SKILL_VERSION}
   history <session-id> [limit] [options]  查看会话历史
   send <session-id> <message> [options]  发送消息到会话
   wait <session-id> [--timeout <ms>]   等待会话空闲
+  whoami                       获取当前会话的 session-id
+  whoami                       获取当前会话的 session-id
 
 history 选项:
   --desc          倒序显示（最新消息在前，默认）
@@ -58,6 +60,7 @@ send 选项:
   node skill.js list
   node skill.js list --limit 20
   node skill.js list --all
+  node skill.js whoami
   node skill.js status cmmlfb1d716gwo414t04qqrhz
   node skill.js history cmmlfb1d716gwo414t04qqrhz 20
   node skill.js history cmmlfb1d716gwo414t04qqrhz 50 --asc
@@ -498,6 +501,85 @@ function handleWait(sessionId, timeout = 60000) {
   console.log("\n" + "=".repeat(60));
 }
 
+// whoami 命令处理 - 获取当前会话的 session-id
+function handleWhoami() {
+  const currentPath = process.cwd();
+
+  try {
+    const sessions = runHappyAgent("list");
+
+    if (!Array.isArray(sessions)) {
+      console.log(JSON.stringify({ error: "无法获取会话列表" }, null, 2));
+      return;
+    }
+
+    const activeSessions = sessions.filter(s => s.active);
+
+    // 查找当前工作目录匹配的活跃会话（精确匹配或子目录匹配）
+    let currentSession = sessions.find(s =>
+      s.active && s.metadata?.path === currentPath
+    );
+
+    // 如果没有精确匹配，尝试查找当前目录是否是某个会话的子目录
+    if (!currentSession) {
+      currentSession = activeSessions.find(s => {
+        const sessionPath = s.metadata?.path;
+        return sessionPath && currentPath.startsWith(sessionPath);
+      });
+    }
+
+    // 如果还是没有找到，尝试查找会话目录是否是当前目录的子目录（反向匹配）
+    if (!currentSession) {
+      currentSession = activeSessions.find(s => {
+        const sessionPath = s.metadata?.path;
+        return sessionPath && sessionPath.startsWith(currentPath);
+      });
+    }
+
+    if (currentSession) {
+      const result = {
+        sessionId: currentSession.id,
+        claudeSessionId: currentSession.metadata?.claudeSessionId || null,
+        path: currentSession.metadata?.path || currentPath,
+        host: currentSession.metadata?.host || "unknown",
+        active: true
+      };
+      console.log(JSON.stringify(result, null, 2));
+    } else if (activeSessions.length === 1) {
+      // 只有一个活跃会话，直接返回
+      const s = activeSessions[0];
+      const result = {
+        sessionId: s.id,
+        claudeSessionId: s.metadata?.claudeSessionId || null,
+        path: s.metadata?.path || "unknown",
+        host: s.metadata?.host || "unknown",
+        active: true,
+        note: "仅有一个活跃会话"
+      };
+      console.log(JSON.stringify(result, null, 2));
+    } else if (activeSessions.length > 1) {
+      // 多个活跃会话，无法确定
+      console.log(JSON.stringify({
+        error: "无法确定当前会话",
+        reason: "存在多个活跃会话且路径不匹配",
+        currentPath: currentPath,
+        activeSessions: activeSessions.map(s => ({
+          sessionId: s.id,
+          path: s.metadata?.path || "unknown"
+        }))
+      }, null, 2));
+    } else {
+      // 没有活跃会话
+      console.log(JSON.stringify({
+        error: "没有活跃会话",
+        currentPath: currentPath
+      }, null, 2));
+    }
+  } catch (error) {
+    console.log(JSON.stringify({ error: "执行失败", message: error.message }, null, 2));
+  }
+}
+
 // 主程序
 if (!command || command === "-h" || command === "--help") {
   showHelp();
@@ -613,6 +695,10 @@ try {
         process.exit(1);
       }
       handleWait(sessionId, timeout);
+      break;
+    }
+    case "whoami": {
+      handleWhoami();
       break;
     }
     default:
