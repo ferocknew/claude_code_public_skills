@@ -151,59 +151,43 @@ function formatSessionLabel(s) {
 function handleList(options = {}) {
   const { showAll = false, limit = 10 } = options;
 
-  console.log("\n" + "=".repeat(60));
-  console.log("📋 Happy Agent 会话列表");
-  console.log("=".repeat(60) + "\n");
-
   const sessions = runHappyAgent("list");
 
   if (!Array.isArray(sessions)) {
-    console.log("无法获取会话列表");
+    console.log(JSON.stringify({ error: "无法获取会话列表" }, null, 2));
     return;
   }
 
-  const activeSessions = sessions.filter(s => s.active);
-  const inactiveSessions = sessions.filter(s => !s.active);
+  // 筛选和排序
+  let filteredSessions = showAll
+    ? sessions.sort((a, b) => (b.activeAt || b.updatedAt || 0) - (a.activeAt || a.updatedAt || 0))
+    : sessions.filter(s => s.active);
 
-  console.log(`会话总数: ${sessions.length} | 活跃: ${activeSessions.length} | 显示限制: ${limit}\n`);
+  const total = sessions.length;
+  const activeCount = sessions.filter(s => s.active).length;
 
-  if (showAll) {
-    // 显示所有会话（按最后活跃时间排序）
-    const allSessions = sessions
-      .sort((a, b) => (b.activeAt || b.updatedAt || 0) - (a.activeAt || a.updatedAt || 0))
-      .slice(0, limit);
+  // 格式化输出
+  const result = filteredSessions.slice(0, limit).map(s => {
+    const host = s.metadata?.host || "unknown";
+    const shortHost = host.split(".")[0] || host;
+    const path = s.metadata?.path || "";
+    const parts = path.split("/").filter(p => p);
+    const title = s.metadata?.name || (parts.length > 0 ? parts[parts.length - 1] : "-");
 
-    console.log("所有会话（按活跃时间排序）:\n");
-    allSessions.forEach((s, i) => {
-      const statusIcon = s.active ? "🟢" : "⚪";
-      const statusText = s.active ? "active" : "inactive";
-      console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
-      console.log(`     状态: ${statusIcon} ${statusText} | 最后活跃: ${formatTime(s.activeAt || s.updatedAt)}\n`);
-    });
+    return {
+      host: shortHost,
+      title: title,
+      sessionId: s.id,
+      active: s.active
+    };
+  });
 
-    if (sessions.length > limit) {
-      console.log(`  ... 还有 ${sessions.length - limit} 个会话\n`);
-    }
-  } else {
-    // 默认只显示活跃会话
-    const displayActive = activeSessions.slice(0, limit);
-
-    console.log("活跃会话:\n");
-    displayActive.forEach((s, i) => {
-      console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
-      console.log(`     状态: 🟢 active | 最后活跃: ${formatTime(s.activeAt || s.updatedAt)}\n`);
-    });
-
-    if (activeSessions.length > limit) {
-      console.log(`  ... 还有 ${activeSessions.length - limit} 个活跃会话\n`);
-    }
-
-    if (activeSessions.length === 0) {
-      console.log("  无活跃会话\n");
-    }
-  }
-
-  console.log("=".repeat(60));
+  console.log(JSON.stringify({
+    total: total,
+    active: activeCount,
+    showing: result.length,
+    sessions: result
+  }, null, 2));
 }
 
 // status 命令处理
