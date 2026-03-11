@@ -1,7 +1,7 @@
 ---
 name: happy_agent_easy
 description: 当用户要求"查看 Happy Agent 会话"、"管理远程 Agent"、"获取会话状态"、"查看会话历史"、"发送消息到 Agent"时，或者需要与 Happy Coder Agent 进行远程交互时使用此 skill。
-version: 260311.113223
+version: 260311.113820
 ---
 
 # Happy Agent Easy - 简化的 Happy Agent 客户端
