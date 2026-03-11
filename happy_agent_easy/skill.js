@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Happy Agent Easy v260311.104403 - 包含所有依赖，无需安装
+// Happy Agent Easy v260311.113223 - 包含所有依赖，无需安装
 
 
 // run.js
 var { execSync, spawn } = require("child_process");
-var SKILL_VERSION = true ? "260311.104403" : "0.1.0-dev";
+var SKILL_VERSION = true ? "260311.113223" : "0.1.0-dev";
 var args = process.argv.slice(2);
 var command = args[0];
 function showHelp() {
@@ -18,10 +18,20 @@ Happy Agent Easy v${SKILL_VERSION}
 \u547D\u4EE4:
   list [--active]              \u5217\u51FA\u6240\u6709\u4F1A\u8BDD\uFF08--active \u4EC5\u663E\u793A\u6D3B\u8DC3\u4F1A\u8BDD\uFF09
   status <session-id>          \u83B7\u53D6\u4F1A\u8BDD\u8BE6\u7EC6\u72B6\u6001
-  history <session-id> [limit] \u67E5\u770B\u4F1A\u8BDD\u5386\u53F2\uFF08\u9ED8\u8BA410\u6761\uFF09
-  create --path <path> [--tag <name>]  \u521B\u5EFA\u65B0\u4F1A\u8BDD
-  send <session-id> <message>  \u53D1\u9001\u6D88\u606F\u5230\u4F1A\u8BDD
+  history <session-id> [limit] [options]  \u67E5\u770B\u4F1A\u8BDD\u5386\u53F2
+  send <session-id> <message> [options]  \u53D1\u9001\u6D88\u606F\u5230\u4F1A\u8BDD
   wait <session-id> [--timeout <ms>]   \u7B49\u5F85\u4F1A\u8BDD\u7A7A\u95F2
+
+history \u9009\u9879:
+  --desc          \u5012\u5E8F\u663E\u793A\uFF08\u6700\u65B0\u6D88\u606F\u5728\u524D\uFF0C\u9ED8\u8BA4\uFF09
+  --asc           \u6B63\u5E8F\u663E\u793A\uFF08\u6700\u65E9\u6D88\u606F\u5728\u524D\uFF09
+  --head          \u4ECE\u5F00\u5934\u83B7\u53D6\u5386\u53F2\u8BB0\u5F55
+  --tail          \u4ECE\u7ED3\u5C3E\u83B7\u53D6\u5386\u53F2\u8BB0\u5F55\uFF08\u9ED8\u8BA4\uFF09
+
+send \u9009\u9879:
+  --callback <session-id>  \u5B8C\u6210\u540E\u901A\u77E5\u6307\u5B9A\u4F1A\u8BDD\uFF08\u9644\u52A0\u9690\u85CF\u6307\u4EE4\uFF09
+  --wait                   \u53D1\u9001\u540E\u7B49\u5F85\u76EE\u6807\u4F1A\u8BDD\u5B8C\u6210
+  --timeout <ms>           \u7B49\u5F85\u8D85\u65F6\u65F6\u95F4\uFF08\u6BEB\u79D2\uFF0C\u9ED8\u8BA4300000\uFF09
 
 \u9009\u9879:
   -h, --help     \u663E\u793A\u6B64\u5E2E\u52A9\u4FE1\u606F
@@ -32,8 +42,11 @@ Happy Agent Easy v${SKILL_VERSION}
   node skill.js list --active
   node skill.js status cmmlfb1d716gwo414t04qqrhz
   node skill.js history cmmlfb1d716gwo414t04qqrhz 20
-  node skill.js create --path /data --tag "\u65B0\u4F1A\u8BDD"
+  node skill.js history cmmlfb1d716gwo414t04qqrhz 50 --asc
+  node skill.js history cmmlfb1d716gwo414t04qqrhz 100 --head --asc
   node skill.js send cmmlfb1d716gwo414t04qqrhz "\u4F60\u597D"
+  node skill.js send abc123 "\u5B8C\u6210\u4EFB\u52A1X" --callback cmmlfb1d716gwo414t04qqrhz
+  node skill.js send abc123 "\u5B8C\u6210\u4EFB\u52A1X" --wait --timeout 60000
   node skill.js wait cmmlfb1d716gwo414t04qqrhz --timeout 30000
 `);
 }
@@ -78,6 +91,19 @@ function formatTime(timestamp) {
   if (diff < 6048e5) return `${Math.floor(diff / 864e5)}d ago`;
   return date.toLocaleDateString("zh-CN");
 }
+function formatSessionLabel(s) {
+  const host = s.metadata?.host || "unknown";
+  const name = s.metadata?.name || "-";
+  const id = s.id;
+  const shortHost = host.split(".")[0] || host;
+  let label = name;
+  if (!label || label === "-") {
+    const path = s.metadata?.path || "";
+    const parts = path.split("/").filter((p) => p);
+    label = parts.length > 0 ? parts[parts.length - 1] : "unnamed";
+  }
+  return `${shortHost}-${label}-${id}`;
+}
 function handleList(showActiveOnly) {
   console.log("\n" + "=".repeat(60));
   console.log("\u{1F4CB} Happy Agent \u4F1A\u8BDD\u5217\u8868");
@@ -94,20 +120,16 @@ function handleList(showActiveOnly) {
   if (showActiveOnly) {
     console.log("\u6D3B\u8DC3\u4F1A\u8BDD:\n");
     activeSessions.forEach((s, i) => {
-      console.log(`  ${i + 1}. [active] ${s.id}`);
-      console.log(`     \u8DEF\u5F84: ${s.metadata?.path || "-"}`);
-      console.log(`     \u540D\u79F0: ${s.metadata?.name || "-"}`);
-      console.log(`     \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.activeAt || s.updatedAt)}
+      console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
+      console.log(`     \u72B6\u6001: \u{1F7E2} active | \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.activeAt || s.updatedAt)}
 `);
     });
   } else {
     if (activeSessions.length > 0) {
       console.log("\u6D3B\u8DC3\u4F1A\u8BDD:\n");
       activeSessions.slice(0, 5).forEach((s, i) => {
-        console.log(`  ${i + 1}. [active] ${s.id}`);
-        console.log(`     \u8DEF\u5F84: ${s.metadata?.path || "-"}`);
-        console.log(`     \u540D\u79F0: ${s.metadata?.name || "-"}`);
-        console.log(`     \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.activeAt || s.updatedAt)}
+        console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
+        console.log(`     \u72B6\u6001: \u{1F7E2} active | \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.activeAt || s.updatedAt)}
 `);
       });
       if (activeSessions.length > 5) {
@@ -119,10 +141,8 @@ function handleList(showActiveOnly) {
     if (recentInactive.length > 0) {
       console.log("\u6700\u8FD1\u975E\u6D3B\u8DC3\u4F1A\u8BDD:\n");
       recentInactive.forEach((s, i) => {
-        console.log(`  ${activeSessions.length + i + 1}. [inactive] ${s.id}`);
-        console.log(`     \u8DEF\u5F84: ${s.metadata?.path || "-"}`);
-        console.log(`     \u540D\u79F0: ${s.metadata?.name || "-"}`);
-        console.log(`     \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.updatedAt)}
+        console.log(`  ${activeSessions.length + i + 1}. ${formatSessionLabel(s)}`);
+        console.log(`     \u72B6\u6001: \u26AA inactive | \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.updatedAt)}
 `);
       });
     }
@@ -171,101 +191,175 @@ function handleStatus(sessionId) {
   }
   console.log("\n" + "=".repeat(60));
 }
-function handleHistory(sessionId, limit = 10) {
-  console.log("\n" + "=".repeat(60));
+function extractToolInfo(toolName, input) {
+  switch (toolName) {
+    case "Read":
+    case "Edit":
+    case "Write":
+      return input.file_path || input.path || "";
+    case "Bash":
+      return input.description || input.command?.substring(0, 50) || "";
+    case "Glob":
+      return input.pattern || "";
+    case "Grep":
+      return input.pattern || "";
+    default:
+      return input.description || input.url || input.path || "";
+  }
+}
+function formatDateTime(timestamp) {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+function handleHistory(sessionId, limit = 10, options = {}) {
+  const { asc = false, head = false } = options;
+  console.log("\n" + "=".repeat(70));
   console.log("\u{1F4DC} \u4F1A\u8BDD\u5386\u53F2");
-  console.log("=".repeat(60) + "\n");
-  const history = runHappyAgent(`history ${sessionId} --limit ${limit}`);
+  console.log("=".repeat(70) + "\n");
+  let fetchLimit = head ? 500 : limit;
+  const history = runHappyAgent(`history ${sessionId} --limit ${fetchLimit}`);
   if (!Array.isArray(history)) {
     console.log("\u65E0\u6CD5\u83B7\u53D6\u4F1A\u8BDD\u5386\u53F2");
     return;
   }
+  const orderStr = asc ? "\u6B63\u5E8F\uFF08\u65E7\u2192\u65B0\uFF09" : "\u5012\u5E8F\uFF08\u65B0\u2192\u65E7\uFF09";
+  const directionStr = head ? "\u4ECE\u5F00\u5934\u83B7\u53D6" : "\u4ECE\u7ED3\u5C3E\u83B7\u53D6";
   console.log(`\u4F1A\u8BDD: ${sessionId}`);
-  console.log(`\u6D88\u606F\u6570: ${history.length}
+  console.log(`\u603B\u6D88\u606F\u6570: ${history.length} | \u663E\u793A: ${limit} | \u6392\u5E8F: ${orderStr} | \u65B9\u5411: ${directionStr}
 `);
-  history.reverse().forEach((msg, i) => {
+  let processedHistory;
+  if (head) {
+    processedHistory = history.slice(0, limit);
+  } else {
+    processedHistory = history.slice(-limit);
+  }
+  if (!asc) {
+    processedHistory = processedHistory.reverse();
+  }
+  processedHistory.forEach((msg) => {
     const role = msg.content?.role || "unknown";
-    const data = msg.content?.content?.data || {};
-    const msgType = data.type || "-";
-    if (role === "agent") {
-      if (msgType === "assistant") {
-        const toolUses = data.message?.content?.filter((c) => c.type === "tool_use") || [];
-        if (toolUses.length > 0) {
-          console.log(`
-[assistant] \u53D1\u8D77\u5DE5\u5177\u8C03\u7528:`);
-          toolUses.forEach((t) => {
-            const input = t.input || {};
-            const desc = input.description || input.command || input.url || "";
-            const shortDesc = desc.length > 60 ? desc.substring(0, 60) + "..." : desc;
-            console.log(`  - ${t.name}: ${shortDesc}`);
-          });
-        } else {
-          const textContent = data.message?.content?.filter((c) => c.type === "text") || [];
-          if (textContent.length > 0) {
-            const text = textContent[0].text || "";
-            const shortText = text.length > 100 ? text.substring(0, 100) + "..." : text;
-            console.log(`
-[assistant] ${shortText}`);
-          }
-        }
-      } else if (msgType === "user") {
-        const toolResults = data.message?.content?.filter((c) => c.type === "tool_result") || [];
+    const createdAt = msg.createdAt;
+    const timeStr = createdAt ? formatDateTime(createdAt) : "";
+    if (role === "user") {
+      const text = msg.content?.content?.text || "";
+      if (text) {
+        const displayText = text.length > 500 ? text.substring(0, 500) + "..." : text;
+        console.log(`
+[${timeStr}] \u{1F464} \u7528\u6237:`);
+        console.log(`${displayText}`);
+      }
+    } else if (role === "agent") {
+      const data = msg.content?.content?.data || {};
+      const msgType = data.type || "-";
+      if (msgType === "user") {
+        const contents = data.message?.content || [];
+        const toolResults = contents.filter((c) => c.type === "tool_result");
         if (toolResults.length > 0) {
           toolResults.forEach((tr) => {
-            const status = tr.permissions?.result || tr.is_error ? "error" : "approved";
-            const contentLen = tr.content?.length || 0;
-            console.log(`
-[user] \u5DE5\u5177\u8FD4\u56DE\u7ED3\u679C (${status})`);
-            console.log(`  \u5185\u5BB9\u957F\u5EA6: ${contentLen} \u5B57\u7B26`);
+            const status = tr.is_error ? "\u274C" : "\u2705";
+            console.log(`  \u21B3 ${status} \u5DE5\u5177\u6267\u884C\u5B8C\u6210`);
           });
-        } else {
-          const textContent = data.message?.content?.filter((c) => c.type === "text") || [];
-          if (textContent.length > 0) {
-            const text = textContent[0].text || "";
-            const shortText = text.length > 100 ? text.substring(0, 100) + "..." : text;
+        }
+      } else if (msgType === "assistant") {
+        const contents = data.message?.content || [];
+        const toolUses = contents.filter((c) => c.type === "tool_use");
+        const textContents = contents.filter((c) => c.type === "text");
+        if (textContents.length > 0) {
+          textContents.forEach((tc) => {
+            const text = tc.text || "";
+            const displayText = text.length > 800 ? text.substring(0, 800) + "..." : text;
             console.log(`
-[user] ${shortText}`);
-          }
+[${timeStr}] \u{1F916} \u52A9\u624B:`);
+            console.log(`${displayText}`);
+          });
+        }
+        if (toolUses.length > 0) {
+          console.log(`
+[${timeStr}] \u{1F527} \u5DE5\u5177\u8C03\u7528:`);
+          toolUses.forEach((t) => {
+            const info = extractToolInfo(t.name, t.input || {});
+            const shortInfo = info.length > 60 ? info.substring(0, 60) + "..." : info;
+            console.log(`  - ${t.name}: ${shortInfo || "-"}`);
+          });
         }
       }
     }
   });
-  console.log("\n\n" + "=".repeat(60));
+  console.log("\n\n" + "=".repeat(70));
 }
-function handleCreate(path, tag) {
-  console.log("\n" + "=".repeat(60));
-  console.log("\u{1F195} \u521B\u5EFA\u4F1A\u8BDD");
-  console.log("=".repeat(60) + "\n");
-  let cmd = `create --path "${path}"`;
-  if (tag) {
-    cmd += ` --tag "${tag}"`;
-  }
-  const result = runHappyAgent(cmd);
-  if (result && typeof result === "object") {
-    console.log("\u521B\u5EFA\u6210\u529F:");
-    console.log(`  ID: ${result.id || "-"}`);
-    console.log(`  \u8DEF\u5F84: ${result.metadata?.path || path}`);
-    console.log(`  \u540D\u79F0: ${result.metadata?.name || tag || "-"}`);
-    console.log(`  \u72B6\u6001: ${result.active ? "active" : "inactive"}`);
-  } else {
-    console.log("\u521B\u5EFA\u8BF7\u6C42\u5DF2\u53D1\u9001");
-  }
-  console.log("\n" + "=".repeat(60));
-}
-function handleSend(sessionId, message) {
+function handleSend(sessionId, message, options = {}) {
+  const { callback, wait = false, timeout = 3e5 } = options;
   console.log("\n" + "=".repeat(60));
   console.log("\u{1F4E8} \u53D1\u9001\u6D88\u606F");
   console.log("=".repeat(60) + "\n");
+  let finalMessage = message;
+  if (callback) {
+    const callbackInstruction = `
+
+---
+
+<!-- \u56DE\u8C03\u6307\u4EE4\uFF08\u8BF7\u52FF\u5220\u9664\u6216\u4FEE\u6539\uFF09 -->
+<!--
+\u4EFB\u52A1\u5B8C\u6210\u540E\uFF0C\u8BF7\u4F7F\u7528\u4EE5\u4E0B\u547D\u4EE4\u901A\u77E5\u53D1\u8D77\u65B9\uFF1A
+
+happy-agent send ${callback} "[\u4EFB\u52A1\u5B8C\u6210\u901A\u77E5] \u6765\u81EA\u4F1A\u8BDD ${sessionId}\uFF1A\u4EFB\u52A1\u5DF2\u5B8C\u6210\u3002"
+
+\u6216\u8005\u76F4\u63A5\u56DE\u590D\uFF1A
+"\u4EFB\u52A1\u5DF2\u5B8C\u6210\uFF0C\u8BF7\u4F7F\u7528 happy-agent history ${sessionId} \u67E5\u770B\u8BE6\u60C5"
+-->`;
+    finalMessage = message + callbackInstruction;
+  }
   try {
-    const result = execSync(`happy-agent send ${sessionId} "${message}"`, {
+    execSync(`happy-agent send ${sessionId} "${finalMessage.replace(/"/g, '\\"')}"`, {
       encoding: "utf8",
       stdio: ["pipe", "pipe", "pipe"]
     });
-    console.log("\u6D88\u606F\u5DF2\u53D1\u9001");
-    console.log(`\u4F1A\u8BDD: ${sessionId}`);
+    console.log("\u2705 \u6D88\u606F\u5DF2\u53D1\u9001");
+    console.log(`\u76EE\u6807\u4F1A\u8BDD: ${sessionId}`);
     console.log(`\u5185\u5BB9: ${message.length > 100 ? message.substring(0, 100) + "..." : message}`);
+    if (callback) {
+      console.log(`
+\u{1F4DE} \u56DE\u8C03\u8BBE\u7F6E: \u5B8C\u6210\u540E\u5C06\u901A\u77E5 ${callback}`);
+    }
+    if (wait) {
+      console.log(`
+\u23F3 \u7B49\u5F85\u76EE\u6807\u4F1A\u8BDD\u5B8C\u6210\uFF08\u8D85\u65F6: ${timeout / 1e3}s\uFF09...`);
+      const startTime = Date.now();
+      try {
+        execSync(`happy-agent wait ${sessionId} --timeout ${Math.ceil(timeout / 1e3)}`, {
+          encoding: "utf8",
+          stdio: ["pipe", "pipe", "pipe"],
+          timeout: Math.ceil(timeout / 1e3) + 10
+        });
+        const elapsed = ((Date.now() - startTime) / 1e3).toFixed(1);
+        console.log(`
+\u2705 \u76EE\u6807\u4F1A\u8BDD\u5DF2\u5B8C\u6210\uFF08\u8017\u65F6: ${elapsed}s\uFF09`);
+        if (callback) {
+          console.log(`
+\u{1F4E4} \u81EA\u52A8\u53D1\u9001\u5B8C\u6210\u901A\u77E5\u5230 ${callback}...`);
+          const notifyMsg = `[\u4EFB\u52A1\u5B8C\u6210\u901A\u77E5] \u4F1A\u8BDD ${sessionId} \u5DF2\u5B8C\u6210\u4EFB\u52A1\uFF0C\u8017\u65F6 ${elapsed}s`;
+          execSync(`happy-agent send ${callback} "${notifyMsg}"`, {
+            encoding: "utf8",
+            stdio: ["pipe", "pipe", "pipe"]
+          });
+          console.log("\u2705 \u901A\u77E5\u5DF2\u53D1\u9001");
+        }
+      } catch (waitError) {
+        if (waitError.signal === "SIGTERM") {
+          console.log("\n\u23F0 \u7B49\u5F85\u8D85\u65F6");
+        } else {
+          console.log("\n\u274C \u7B49\u5F85\u5931\u8D25:", waitError.message);
+        }
+      }
+    }
   } catch (error) {
-    console.log("\u53D1\u9001\u5931\u8D25:", error.message);
+    console.log("\u274C \u53D1\u9001\u5931\u8D25:", error.message);
   }
   console.log("\n" + "=".repeat(60));
 }
@@ -332,20 +426,23 @@ try {
         console.error("\u9519\u8BEF: \u8BF7\u63D0\u4F9B session-id");
         process.exit(1);
       }
-      const limit = parseInt(args[2]) || 10;
-      handleHistory(sessionId, limit);
-      break;
-    }
-    case "create": {
-      const pathIndex = args.indexOf("--path");
-      const tagIndex = args.indexOf("--tag");
-      const path = pathIndex >= 0 ? args[pathIndex + 1] : null;
-      const tag = tagIndex >= 0 ? args[tagIndex + 1] : null;
-      if (!path) {
-        console.error("\u9519\u8BEF: \u8BF7\u63D0\u4F9B --path \u53C2\u6570");
-        process.exit(1);
+      let limit = 10;
+      const historyOptions = { asc: false, head: false };
+      for (let i = 2; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === "--asc") {
+          historyOptions.asc = true;
+        } else if (arg === "--desc") {
+          historyOptions.asc = false;
+        } else if (arg === "--head") {
+          historyOptions.head = true;
+        } else if (arg === "--tail") {
+          historyOptions.head = false;
+        } else if (!arg.startsWith("--") && !isNaN(parseInt(arg))) {
+          limit = parseInt(arg);
+        }
       }
-      handleCreate(path, tag);
+      handleHistory(sessionId, limit, historyOptions);
       break;
     }
     case "send": {
@@ -355,7 +452,20 @@ try {
         console.error("\u9519\u8BEF: \u8BF7\u63D0\u4F9B session-id \u548C\u6D88\u606F\u5185\u5BB9");
         process.exit(1);
       }
-      handleSend(sessionId, message);
+      const sendOptions = { callback: null, wait: false, timeout: 3e5 };
+      for (let i = 3; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === "--callback") {
+          sendOptions.callback = args[i + 1];
+          i++;
+        } else if (arg === "--wait") {
+          sendOptions.wait = true;
+        } else if (arg === "--timeout") {
+          sendOptions.timeout = parseInt(args[i + 1]);
+          i++;
+        }
+      }
+      handleSend(sessionId, message, sendOptions);
       break;
     }
     case "wait": {

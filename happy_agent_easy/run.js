@@ -35,9 +35,20 @@ Happy Agent Easy v${SKILL_VERSION}
 命令:
   list [--active]              列出所有会话（--active 仅显示活跃会话）
   status <session-id>          获取会话详细状态
-  history <session-id> [limit] 查看会话历史（默认10条）
-  send <session-id> <message>  发送消息到会话
+  history <session-id> [limit] [options]  查看会话历史
+  send <session-id> <message> [options]  发送消息到会话
   wait <session-id> [--timeout <ms>]   等待会话空闲
+
+history 选项:
+  --desc          倒序显示（最新消息在前，默认）
+  --asc           正序显示（最早消息在前）
+  --head          从开头获取历史记录
+  --tail          从结尾获取历史记录（默认）
+
+send 选项:
+  --callback <session-id>  完成后通知指定会话（附加隐藏指令）
+  --wait                   发送后等待目标会话完成
+  --timeout <ms>           等待超时时间（毫秒，默认300000）
 
 选项:
   -h, --help     显示此帮助信息
@@ -48,7 +59,11 @@ Happy Agent Easy v${SKILL_VERSION}
   node skill.js list --active
   node skill.js status cmmlfb1d716gwo414t04qqrhz
   node skill.js history cmmlfb1d716gwo414t04qqrhz 20
+  node skill.js history cmmlfb1d716gwo414t04qqrhz 50 --asc
+  node skill.js history cmmlfb1d716gwo414t04qqrhz 100 --head --asc
   node skill.js send cmmlfb1d716gwo414t04qqrhz "你好"
+  node skill.js send abc123 "完成任务X" --callback cmmlfb1d716gwo414t04qqrhz
+  node skill.js send abc123 "完成任务X" --wait --timeout 60000
   node skill.js wait cmmlfb1d716gwo414t04qqrhz --timeout 30000
 `);
 }
@@ -243,88 +258,222 @@ function handleStatus(sessionId) {
   console.log("\n" + "=".repeat(60));
 }
 
-// history 命令处理
-function handleHistory(sessionId, limit = 10) {
-  console.log("\n" + "=".repeat(60));
-  console.log("📜 会话历史");
-  console.log("=".repeat(60) + "\n");
+// 提取工具调用的关键信息
+function extractToolInfo(toolName, input) {
+  switch (toolName) {
+    case "Read":
+    case "Edit":
+    case "Write":
+      return input.file_path || input.path || "";
+    case "Bash":
+      return input.description || input.command?.substring(0, 50) || "";
+    case "Glob":
+      return input.pattern || "";
+    case "Grep":
+      return input.pattern || "";
+    default:
+      return input.description || input.url || input.path || "";
+  }
+}
 
-  const history = runHappyAgent(`history ${sessionId} --limit ${limit}`);
+// 格式化时间戳为 YYYY-MM-DD HH:MM:SS 格式
+function formatDateTime(timestamp) {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+// history 命令处理 - 优化版
+// options: { asc: boolean, head: boolean }
+function handleHistory(sessionId, limit = 10, options = {}) {
+  const { asc = false, head = false } = options;
+
+  console.log("\n" + "=".repeat(70));
+  console.log("📜 会话历史");
+  console.log("=".repeat(70) + "\n");
+
+  // happy-agent 返回的历史记录是按 createdAt 正序的（最早的在前，最新的在后）
+  // 数组索引：0 = 最早，末尾 = 最新
+  let fetchLimit = head ? 500 : limit;
+  const history = runHappyAgent(`history ${sessionId} --limit ${fetchLimit}`);
 
   if (!Array.isArray(history)) {
     console.log("无法获取会话历史");
     return;
   }
 
+  // 显示排序和获取方向信息
+  const orderStr = asc ? "正序（旧→新）" : "倒序（新→旧）";
+  const directionStr = head ? "从开头获取" : "从结尾获取";
   console.log(`会话: ${sessionId}`);
-  console.log(`消息数: ${history.length}\n`);
+  console.log(`总消息数: ${history.length} | 显示: ${limit} | 排序: ${orderStr} | 方向: ${directionStr}\n`);
 
-  // 按时间正序显示
-  history.reverse().forEach((msg, i) => {
+  // 处理历史记录
+  // history 数组：索引 0 是最早的，索引末尾是最新的
+  let processedHistory;
+
+  if (head) {
+    // 从开头获取：取最早的记录（数组开头）
+    processedHistory = history.slice(0, limit);
+  } else {
+    // 从结尾获取：取最新的记录（数组末尾）
+    processedHistory = history.slice(-limit);
+  }
+
+  // 根据排序决定显示顺序
+  if (!asc) {
+    // 倒序：时间从晚到早（反转数组）
+    processedHistory = processedHistory.reverse();
+  }
+  // 正序：时间从早到晚（默认，保持原样）
+
+  // 显示历史记录
+  processedHistory.forEach((msg) => {
     const role = msg.content?.role || "unknown";
-    const data = msg.content?.content?.data || {};
-    const msgType = data.type || "-";
+    const createdAt = msg.createdAt;
+    const timeStr = createdAt ? formatDateTime(createdAt) : "";
 
-    if (role === "agent") {
-      if (msgType === "assistant") {
-        const toolUses = data.message?.content?.filter(c => c.type === "tool_use") || [];
-        if (toolUses.length > 0) {
-          console.log(`\n[assistant] 发起工具调用:`);
-          toolUses.forEach(t => {
-            const input = t.input || {};
-            const desc = input.description || input.command || input.url || "";
-            const shortDesc = desc.length > 60 ? desc.substring(0, 60) + "..." : desc;
-            console.log(`  - ${t.name}: ${shortDesc}`);
-          });
-        } else {
-          const textContent = data.message?.content?.filter(c => c.type === "text") || [];
-          if (textContent.length > 0) {
-            const text = textContent[0].text || "";
-            const shortText = text.length > 100 ? text.substring(0, 100) + "..." : text;
-            console.log(`\n[assistant] ${shortText}`);
-          }
-        }
-      } else if (msgType === "user") {
-        const toolResults = data.message?.content?.filter(c => c.type === "tool_result") || [];
+    if (role === "user") {
+      // 用户原始输入消息 - 结构: content.content.text
+      const text = msg.content?.content?.text || "";
+      if (text) {
+        const displayText = text.length > 500 ? text.substring(0, 500) + "..." : text;
+        console.log(`\n[${timeStr}] 👤 用户:`);
+        console.log(`${displayText}`);
+      }
+    } else if (role === "agent") {
+      // Agent 消息 - 结构: content.content.data
+      const data = msg.content?.content?.data || {};
+      const msgType = data.type || "-";
+
+      if (msgType === "user") {
+        // Agent 侧的 user 消息（工具返回结果）
+        const contents = data.message?.content || [];
+        const toolResults = contents.filter(c => c.type === "tool_result");
+
         if (toolResults.length > 0) {
           toolResults.forEach(tr => {
-            const status = tr.permissions?.result || tr.is_error ? "error" : "approved";
-            const contentLen = tr.content?.length || 0;
-            console.log(`\n[user] 工具返回结果 (${status})`);
-            console.log(`  内容长度: ${contentLen} 字符`);
+            const status = tr.is_error ? "❌" : "✅";
+            console.log(`  ↳ ${status} 工具执行完成`);
           });
-        } else {
-          const textContent = data.message?.content?.filter(c => c.type === "text") || [];
-          if (textContent.length > 0) {
-            const text = textContent[0].text || "";
-            const shortText = text.length > 100 ? text.substring(0, 100) + "..." : text;
-            console.log(`\n[user] ${shortText}`);
-          }
+        }
+      } else if (msgType === "assistant") {
+        // Agent 侧的 assistant 消息
+        const contents = data.message?.content || [];
+        const toolUses = contents.filter(c => c.type === "tool_use");
+        const textContents = contents.filter(c => c.type === "text");
+
+        // 显示文本内容
+        if (textContents.length > 0) {
+          textContents.forEach(tc => {
+            const text = tc.text || "";
+            const displayText = text.length > 800 ? text.substring(0, 800) + "..." : text;
+            console.log(`\n[${timeStr}] 🤖 助手:`);
+            console.log(`${displayText}`);
+          });
+        }
+
+        // 显示工具调用 - 关键信息提取
+        if (toolUses.length > 0) {
+          console.log(`\n[${timeStr}] 🔧 工具调用:`);
+          toolUses.forEach(t => {
+            const info = extractToolInfo(t.name, t.input || {});
+            const shortInfo = info.length > 60 ? info.substring(0, 60) + "..." : info;
+            console.log(`  - ${t.name}: ${shortInfo || "-"}`);
+          });
         }
       }
     }
   });
 
-  console.log("\n\n" + "=".repeat(60));
+  console.log("\n\n" + "=".repeat(70));
 }
 
 // send 命令处理
-function handleSend(sessionId, message) {
+// options: { callback: string, wait: boolean, timeout: number }
+function handleSend(sessionId, message, options = {}) {
+  const { callback, wait = false, timeout = 300000 } = options;
+
   console.log("\n" + "=".repeat(60));
   console.log("📨 发送消息");
   console.log("=".repeat(60) + "\n");
 
+  // 构建最终消息
+  let finalMessage = message;
+
+  // 如果有回调参数，附加隐藏的回调指令
+  if (callback) {
+    const callbackInstruction = `
+
+---
+
+<!-- 回调指令（请勿删除或修改） -->
+<!--
+任务完成后，请使用以下命令通知发起方：
+
+happy-agent send ${callback} "[任务完成通知] 来自会话 ${sessionId}：任务已完成。"
+
+或者直接回复：
+"任务已完成，请使用 happy-agent history ${sessionId} 查看详情"
+-->`;
+    finalMessage = message + callbackInstruction;
+  }
+
   try {
-    // send 命令可能没有 JSON 输出
-    execSync(`happy-agent send ${sessionId} "${message}"`, {
+    // 发送消息
+    execSync(`happy-agent send ${sessionId} "${finalMessage.replace(/"/g, '\\"')}"`, {
       encoding: "utf8",
       stdio: ["pipe", "pipe", "pipe"]
     });
-    console.log("消息已发送");
-    console.log(`会话: ${sessionId}`);
+
+    console.log("✅ 消息已发送");
+    console.log(`目标会话: ${sessionId}`);
     console.log(`内容: ${message.length > 100 ? message.substring(0, 100) + "..." : message}`);
+
+    if (callback) {
+      console.log(`\n📞 回调设置: 完成后将通知 ${callback}`);
+    }
+
+    // 如果需要等待
+    if (wait) {
+      console.log(`\n⏳ 等待目标会话完成（超时: ${timeout / 1000}s）...`);
+      const startTime = Date.now();
+
+      try {
+        execSync(`happy-agent wait ${sessionId} --timeout ${Math.ceil(timeout / 1000)}`, {
+          encoding: "utf8",
+          stdio: ["pipe", "pipe", "pipe"],
+          timeout: Math.ceil(timeout / 1000) + 10
+        });
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`\n✅ 目标会话已完成（耗时: ${elapsed}s）`);
+
+        // 如果有回调，自动发送通知
+        if (callback) {
+          console.log(`\n📤 自动发送完成通知到 ${callback}...`);
+          const notifyMsg = `[任务完成通知] 会话 ${sessionId} 已完成任务，耗时 ${elapsed}s`;
+          execSync(`happy-agent send ${callback} "${notifyMsg}"`, {
+            encoding: "utf8",
+            stdio: ["pipe", "pipe", "pipe"]
+          });
+          console.log("✅ 通知已发送");
+        }
+      } catch (waitError) {
+        if (waitError.signal === "SIGTERM") {
+          console.log("\n⏰ 等待超时");
+        } else {
+          console.log("\n❌ 等待失败:", waitError.message);
+        }
+      }
+    }
   } catch (error) {
-    console.log("发送失败:", error.message);
+    console.log("❌ 发送失败:", error.message);
   }
 
   console.log("\n" + "=".repeat(60));
@@ -405,8 +554,28 @@ try {
         console.error("错误: 请提供 session-id");
         process.exit(1);
       }
-      const limit = parseInt(args[2]) || 10;
-      handleHistory(sessionId, limit);
+
+      // 解析参数
+      let limit = 10;
+      const historyOptions = { asc: false, head: false };
+
+      // 遍历参数
+      for (let i = 2; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === "--asc") {
+          historyOptions.asc = true;
+        } else if (arg === "--desc") {
+          historyOptions.asc = false;
+        } else if (arg === "--head") {
+          historyOptions.head = true;
+        } else if (arg === "--tail") {
+          historyOptions.head = false;
+        } else if (!arg.startsWith("--") && !isNaN(parseInt(arg))) {
+          limit = parseInt(arg);
+        }
+      }
+
+      handleHistory(sessionId, limit, historyOptions);
       break;
     }
     case "send": {
@@ -416,7 +585,24 @@ try {
         console.error("错误: 请提供 session-id 和消息内容");
         process.exit(1);
       }
-      handleSend(sessionId, message);
+
+      // 解析 send 参数
+      const sendOptions = { callback: null, wait: false, timeout: 300000 };
+
+      for (let i = 3; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === "--callback") {
+          sendOptions.callback = args[i + 1];
+          i++; // 跳过下一个参数
+        } else if (arg === "--wait") {
+          sendOptions.wait = true;
+        } else if (arg === "--timeout") {
+          sendOptions.timeout = parseInt(args[i + 1]);
+          i++; // 跳过下一个参数
+        }
+      }
+
+      handleSend(sessionId, message, sendOptions);
       break;
     }
     case "wait": {
