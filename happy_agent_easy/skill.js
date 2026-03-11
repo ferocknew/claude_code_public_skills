@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Happy Agent Easy v260311.113223 - 包含所有依赖，无需安装
+// Happy Agent Easy v260311.113820 - 包含所有依赖，无需安装
 
 
 // run.js
 var { execSync, spawn } = require("child_process");
-var SKILL_VERSION = true ? "260311.113223" : "0.1.0-dev";
+var SKILL_VERSION = true ? "260311.113820" : "0.1.0-dev";
 var args = process.argv.slice(2);
 var command = args[0];
 function showHelp() {
@@ -16,7 +16,7 @@ Happy Agent Easy v${SKILL_VERSION}
   node skill.js <command> [options]
 
 \u547D\u4EE4:
-  list [--active]              \u5217\u51FA\u6240\u6709\u4F1A\u8BDD\uFF08--active \u4EC5\u663E\u793A\u6D3B\u8DC3\u4F1A\u8BDD\uFF09
+  list [--all] [--limit N]     \u5217\u51FA\u4F1A\u8BDD\uFF08\u9ED8\u8BA4\u4EC5\u6D3B\u8DC3\uFF0C--all \u663E\u793A\u5168\u90E8\uFF0C--limit \u9ED8\u8BA410\uFF09
   status <session-id>          \u83B7\u53D6\u4F1A\u8BDD\u8BE6\u7EC6\u72B6\u6001
   history <session-id> [limit] [options]  \u67E5\u770B\u4F1A\u8BDD\u5386\u53F2
   send <session-id> <message> [options]  \u53D1\u9001\u6D88\u606F\u5230\u4F1A\u8BDD
@@ -39,7 +39,8 @@ send \u9009\u9879:
 
 \u793A\u4F8B:
   node skill.js list
-  node skill.js list --active
+  node skill.js list --limit 20
+  node skill.js list --all
   node skill.js status cmmlfb1d716gwo414t04qqrhz
   node skill.js history cmmlfb1d716gwo414t04qqrhz 20
   node skill.js history cmmlfb1d716gwo414t04qqrhz 50 --asc
@@ -104,7 +105,8 @@ function formatSessionLabel(s) {
   }
   return `${shortHost}-${label}-${id}`;
 }
-function handleList(showActiveOnly) {
+function handleList(options = {}) {
+  const { showAll = false, limit = 10 } = options;
   console.log("\n" + "=".repeat(60));
   console.log("\u{1F4CB} Happy Agent \u4F1A\u8BDD\u5217\u8868");
   console.log("=".repeat(60) + "\n");
@@ -115,36 +117,36 @@ function handleList(showActiveOnly) {
   }
   const activeSessions = sessions.filter((s) => s.active);
   const inactiveSessions = sessions.filter((s) => !s.active);
-  console.log(`\u4F1A\u8BDD\u603B\u6570: ${sessions.length} | \u6D3B\u8DC3: ${activeSessions.length}
+  console.log(`\u4F1A\u8BDD\u603B\u6570: ${sessions.length} | \u6D3B\u8DC3: ${activeSessions.length} | \u663E\u793A\u9650\u5236: ${limit}
 `);
-  if (showActiveOnly) {
+  if (showAll) {
+    const allSessions = sessions.sort((a, b) => (b.activeAt || b.updatedAt || 0) - (a.activeAt || a.updatedAt || 0)).slice(0, limit);
+    console.log("\u6240\u6709\u4F1A\u8BDD\uFF08\u6309\u6D3B\u8DC3\u65F6\u95F4\u6392\u5E8F\uFF09:\n");
+    allSessions.forEach((s, i) => {
+      const statusIcon = s.active ? "\u{1F7E2}" : "\u26AA";
+      const statusText = s.active ? "active" : "inactive";
+      console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
+      console.log(`     \u72B6\u6001: ${statusIcon} ${statusText} | \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.activeAt || s.updatedAt)}
+`);
+    });
+    if (sessions.length > limit) {
+      console.log(`  ... \u8FD8\u6709 ${sessions.length - limit} \u4E2A\u4F1A\u8BDD
+`);
+    }
+  } else {
+    const displayActive = activeSessions.slice(0, limit);
     console.log("\u6D3B\u8DC3\u4F1A\u8BDD:\n");
-    activeSessions.forEach((s, i) => {
+    displayActive.forEach((s, i) => {
       console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
       console.log(`     \u72B6\u6001: \u{1F7E2} active | \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.activeAt || s.updatedAt)}
 `);
     });
-  } else {
-    if (activeSessions.length > 0) {
-      console.log("\u6D3B\u8DC3\u4F1A\u8BDD:\n");
-      activeSessions.slice(0, 5).forEach((s, i) => {
-        console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
-        console.log(`     \u72B6\u6001: \u{1F7E2} active | \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.activeAt || s.updatedAt)}
+    if (activeSessions.length > limit) {
+      console.log(`  ... \u8FD8\u6709 ${activeSessions.length - limit} \u4E2A\u6D3B\u8DC3\u4F1A\u8BDD
 `);
-      });
-      if (activeSessions.length > 5) {
-        console.log(`  ... \u8FD8\u6709 ${activeSessions.length - 5} \u4E2A\u6D3B\u8DC3\u4F1A\u8BDD
-`);
-      }
     }
-    const recentInactive = inactiveSessions.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 5);
-    if (recentInactive.length > 0) {
-      console.log("\u6700\u8FD1\u975E\u6D3B\u8DC3\u4F1A\u8BDD:\n");
-      recentInactive.forEach((s, i) => {
-        console.log(`  ${activeSessions.length + i + 1}. ${formatSessionLabel(s)}`);
-        console.log(`     \u72B6\u6001: \u26AA inactive | \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.updatedAt)}
-`);
-      });
+    if (activeSessions.length === 0) {
+      console.log("  \u65E0\u6D3B\u8DC3\u4F1A\u8BDD\n");
     }
   }
   console.log("=".repeat(60));
@@ -407,8 +409,13 @@ if (!checkHappyAgent()) {
 try {
   switch (command) {
     case "list": {
-      const showActive = args.includes("--active") || args.includes("-a");
-      handleList(showActive);
+      const showAll = args.includes("--all") || args.includes("-a");
+      let limit = 10;
+      const limitIndex = args.indexOf("--limit");
+      if (limitIndex >= 0 && args[limitIndex + 1]) {
+        limit = parseInt(args[limitIndex + 1]) || 10;
+      }
+      handleList({ showAll, limit });
       break;
     }
     case "status": {

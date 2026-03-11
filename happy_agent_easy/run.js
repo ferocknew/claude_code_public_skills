@@ -33,7 +33,7 @@ Happy Agent Easy v${SKILL_VERSION}
   node skill.js <command> [options]
 
 命令:
-  list [--active]              列出所有会话（--active 仅显示活跃会话）
+  list [--all] [--limit N]     列出会话（默认仅活跃，--all 显示全部，--limit 默认10）
   status <session-id>          获取会话详细状态
   history <session-id> [limit] [options]  查看会话历史
   send <session-id> <message> [options]  发送消息到会话
@@ -56,7 +56,8 @@ send 选项:
 
 示例:
   node skill.js list
-  node skill.js list --active
+  node skill.js list --limit 20
+  node skill.js list --all
   node skill.js status cmmlfb1d716gwo414t04qqrhz
   node skill.js history cmmlfb1d716gwo414t04qqrhz 20
   node skill.js history cmmlfb1d716gwo414t04qqrhz 50 --asc
@@ -146,7 +147,10 @@ function formatSessionLabel(s) {
 }
 
 // list 命令处理
-function handleList(showActiveOnly) {
+// options: { showAll: boolean, limit: number }
+function handleList(options = {}) {
+  const { showAll = false, limit = 10 } = options;
+
   console.log("\n" + "=".repeat(60));
   console.log("📋 Happy Agent 会话列表");
   console.log("=".repeat(60) + "\n");
@@ -161,39 +165,41 @@ function handleList(showActiveOnly) {
   const activeSessions = sessions.filter(s => s.active);
   const inactiveSessions = sessions.filter(s => !s.active);
 
-  console.log(`会话总数: ${sessions.length} | 活跃: ${activeSessions.length}\n`);
+  console.log(`会话总数: ${sessions.length} | 活跃: ${activeSessions.length} | 显示限制: ${limit}\n`);
 
-  if (showActiveOnly) {
-    // 仅显示活跃会话
+  if (showAll) {
+    // 显示所有会话（按最后活跃时间排序）
+    const allSessions = sessions
+      .sort((a, b) => (b.activeAt || b.updatedAt || 0) - (a.activeAt || a.updatedAt || 0))
+      .slice(0, limit);
+
+    console.log("所有会话（按活跃时间排序）:\n");
+    allSessions.forEach((s, i) => {
+      const statusIcon = s.active ? "🟢" : "⚪";
+      const statusText = s.active ? "active" : "inactive";
+      console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
+      console.log(`     状态: ${statusIcon} ${statusText} | 最后活跃: ${formatTime(s.activeAt || s.updatedAt)}\n`);
+    });
+
+    if (sessions.length > limit) {
+      console.log(`  ... 还有 ${sessions.length - limit} 个会话\n`);
+    }
+  } else {
+    // 默认只显示活跃会话
+    const displayActive = activeSessions.slice(0, limit);
+
     console.log("活跃会话:\n");
-    activeSessions.forEach((s, i) => {
+    displayActive.forEach((s, i) => {
       console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
       console.log(`     状态: 🟢 active | 最后活跃: ${formatTime(s.activeAt || s.updatedAt)}\n`);
     });
-  } else {
-    // 显示活跃会话
-    if (activeSessions.length > 0) {
-      console.log("活跃会话:\n");
-      activeSessions.slice(0, 5).forEach((s, i) => {
-        console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
-        console.log(`     状态: 🟢 active | 最后活跃: ${formatTime(s.activeAt || s.updatedAt)}\n`);
-      });
-      if (activeSessions.length > 5) {
-        console.log(`  ... 还有 ${activeSessions.length - 5} 个活跃会话\n`);
-      }
+
+    if (activeSessions.length > limit) {
+      console.log(`  ... 还有 ${activeSessions.length - limit} 个活跃会话\n`);
     }
 
-    // 显示最近的非活跃会话
-    const recentInactive = inactiveSessions
-      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-      .slice(0, 5);
-
-    if (recentInactive.length > 0) {
-      console.log("最近非活跃会话:\n");
-      recentInactive.forEach((s, i) => {
-        console.log(`  ${activeSessions.length + i + 1}. ${formatSessionLabel(s)}`);
-        console.log(`     状态: ⚪ inactive | 最后活跃: ${formatTime(s.updatedAt)}\n`);
-      });
+    if (activeSessions.length === 0) {
+      console.log("  无活跃会话\n");
     }
   }
 
@@ -535,8 +541,16 @@ if (!checkHappyAgent()) {
 try {
   switch (command) {
     case "list": {
-      const showActive = args.includes("--active") || args.includes("-a");
-      handleList(showActive);
+      const showAll = args.includes("--all") || args.includes("-a");
+      let limit = 10;
+
+      // 解析 --limit 参数
+      const limitIndex = args.indexOf("--limit");
+      if (limitIndex >= 0 && args[limitIndex + 1]) {
+        limit = parseInt(args[limitIndex + 1]) || 10;
+      }
+
+      handleList({ showAll, limit });
       break;
     }
     case "status": {
