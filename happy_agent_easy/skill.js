@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Happy Agent Easy v260311.114447 - 包含所有依赖，无需安装
+// Happy Agent Easy v260311.115346 - 包含所有依赖，无需安装
 
 
 // run.js
 var { execSync, spawn } = require("child_process");
-var SKILL_VERSION = true ? "260311.114447" : "0.1.0-dev";
+var SKILL_VERSION = true ? "260311.115346" : "0.1.0-dev";
 var args = process.argv.slice(2);
 var command = args[0];
 function showHelp() {
