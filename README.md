@@ -14,6 +14,7 @@
 | `obsidian_cli` | Obsidian CLI | 使用 Obsidian CLI 与本地知识库交互 - 读取笔记、搜索、创建笔记、管理任务、标签、属性 |
 | `obsidian-bases` | Obsidian Bases | 创建和编辑 Obsidian Bases (.base) 文件，支持视图、过滤器、公式 |
 | `obsidian-json-canvas` | JSON Canvas | 创建和编辑 JSON Canvas (.canvas) 文件，支持节点、边、分组 |
+| `happy_agent_easy` | Happy Agent Easy | 简化的 Happy Agent 客户端，用于远程管理 Happy Coder Agent 会话，优化输出格式以减少 token 消耗 |
 | `use-http-mcp` | HTTP MCP Tool | HTTP 请求工具，使用 Node.js 原生 fetch API，支持 GET/POST/PUT/DELETE/PATCH、Basic Auth、Bearer Token、文件上传下载 |
 
 ## 技能文件结构
