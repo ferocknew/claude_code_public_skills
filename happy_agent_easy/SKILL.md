@@ -1,7 +1,7 @@
 ---
 name: happy_agent_easy
 description: 当用户要求"查看 Happy Agent 会话"、"管理远程 Agent"、"获取会话状态"、"查看会话历史"、"发送消息到 Agent"时，或者需要与 Happy Coder Agent 进行远程交互时使用此 skill。
-version: 260311.104403
+version: 260311.113223
 ---
 
 # Happy Agent Easy - 简化的 Happy Agent 客户端
@@ -124,8 +124,49 @@ node skill.js history <session-id> [limit]
 ### send - 发送消息
 
 ```bash
-node skill.js send <session-id> "你的消息内容"
+node skill.js send <session-id> "你的消息内容" [options]
 ```
+
+**选项：**
+- `--callback <session-id>` - 任务完成后通知指定会话（附加隐藏指令）
+- `--wait` - 发送后等待目标会话完成
+- `--timeout <ms>` - 等待超时时间（毫秒，默认300000）
+
+**示例：**
+
+```bash
+# 基本发送
+node skill.js send abc123 "你的消息内容"
+
+# 发送任务并设置回调（对方完成后会通知你）
+node skill.js send abc123 "完成任务X" --callback cmmlfb1d716gwo414t04qqrhz
+
+# 发送后等待完成
+node skill.js send abc123 "完成任务X" --wait --timeout 60000
+
+# 组合使用：发送 + 回调 + 等待（等待完成后自动发送通知）
+node skill.js send abc123 "完成任务X" --callback cmmlfb1d716gwo414t04qqrhz --wait
+```
+
+**回调机制说明：**
+
+使用 `--callback` 时，会附加隐藏指令提示对方 Agent 完成后通知你：
+
+```markdown
+---
+
+<!-- 回调指令（请勿删除或修改） -->
+<!--
+任务完成后，请使用以下命令通知发起方：
+
+happy-agent send <你的session> "[任务完成通知] 来自会话 <目标session>：任务已完成。"
+
+或者直接回复：
+"任务已完成，请使用 happy-agent history <目标session> 查看详情"
+-->
+```
+
+如果同时使用 `--callback` 和 `--wait`，等待完成后会**自动发送通知**到回调 session。
 
 ---
 
