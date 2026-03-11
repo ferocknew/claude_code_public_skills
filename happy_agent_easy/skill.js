@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Happy Agent Easy v260311.113820 - 包含所有依赖，无需安装
+// Happy Agent Easy v260311.114030 - 包含所有依赖，无需安装
 
 
 // run.js
 var { execSync, spawn } = require("child_process");
-var SKILL_VERSION = true ? "260311.113820" : "0.1.0-dev";
+var SKILL_VERSION = true ? "260311.114030" : "0.1.0-dev";
 var args = process.argv.slice(2);
 var command = args[0];
 function showHelp() {
@@ -82,74 +82,35 @@ function runHappyAgent(args2) {
     throw error;
   }
 }
-function formatTime(timestamp) {
-  const date = new Date(timestamp);
-  const now = /* @__PURE__ */ new Date();
-  const diff = now - date;
-  if (diff < 6e4) return "just now";
-  if (diff < 36e5) return `${Math.floor(diff / 6e4)}m ago`;
-  if (diff < 864e5) return `${Math.floor(diff / 36e5)}h ago`;
-  if (diff < 6048e5) return `${Math.floor(diff / 864e5)}d ago`;
-  return date.toLocaleDateString("zh-CN");
-}
-function formatSessionLabel(s) {
-  const host = s.metadata?.host || "unknown";
-  const name = s.metadata?.name || "-";
-  const id = s.id;
-  const shortHost = host.split(".")[0] || host;
-  let label = name;
-  if (!label || label === "-") {
-    const path = s.metadata?.path || "";
-    const parts = path.split("/").filter((p) => p);
-    label = parts.length > 0 ? parts[parts.length - 1] : "unnamed";
-  }
-  return `${shortHost}-${label}-${id}`;
-}
 function handleList(options = {}) {
   const { showAll = false, limit = 10 } = options;
-  console.log("\n" + "=".repeat(60));
-  console.log("\u{1F4CB} Happy Agent \u4F1A\u8BDD\u5217\u8868");
-  console.log("=".repeat(60) + "\n");
   const sessions = runHappyAgent("list");
   if (!Array.isArray(sessions)) {
-    console.log("\u65E0\u6CD5\u83B7\u53D6\u4F1A\u8BDD\u5217\u8868");
+    console.log(JSON.stringify({ error: "\u65E0\u6CD5\u83B7\u53D6\u4F1A\u8BDD\u5217\u8868" }, null, 2));
     return;
   }
-  const activeSessions = sessions.filter((s) => s.active);
-  const inactiveSessions = sessions.filter((s) => !s.active);
-  console.log(`\u4F1A\u8BDD\u603B\u6570: ${sessions.length} | \u6D3B\u8DC3: ${activeSessions.length} | \u663E\u793A\u9650\u5236: ${limit}
-`);
-  if (showAll) {
-    const allSessions = sessions.sort((a, b) => (b.activeAt || b.updatedAt || 0) - (a.activeAt || a.updatedAt || 0)).slice(0, limit);
-    console.log("\u6240\u6709\u4F1A\u8BDD\uFF08\u6309\u6D3B\u8DC3\u65F6\u95F4\u6392\u5E8F\uFF09:\n");
-    allSessions.forEach((s, i) => {
-      const statusIcon = s.active ? "\u{1F7E2}" : "\u26AA";
-      const statusText = s.active ? "active" : "inactive";
-      console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
-      console.log(`     \u72B6\u6001: ${statusIcon} ${statusText} | \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.activeAt || s.updatedAt)}
-`);
-    });
-    if (sessions.length > limit) {
-      console.log(`  ... \u8FD8\u6709 ${sessions.length - limit} \u4E2A\u4F1A\u8BDD
-`);
-    }
-  } else {
-    const displayActive = activeSessions.slice(0, limit);
-    console.log("\u6D3B\u8DC3\u4F1A\u8BDD:\n");
-    displayActive.forEach((s, i) => {
-      console.log(`  ${i + 1}. ${formatSessionLabel(s)}`);
-      console.log(`     \u72B6\u6001: \u{1F7E2} active | \u6700\u540E\u6D3B\u8DC3: ${formatTime(s.activeAt || s.updatedAt)}
-`);
-    });
-    if (activeSessions.length > limit) {
-      console.log(`  ... \u8FD8\u6709 ${activeSessions.length - limit} \u4E2A\u6D3B\u8DC3\u4F1A\u8BDD
-`);
-    }
-    if (activeSessions.length === 0) {
-      console.log("  \u65E0\u6D3B\u8DC3\u4F1A\u8BDD\n");
-    }
-  }
-  console.log("=".repeat(60));
+  let filteredSessions = showAll ? sessions.sort((a, b) => (b.activeAt || b.updatedAt || 0) - (a.activeAt || a.updatedAt || 0)) : sessions.filter((s) => s.active);
+  const total = sessions.length;
+  const activeCount = sessions.filter((s) => s.active).length;
+  const result = filteredSessions.slice(0, limit).map((s) => {
+    const host = s.metadata?.host || "unknown";
+    const shortHost = host.split(".")[0] || host;
+    const path = s.metadata?.path || "";
+    const parts = path.split("/").filter((p) => p);
+    const title = s.metadata?.name || (parts.length > 0 ? parts[parts.length - 1] : "-");
+    return {
+      host: shortHost,
+      title,
+      sessionId: s.id,
+      active: s.active
+    };
+  });
+  console.log(JSON.stringify({
+    total,
+    active: activeCount,
+    showing: result.length,
+    sessions: result
+  }, null, 2));
 }
 function handleStatus(sessionId) {
   console.log("\n" + "=".repeat(60));
