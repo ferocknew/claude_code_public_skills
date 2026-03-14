@@ -1,7 +1,7 @@
 ---
 name: happy_agent_easy
 description: 当用户要求"查看 Happy Agent 会话"、"管理远程 Agent"、"获取会话状态"、"查看会话历史"、"发送消息到 Agent"时，或者需要与 Happy Coder Agent 进行远程交互时使用此 skill。
-version: 260311.120022
+version: 260311.122230
 ---
 
 # Happy Agent Easy - 简化的 Happy Agent 客户端
@@ -305,6 +305,34 @@ node skill.js wait <session-id> [--timeout 60000]
 
 ---
 
+### whoami - 获取当前会话 ID
+
+```bash
+node skill.js whoami
+```
+
+**用途：** 获取当前 Claude Code 对话的 session-id，方便 bot 知道自己是谁。
+
+**输出格式（JSON）：**
+```json
+{
+  "sessionId": "cmmliwctm1808o414d90utiga",
+  "claudeSessionId": "dfe0150f-ecaf-4dac-b269-dfc61a2d3177",
+  "path": "/Volumes/1T_M2/Downloads/code/claude_code_public_skills",
+  "host": "fuyingjundeMac-mini.local",
+  "active": true
+}
+```
+
+**匹配逻辑：**
+1. 首先尝试精确匹配当前工作目录
+2. 如果失败，尝试查找当前目录是否是某个会话的子目录
+3. 如果失败，尝试查找会话目录是否是当前目录的子目录
+4. 如果只有一个活跃会话，直接返回
+5. 如果有多个活跃会话且路径不匹配，返回错误和会话列表
+
+---
+
 ## 信息提取规则
 
 为减少 token 消耗，本工具会：
@@ -325,6 +353,7 @@ node skill.js wait <session-id> [--timeout 60000]
 | 活跃会话 | `happy-agent list --active` | `node skill.js list --active` |
 | 会话状态 | `happy-agent status <id>` | `node skill.js status <id>` |
 | 会话历史 | `happy-agent history <id>` | `node skill.js history <id>` |
+| 获取当前会话ID | - | `node skill.js whoami` |
 
 ---
 
