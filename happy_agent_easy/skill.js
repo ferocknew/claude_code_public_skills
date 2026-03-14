@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Happy Agent Easy v260311.115346 - 包含所有依赖，无需安装
+// Happy Agent Easy v260311.122230 - 包含所有依赖，无需安装
 
 
 // run.js
 var { execSync, spawn } = require("child_process");
-var SKILL_VERSION = true ? "260311.115346" : "0.1.0-dev";
+var SKILL_VERSION = true ? "260311.122230" : "0.1.0-dev";
 var args = process.argv.slice(2);
 var command = args[0];
 function showHelp() {
@@ -21,6 +21,8 @@ Happy Agent Easy v${SKILL_VERSION}
   history <session-id> [limit] [options]  \u67E5\u770B\u4F1A\u8BDD\u5386\u53F2
   send <session-id> <message> [options]  \u53D1\u9001\u6D88\u606F\u5230\u4F1A\u8BDD
   wait <session-id> [--timeout <ms>]   \u7B49\u5F85\u4F1A\u8BDD\u7A7A\u95F2
+  whoami                       \u83B7\u53D6\u5F53\u524D\u4F1A\u8BDD\u7684 session-id
+  whoami                       \u83B7\u53D6\u5F53\u524D\u4F1A\u8BDD\u7684 session-id
 
 history \u9009\u9879:
   --desc          \u5012\u5E8F\u663E\u793A\uFF08\u6700\u65B0\u6D88\u606F\u5728\u524D\uFF0C\u9ED8\u8BA4\uFF09
@@ -41,6 +43,7 @@ send \u9009\u9879:
   node skill.js list
   node skill.js list --limit 20
   node skill.js list --all
+  node skill.js whoami
   node skill.js status cmmlfb1d716gwo414t04qqrhz
   node skill.js history cmmlfb1d716gwo414t04qqrhz 20
   node skill.js history cmmlfb1d716gwo414t04qqrhz 50 --asc
@@ -349,6 +352,70 @@ function handleWait(sessionId, timeout = 6e4) {
   }
   console.log("\n" + "=".repeat(60));
 }
+function handleWhoami() {
+  const currentPath = process.cwd();
+  try {
+    const sessions = runHappyAgent("list");
+    if (!Array.isArray(sessions)) {
+      console.log(JSON.stringify({ error: "\u65E0\u6CD5\u83B7\u53D6\u4F1A\u8BDD\u5217\u8868" }, null, 2));
+      return;
+    }
+    const activeSessions = sessions.filter((s) => s.active);
+    let currentSession = sessions.find(
+      (s) => s.active && s.metadata?.path === currentPath
+    );
+    if (!currentSession) {
+      currentSession = activeSessions.find((s) => {
+        const sessionPath = s.metadata?.path;
+        return sessionPath && currentPath.startsWith(sessionPath);
+      });
+    }
+    if (!currentSession) {
+      currentSession = activeSessions.find((s) => {
+        const sessionPath = s.metadata?.path;
+        return sessionPath && sessionPath.startsWith(currentPath);
+      });
+    }
+    if (currentSession) {
+      const result = {
+        sessionId: currentSession.id,
+        claudeSessionId: currentSession.metadata?.claudeSessionId || null,
+        path: currentSession.metadata?.path || currentPath,
+        host: currentSession.metadata?.host || "unknown",
+        active: true
+      };
+      console.log(JSON.stringify(result, null, 2));
+    } else if (activeSessions.length === 1) {
+      const s = activeSessions[0];
+      const result = {
+        sessionId: s.id,
+        claudeSessionId: s.metadata?.claudeSessionId || null,
+        path: s.metadata?.path || "unknown",
+        host: s.metadata?.host || "unknown",
+        active: true,
+        note: "\u4EC5\u6709\u4E00\u4E2A\u6D3B\u8DC3\u4F1A\u8BDD"
+      };
+      console.log(JSON.stringify(result, null, 2));
+    } else if (activeSessions.length > 1) {
+      console.log(JSON.stringify({
+        error: "\u65E0\u6CD5\u786E\u5B9A\u5F53\u524D\u4F1A\u8BDD",
+        reason: "\u5B58\u5728\u591A\u4E2A\u6D3B\u8DC3\u4F1A\u8BDD\u4E14\u8DEF\u5F84\u4E0D\u5339\u914D",
+        currentPath,
+        activeSessions: activeSessions.map((s) => ({
+          sessionId: s.id,
+          path: s.metadata?.path || "unknown"
+        }))
+      }, null, 2));
+    } else {
+      console.log(JSON.stringify({
+        error: "\u6CA1\u6709\u6D3B\u8DC3\u4F1A\u8BDD",
+        currentPath
+      }, null, 2));
+    }
+  } catch (error) {
+    console.log(JSON.stringify({ error: "\u6267\u884C\u5931\u8D25", message: error.message }, null, 2));
+  }
+}
 if (!command || command === "-h" || command === "--help") {
   showHelp();
   process.exit(0);
@@ -445,6 +512,10 @@ try {
         process.exit(1);
       }
       handleWait(sessionId, timeout);
+      break;
+    }
+    case "whoami": {
+      handleWhoami();
       break;
     }
     default:
