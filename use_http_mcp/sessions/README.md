@@ -65,12 +65,11 @@ cat sessions/memory-mcp.json
 # 根据配置文件中的信息调用工具
 node ../skill.js post <endpoint> -H "Authorization: Bearer <token>" '<params>'
 
-# 示例：Memory MCP - 创建实体
-node ../skill.js post https://localhost:8086/tools/entities/create \
-  -H "Authorization: Bearer test123" \
+# 示例：调用 MCP 工具
+node ../skill.js post <mcp-server-url>/tools/<tool-name> \
+  -H "Authorization: Bearer <your-token>" \
   -H "Content-Type: application/json" \
-  '{"entities": [{"name": "测试", "entityType": "person", "observations": ["观察1"]}]}'
-```
+  '{"param1": "value1"}'
 
 ### 4. 添加新的 MCP 服务器
 

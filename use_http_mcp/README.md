@@ -31,13 +31,13 @@ node run.js get https://api.example.com/users
 
 ```bash
 # GET 请求
-node run.js get https://api.github.com/users/nodejs
+node run.js get https://api.example.com/users/nodejs
 
 # POST JSON
 node run.js post https://api.example.com/users '{"name": "张三"}'
 
 # 带认证
-node run.js get https://api.example.com/protected -u admin:123456
+node run.js get https://api.example.com/protected -u <user>:<pass>
 
 # 保存响应
 node run.js get https://api.example.com/data -o output.json
@@ -47,11 +47,11 @@ node run.js get https://api.example.com/data -o output.json
 
 ```bash
 # 获取 MCP 工具列表
-node run.js get https://mcp-server.com -b token --mcp-tools
+node run.js get <mcp-server-url> -b <your-token> --mcp-tools
 
 # 调用 MCP 工具
-node run.js post https://mcp-server.com/tools/tool-name \
-  -H "Authorization: Bearer token" \
+node run.js post <mcp-server-url>/tools/<tool-name> \
+  -H "Authorization: Bearer <your-token>" \
   '{"param": "value"}'
 ```
 
@@ -75,37 +75,45 @@ node run.js post https://mcp-server.com/tools/tool-name \
 
 ### 支持的 MCP 服务器
 
-| 服务器 | 描述 | 配置文件 |
-|--------|------|----------|
-| SearXNG MCP | 网络搜索和 URL 读取 | `sessions/searxng-mcp.json` |
-| Memory MCP | 知识图谱记忆服务 | `sessions/memory-mcp.json` |
+本工具支持任何符合 MCP 协议的 HTTP 服务器，包括：
+- REST API 风格的 MCP 服务器
+- MCP JSON-RPC 协议服务器
+
+参考 `sessions/` 目录中的配置示例。
 
 ### 获取 MCP 工具列表
 
 ```bash
-# SearXNG MCP
-node run.js get https://smcp.hk4.iw8.win/api/mcp \
-  -H "Authorization: Bearer 123123123" \
+# REST API 风格
+node run.js get <mcp-server-url>/mcp \
+  -H "Authorization: Bearer <your-token>" \
   --mcp-tools
 
-# Memory MCP
-node run.js get https://localhost:8086 \
-  -H "Authorization: Bearer test123" \
-  --mcp-tools
+# JSON-RPC 风格（需要先初始化获取 session ID）
+node run.js post <mcp-server-url>/mcp \
+  -H "Authorization: Bearer <your-token>" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -i \
+  '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "use-http-mcp", "version": "1.0.0"}}}'
 ```
 
 ### 调用 MCP 工具
 
 ```bash
-# Memory MCP - 创建实体
-node run.js post https://localhost:8086/tools/entities/create \
-  -H "Authorization: Bearer test123" \
+# REST API 风格
+node run.js post <mcp-server-url>/tools/<tool-name> \
+  -H "Authorization: Bearer <your-token>" \
   -H "Content-Type: application/json" \
-  '{"entities": [{"name": "实体名", "entityType": "类型", "observations": ["观察1"]}]}'
+  '{"param": "value"}'
 
-# Memory MCP - 搜索实体
-node run.js get "https://localhost:8086/tools/search/nodes?query=关键词&limit=5" \
-  -H "Authorization: Bearer test123"
+# JSON-RPC 风格（需要 session ID）
+node run.js post <mcp-server-url>/mcp \
+  -H "Authorization: Bearer <your-token>" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "mcp-session-id: <session-id>" \
+  '{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "<tool-name>", "arguments": {"query": "<搜索关键词>"}}}'
 ```
 
 ## 打包
