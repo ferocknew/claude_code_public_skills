@@ -1,7 +1,7 @@
 {
-  "name": "get-my-ip",
+  "name": "where-am-i",
   "version": "1.0.0",
-  "description": "查询公网 IP 地址及详细信息",
+  "description": "查询当前位置和公网 IP 地址",
   "main": "run.js",
   "scripts": {
     "build": "node build.js",
