@@ -1,0 +1,21 @@
+{
+  "name": "get-my-ip",
+  "version": "1.0.0",
+  "description": "查询公网 IP 地址及详细信息",
+  "main": "run.js",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node run.js"
+  },
+  "keywords": [
+    "ip",
+    "network",
+    "geolocation",
+    "isp"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  }
+}
