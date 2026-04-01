@@ -1,0 +1,22 @@
+{
+  "name": "cmo-weather-query",
+  "version": "1.0.0",
+  "description": "中央气象台天气信息查询工具",
+  "main": "skill.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "keywords": [
+    "weather",
+    "weather-query",
+    "中央气象台",
+    "天气预报"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "cheerio": "^1.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  }
+}
