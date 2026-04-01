@@ -1,41 +1,50 @@
----
-name: get-my-ip
-description: 当用户需要"查询公网 IP"、"查看本机公网地址"、"获取 IP 地理位置"、"查询 ISP 运营商"、"查看 IP 归属地"时使用此 skill。
-version: 1.0.0
-skill_version: 260401.145411
----
+# Where Am I
 
-# 获取公网 IP 信息
+查询当前位置和本机公网 IP 地址的命令行工具。
 
-本 skill 提供查询本机公网 IP 地址及详细信息的工具，基于 cip.cc 服务，无需安装依赖。
+## 功能特点
 
-## 概述
+- 查询公网 IP 地址
+- 获取地理位置（省/市）
+- 显示 ISP 运营商信息
+- 多种输出格式（默认表格、JSON、简洁）
+- 无需安装依赖，开箱即用
+- 基于 [cip.cc](http://www.cip.cc) 免费服务
 
-通过调用 cip.cc API 获取：
-- 公网 IP 地址
-- 地理位置（省/市）
-- ISP 运营商信息
-- 多个数据源对比
+## 安装与使用
 
-## 快速开始
+### 开发环境
 
 ```bash
-# 基本查询
+# 安装依赖
+pnpm install
+
+# 运行
+node run.js
+
+# 构建独立脚本
+npm run build
+```
+
+### 使用打包后的脚本
+
+```bash
+# 基本查询（表格格式）
 node skill.js
 
-# JSON 格式输出
+# JSON 格式
 node skill.js --json
 
-# 简洁格式（仅 IP）
+# 仅显示 IP
 node skill.js --simple
 
 # 显示原始数据
 node skill.js --raw
 ```
 
-## 输出格式
+## 输出示例
 
-### 默认格式（表格）
+### 默认格式
 
 ```
 IP      : 203.0.113.1
@@ -67,13 +76,18 @@ URL     : http://www.cip.cc/203.0.113.1
 203.0.113.1
 ```
 
-## 选项说明
+## 命令行选项
 
 | 选项 | 说明 |
 |------|------|
 | `--json` | 以 JSON 格式输出 |
 | `--simple` | 仅输出 IP 地址 |
 | `--raw` | 显示原始响应内容 |
+
+## 环境要求
+
+- Node.js 18 或更高版本
+- 需要访问互联网
 
 ## 使用场景
 
@@ -83,14 +97,25 @@ URL     : http://www.cip.cc/203.0.113.1
 - 调试网络连接
 - 验证代理/VPN 效果
 
-## 数据来源
+## 项目结构
 
-本工具使用 [cip.cc](http://www.cip.cc) 提供的免费 IP 查询服务。
+```
+get_my_ip/
+├── SKILL.md      # 技能定义（LLM 使用）
+├── CLAUDE.md     # AI 开发助手指引
+├── README.md     # 本文件
+├── package.json  # 依赖配置
+├── build.js      # 打包脚本
+├── run.js        # 主入口文件
+└── skill.js      # 打包后的独立文件
+```
 
-## 环境要求
+## 技术实现
 
-- Node.js 18 或更高版本
-- 需要访问互联网
+- 使用 Node.js 18+ 内置的 `fetch` API
+- 无需额外运行时依赖
+- 支持 ANSI 颜色输出
+- 使用 esbuild 打包为独立文件
 
 ## 常见问题
 
