@@ -1,0 +1,15 @@
+{
+  "name": "where-is-this",
+  "version": "1.0.0",
+  "description": "根据经纬度查询地址的逆地理编码工具",
+  "main": "skill.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "keywords": ["geocode", "逆地理编码", "经纬度", "坐标转地址"],
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  }
+}
