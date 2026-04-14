@@ -5,6 +5,13 @@ description: 网站安全扫描与加固。用于检查 HTTP 安全头、CORS �
 
 # 网站安全扫描 SKILL
 
+## Error Handling
+
+- timeout → retry 2 times
+- blocked → fallback to passive scan
+- DNS fail → skip DNS checks
+
+
 ## 检查清单
 
 ### 1. HTTP 安全响应头
@@ -135,6 +142,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+```
+
+```json
+{
+  "target": "example.com",
+  "score": 72,
+  "issues": [
+    {
+      "type": "missing_header",
+      "name": "X-Frame-Options",
+      "severity": "medium",
+      "evidence": "...",
+      "fix": "Add header ..."
+    }
+  ]
+}
 ```
 
 ## 常见踩坑
