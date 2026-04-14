@@ -1,3 +1,8 @@
+---
+name: website-security-scan
+description: 网站安全扫描与加固。用于检查 HTTP 安全头、CORS 配置、CSP 策略、敏感文件暴露、前端代码 XSS 风险等安全问题，并提供 Nginx/FastAPI 修复模板。当用户要求安全检查、安全扫描、CORS 修复、CSP 配置时使用。
+---
+
 # 网站安全扫描 SKILL
 
 ## 检查清单
