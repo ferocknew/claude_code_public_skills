@@ -3,13 +3,168 @@ name: website-security-scan
 description: 网站安全扫描与加固。用于检查 HTTP 安全头、CORS 配置、CSP 策略、敏感文件暴露、前端代码 XSS 风险等安全问题，并提供 Nginx/FastAPI 修复模板。当用户要求安全检查、安全扫描、CORS 修复、CSP 配置时使用。
 ---
 
-# 网站安全扫描 SKILL
+# 🌐 网站安全扫描 SKILL
 
-## Error Handling
+A structured, production-ready website security scanning skill.
 
-- timeout → retry 2 times
-- blocked → fallback to passive scan
-- DNS fail → skip DNS checks
+Supports:
+- Passive scanning (safe, default)
+- Active scanning (requires explicit user permission)
+
+---
+
+# ⚠️ Mode
+
+## Passive (default)
+Safe checks only:
+- Headers
+- TLS/SSL
+- DNS
+- Cookies
+- CORS
+
+## Active (optional)
+Requires explicit user confirmation:
+
+Includes:
+- Path probing
+- Basic vulnerability probing (XSS, SQLi indicators)
+- Exposure detection
+
+---
+
+# 🧠 Pipeline
+
+## Step 1: Normalize Target
+- Ensure valid URL
+- Add scheme if missing (default https)
+
+---
+
+## Step 2: Fetch Basic Info
+- HTTP status
+- Redirect chain
+- Server info
+
+---
+
+## Step 3: TLS / HTTPS Analysis
+- Certificate validity
+- Expiration
+- Protocol version
+- Weak ciphers
+
+---
+
+## Step 4: Security Headers
+
+Check presence and correctness:
+
+- Strict-Transport-Security
+- Content-Security-Policy
+- X-Frame-Options
+- X-Content-Type-Options
+- Referrer-Policy
+- Permissions-Policy
+
+---
+
+## Step 5: Cookie Security
+
+Check:
+- HttpOnly
+- Secure
+- SameSite
+
+---
+
+## Step 6: DNS & Email Security
+
+Check:
+- SPF
+- DKIM
+- DMARC
+
+---
+
+## Step 7: CORS Policy
+
+- Wildcard origins
+- Credentials allowed
+
+---
+
+## Step 8: JS & Dependency Risk
+
+- Identify JS libraries
+- Detect outdated/vulnerable versions (if possible)
+
+---
+
+## Step 9: Sensitive Exposure
+
+Check common paths:
+
+- /.git
+- /.env
+- /admin
+- /backup
+- /config
+
+---
+
+## Step 10: Subdomain Risk (basic)
+
+- Detect possible takeover indicators
+- Dangling DNS records
+
+---
+
+## Step 11: (Optional Active Scan)
+
+Only if user अनुमति:
+
+- Simple payload injection (non-destructive)
+- Basic fuzzing on common parameters
+
+---
+
+# ⚙️ Error Handling
+
+- Timeout → retry 2 times
+- 403/blocked → fallback to passive-only
+- DNS failure → skip DNS checks
+- SSL failure → report but continue
+
+---
+
+# 📊 Output Format (STRICT)
+
+Return JSON only:
+
+```json
+{
+  "target": "example.com",
+  "mode": "passive",
+  "score": 0-100,
+  "summary": "Short human-readable summary",
+  "issues": [
+    {
+      "type": "missing_header",
+      "name": "Content-Security-Policy",
+      "severity": "high",
+      "evidence": "Header not present",
+      "impact": "Increased risk of XSS attacks",
+      "fix": "Add a strict CSP header"
+    }
+  ],
+  "attack_chain": [
+    "Missing CSP → XSS possible → session hijack"
+  ],
+  "compliance": {
+    "owasp_top_10": ["A5: Security Misconfiguration"]
+  }
+}
 
 
 ## 检查清单
