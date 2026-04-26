@@ -16,10 +16,20 @@ Skills fall into two categories:
 | Skill | Type | Purpose |
 |-------|------|---------|
 | `agent-browser` | Agent-only | Browser automation, form filling, screenshots, web testing |
+| `cmo-weather-query` | Bundled | Weather query from China Meteorological Administration |
 | `db_client` | Bundled | Database client (MySQL, PostgreSQL, SQLite) with SSH tunnel |
+| `dianping-search` | Bundled | Dianping (大众点评) merchant search by city/category |
 | `doc_reader` | Bundled | Read .docx files, convert to Markdown/HTML |
 | `documents_ripgrep` | Bundled | Full-text search in code files and Office docs via ripgrep+textract |
 | `excel-alasql` | Bundled | SQL queries on Excel files via AlaSQL, Chinese column name support |
+| `figma-code-connect` | Agent-only | Create/maintain `.figma.ts` files mapping Figma components to code |
+| `figma-create-design-system-rules` | Agent-only | Generate project-level design system rules for AI coding agents |
+| `figma-create-new-file` | Agent-only | Create a new blank Figma file in user's drafts |
+| `figma-generate-design` | Agent-only | Build/update full-page screens in Figma from code or descriptions |
+| `figma-generate-library` | Agent-only | Build a complete design system library in Figma from a codebase |
+| `figma-implement-design` | Agent-only | Translate Figma designs into production-ready application code |
+| `figma-use` | Agent-only | Figma Plugin API via MCP — foundation for all Figma write operations |
+| `game_mahjong_agent` | Bundled | Multi-player Mahjong game AI agent simulator |
 | `happy_agent_easy` | Bundled | Simplified Happy Agent client — manage remote Agent sessions |
 | `jina_reader` | Agent-only | Fetch web page content as clean text via Jina AI Reader |
 | `makepad-进化` | Agent-only | Self-improving Makepad development skill system |
@@ -28,6 +38,9 @@ Skills fall into two categories:
 | `obsidian-json-canvas` | Agent-only | Create/edit JSON Canvas (.canvas) files with nodes, edges, groups |
 | `sendmail` | Bundled | Send emails via SMTP with Nodemailer, supports attachments |
 | `use_http_mcp` | Bundled | HTTP requests via native fetch, REST API testing, MCP server interaction |
+| `website_security_scan` | Bundled | Website security scan: HTTP headers, CORS, CSP, XSS detection |
+| `where-am-i` | Bundled | Query public IP address, geolocation, ISP info |
+| `where-is-this` | Bundled | Reverse geocoding — coordinates to detailed address |
 | `x_release_by_agent_browser` | Agent-only | Publish tweets on X/Twitter via agent-browser automation |
 
 ## Skill File Structure
