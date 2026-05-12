@@ -237,40 +237,36 @@ async function deepSearch(keyword, cookie) {
 }
 
 // ─── 结果格式化 ───
-const FIELD_LABELS = {
-  companyName: "企业名称", name: "企业名称", title: "企业名称",
-  legalPerson: "法定代表人", legalPersonName: "法定代表人", operName: "法定代表人",
-  regCapital: "注册资本", registeredCapital: "注册资本", capital: "注册资本",
-  establishDate: "成立日期", establisheDate: "成立日期", startDate: "成立日期", foundDate: "成立日期",
-  businessScope: "经营范围", scope: "经营范围",
-  regAddress: "注册地址", address: "注册地址",
-  companyStatus: "经营状态", status: "经营状态", operatingStatus: "经营状态",
-  socialCreditCode: "统一社会信用代码", creditCode: "统一社会信用代码",
-  companyType: "企业类型", econType: "企业类型", type: "企业类型",
-  industry: "行业",
-  phone: "电话", telephone: "电话",
-  email: "邮箱",
-  regNumber: "注册号",
-  orgCode: "组织机构代码",
-  province: "省份", city: "城市", district: "区县",
-  pid: "企业ID", id: "ID",
-};
+function stripEm(str) {
+  return String(str).replace(/<\/?em>/g, "");
+}
+
+const DISPLAY_FIELDS = [
+  ["legal_name", "法定代表人"],
+  ["reg_cap", "注册资本"],
+  ["es_date", "成立日期"],
+  ["ent_status", "经营状态"],
+  ["address", "注册地址"],
+  ["social_credit_code", "统一社会信用代码"],
+  ["currencyType", "货币类型"],
+  ["ability_label_outside", "能力标签"],
+];
 
 function formatCompany(company, index) {
-  const lines = [];
-  const name = company.companyName || company.name || company.title || "未知";
-  lines.push(`${index}. ${name}`);
+  const name = stripEm(company.ent_name || company.companyName || "未知");
+  const lines = [`${index}. ${name}`];
 
-  const shown = new Set(["companyName", "name", "title"]);
-  for (const [key, label] of Object.entries(FIELD_LABELS)) {
-    if (shown.has(key)) continue;
+  for (const [key, label] of DISPLAY_FIELDS) {
     const val = company[key];
-    if (val == null || val === "" || val === undefined) continue;
+    if (val == null || val === "" || (Array.isArray(val) && val.length === 0)) continue;
     let display = String(val);
-    if (key === "businessScope" || key === "scope") display = display.substring(0, 120) + (display.length > 120 ? "..." : "");
+    if (key === "ability_label_outside") {
+      display = display.replace(/ZM\$/g, "").replace(/;/g, " | ");
+    }
     lines.push(`   ${label}: ${display}`);
-    shown.add(key);
   }
+
+  if (company.companyId) lines.push(`   https://88cha.com/company/${company.companyId}`);
   return lines.join("\n");
 }
 
@@ -286,23 +282,29 @@ function formatResults(result, keyword, raw) {
   }
 
   const data = result.data;
-  let companies = [];
-  if (Array.isArray(data.resultList)) companies = data.resultList;
-  else if (Array.isArray(data.companyList)) companies = data.companyList;
-  else if (data.data && Array.isArray(data.data)) companies = data.data;
-  else if (data.result && Array.isArray(data.result)) companies = data.result;
-  else if (data.list && Array.isArray(data.list)) companies = data.list;
-  else if (data.items && Array.isArray(data.items)) companies = data.items;
+  const companies = Array.isArray(data.data) ? data.data
+    : Array.isArray(data.resultList) ? data.resultList
+    : Array.isArray(data.companyList) ? data.companyList
+    : [];
 
   if (companies.length === 0) {
-    return `搜索"${keyword}" - 服务器返回数据但未识别到企业列表。\n原始数据:\n${JSON.stringify(data, null, 2).substring(0, 2000)}`;
+    return `搜索"${keyword}"未找到企业。`;
   }
 
-  const total = data.totalCount || data.total || companies.length;
-  let output = `搜索: "${keyword}" (共 ${total} 条，当前 ${companies.length} 条)\n${"=".repeat(60)}\n\n`;
+  const total = data.total || data.totalCount || companies.length;
+  let output = `搜索"${keyword}": ${total} 条结果\n\n`;
 
   companies.forEach((c, i) => {
-    output += formatCompany(c, i + 1) + "\n\n";
+    const name = stripEm(c.ent_name || c.companyName || "未知");
+    output += `${i + 1}. ${name}\n`;
+    if (c.legal_name) output += `   法人: ${c.legal_name}`;
+    if (c.reg_cap) output += ` | 注册资本: ${c.reg_cap}`;
+    if (c.ent_status) output += ` | 状态: ${c.ent_status}`;
+    output += "\n";
+    if (c.es_date) output += `   成立: ${c.es_date}`;
+    if (c.address) output += ` | 地址: ${c.address}`;
+    output += "\n";
+    if (c.social_credit_code) output += `   信用代码: ${c.social_credit_code}\n`;
   });
 
   return output;
@@ -310,26 +312,43 @@ function formatResults(result, keyword, raw) {
 
 function formatStreamResults(events, keyword, raw) {
   if (raw) return JSON.stringify(events, null, 2);
-  if (events.length === 0) return `深度搜索"${keyword}"未返回任何事件数据。`;
+  if (events.length === 0) return `深度搜索"${keyword}"未返回任何数据。`;
 
-  let output = `深度搜索: "${keyword}" (收到 ${events.length} 个事件)\n${"=".repeat(60)}\n\n`;
+  // 从 SSE 事件流中提取最终摘要（取最后一个 text phase 的 summary）
+  let summary = "";
+  let companies = [];
 
-  events.forEach((evt, i) => {
-    output += `--- 事件 ${i + 1} ---\n`;
-    if (evt.ret) output += `状态: ${evt.ret.join(", ")}\n`;
-    if (evt.data) {
-      const data = evt.data;
-      if (data.reasoning) output += `推理: ${data.reasoning}\n`;
-      if (data.companyList || data.resultList) {
-        const list = data.companyList || data.resultList || [];
-        output += `企业列表 (${list.length} 条):\n`;
-        list.forEach((c, j) => { output += formatCompany(c, j + 1) + "\n"; });
-      } else {
-        output += JSON.stringify(data, null, 2).substring(0, 1000) + "\n";
-      }
+  for (const evt of events) {
+    if (!evt.data) continue;
+    let inner;
+    try {
+      inner = typeof evt.data === "string" ? JSON.parse(evt.data) : evt.data;
+    } catch { continue; }
+
+    if (inner.phase === "text" && inner.summary) {
+      summary = inner.summary;
     }
-    output += "\n";
-  });
+    if (inner.companyList || inner.resultList) {
+      companies = inner.companyList || inner.resultList;
+    }
+  }
+
+  let output = `深度搜索"${keyword}"\n\n`;
+
+  if (summary) {
+    output += `## AI 分析摘要\n${summary}\n\n`;
+  }
+
+  if (companies.length > 0) {
+    output += `## 相关企业 (${companies.length} 条)\n`;
+    companies.forEach((c, i) => {
+      output += formatCompany(c, i + 1) + "\n\n";
+    });
+  }
+
+  if (!summary && companies.length === 0) {
+    output += `未提取到有效内容。使用 --raw 查看原始数据。\n`;
+  }
 
   return output;
 }

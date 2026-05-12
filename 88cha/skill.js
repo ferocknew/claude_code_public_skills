@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 88查企业搜索工具 v260512.233627
+// 88查企业搜索工具 v260512.233942
 
 
 // run.js
@@ -7,7 +7,7 @@ var https = require("https");
 var crypto = require("crypto");
 var fs = require("fs");
 var path = require("path");
-var SKILL_VERSION = true ? "260512.233627" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260512.233942" : "1.0.0-dev";
 var APP_KEY = "12574478";
 var BASE_URL = "https://acs-m.88cha.com/h5";
 var COOKIE_FILE = path.join(__dirname, ".cookie");
@@ -216,58 +216,32 @@ async function deepSearch(keyword, cookie) {
   const url = `${BASE_URL}/mtop.com.alibaba.business.query.supersearchreasoning/2.0/?${qs}`;
   return httpGetStream(url, buildHeaders(cookie, "text/event-stream, text/event-stream"));
 }
-var FIELD_LABELS = {
-  companyName: "\u4F01\u4E1A\u540D\u79F0",
-  name: "\u4F01\u4E1A\u540D\u79F0",
-  title: "\u4F01\u4E1A\u540D\u79F0",
-  legalPerson: "\u6CD5\u5B9A\u4EE3\u8868\u4EBA",
-  legalPersonName: "\u6CD5\u5B9A\u4EE3\u8868\u4EBA",
-  operName: "\u6CD5\u5B9A\u4EE3\u8868\u4EBA",
-  regCapital: "\u6CE8\u518C\u8D44\u672C",
-  registeredCapital: "\u6CE8\u518C\u8D44\u672C",
-  capital: "\u6CE8\u518C\u8D44\u672C",
-  establishDate: "\u6210\u7ACB\u65E5\u671F",
-  establisheDate: "\u6210\u7ACB\u65E5\u671F",
-  startDate: "\u6210\u7ACB\u65E5\u671F",
-  foundDate: "\u6210\u7ACB\u65E5\u671F",
-  businessScope: "\u7ECF\u8425\u8303\u56F4",
-  scope: "\u7ECF\u8425\u8303\u56F4",
-  regAddress: "\u6CE8\u518C\u5730\u5740",
-  address: "\u6CE8\u518C\u5730\u5740",
-  companyStatus: "\u7ECF\u8425\u72B6\u6001",
-  status: "\u7ECF\u8425\u72B6\u6001",
-  operatingStatus: "\u7ECF\u8425\u72B6\u6001",
-  socialCreditCode: "\u7EDF\u4E00\u793E\u4F1A\u4FE1\u7528\u4EE3\u7801",
-  creditCode: "\u7EDF\u4E00\u793E\u4F1A\u4FE1\u7528\u4EE3\u7801",
-  companyType: "\u4F01\u4E1A\u7C7B\u578B",
-  econType: "\u4F01\u4E1A\u7C7B\u578B",
-  type: "\u4F01\u4E1A\u7C7B\u578B",
-  industry: "\u884C\u4E1A",
-  phone: "\u7535\u8BDD",
-  telephone: "\u7535\u8BDD",
-  email: "\u90AE\u7BB1",
-  regNumber: "\u6CE8\u518C\u53F7",
-  orgCode: "\u7EC4\u7EC7\u673A\u6784\u4EE3\u7801",
-  province: "\u7701\u4EFD",
-  city: "\u57CE\u5E02",
-  district: "\u533A\u53BF",
-  pid: "\u4F01\u4E1AID",
-  id: "ID"
-};
+function stripEm(str) {
+  return String(str).replace(/<\/?em>/g, "");
+}
+var DISPLAY_FIELDS = [
+  ["legal_name", "\u6CD5\u5B9A\u4EE3\u8868\u4EBA"],
+  ["reg_cap", "\u6CE8\u518C\u8D44\u672C"],
+  ["es_date", "\u6210\u7ACB\u65E5\u671F"],
+  ["ent_status", "\u7ECF\u8425\u72B6\u6001"],
+  ["address", "\u6CE8\u518C\u5730\u5740"],
+  ["social_credit_code", "\u7EDF\u4E00\u793E\u4F1A\u4FE1\u7528\u4EE3\u7801"],
+  ["currencyType", "\u8D27\u5E01\u7C7B\u578B"],
+  ["ability_label_outside", "\u80FD\u529B\u6807\u7B7E"]
+];
 function formatCompany(company, index) {
-  const lines = [];
-  const name = company.companyName || company.name || company.title || "\u672A\u77E5";
-  lines.push(`${index}. ${name}`);
-  const shown = /* @__PURE__ */ new Set(["companyName", "name", "title"]);
-  for (const [key, label] of Object.entries(FIELD_LABELS)) {
-    if (shown.has(key)) continue;
+  const name = stripEm(company.ent_name || company.companyName || "\u672A\u77E5");
+  const lines = [`${index}. ${name}`];
+  for (const [key, label] of DISPLAY_FIELDS) {
     const val = company[key];
-    if (val == null || val === "" || val === void 0) continue;
+    if (val == null || val === "" || Array.isArray(val) && val.length === 0) continue;
     let display = String(val);
-    if (key === "businessScope" || key === "scope") display = display.substring(0, 120) + (display.length > 120 ? "..." : "");
+    if (key === "ability_label_outside") {
+      display = display.replace(/ZM\$/g, "").replace(/;/g, " | ");
+    }
     lines.push(`   ${label}: ${display}`);
-    shown.add(key);
   }
+  if (company.companyId) lines.push(`   https://88cha.com/company/${company.companyId}`);
   return lines.join("\n");
 }
 function formatResults(result, keyword, raw) {
@@ -282,57 +256,70 @@ function formatResults(result, keyword, raw) {
     return `\u641C\u7D22"${keyword}"\u672A\u8FD4\u56DE\u6570\u636E\u3002`;
   }
   const data = result.data;
-  let companies = [];
-  if (Array.isArray(data.resultList)) companies = data.resultList;
-  else if (Array.isArray(data.companyList)) companies = data.companyList;
-  else if (data.data && Array.isArray(data.data)) companies = data.data;
-  else if (data.result && Array.isArray(data.result)) companies = data.result;
-  else if (data.list && Array.isArray(data.list)) companies = data.list;
-  else if (data.items && Array.isArray(data.items)) companies = data.items;
+  const companies = Array.isArray(data.data) ? data.data : Array.isArray(data.resultList) ? data.resultList : Array.isArray(data.companyList) ? data.companyList : [];
   if (companies.length === 0) {
-    return `\u641C\u7D22"${keyword}" - \u670D\u52A1\u5668\u8FD4\u56DE\u6570\u636E\u4F46\u672A\u8BC6\u522B\u5230\u4F01\u4E1A\u5217\u8868\u3002
-\u539F\u59CB\u6570\u636E:
-${JSON.stringify(data, null, 2).substring(0, 2e3)}`;
+    return `\u641C\u7D22"${keyword}"\u672A\u627E\u5230\u4F01\u4E1A\u3002`;
   }
-  const total = data.totalCount || data.total || companies.length;
-  let output = `\u641C\u7D22: "${keyword}" (\u5171 ${total} \u6761\uFF0C\u5F53\u524D ${companies.length} \u6761)
-${"=".repeat(60)}
+  const total = data.total || data.totalCount || companies.length;
+  let output = `\u641C\u7D22"${keyword}": ${total} \u6761\u7ED3\u679C
 
 `;
   companies.forEach((c, i) => {
-    output += formatCompany(c, i + 1) + "\n\n";
+    const name = stripEm(c.ent_name || c.companyName || "\u672A\u77E5");
+    output += `${i + 1}. ${name}
+`;
+    if (c.legal_name) output += `   \u6CD5\u4EBA: ${c.legal_name}`;
+    if (c.reg_cap) output += ` | \u6CE8\u518C\u8D44\u672C: ${c.reg_cap}`;
+    if (c.ent_status) output += ` | \u72B6\u6001: ${c.ent_status}`;
+    output += "\n";
+    if (c.es_date) output += `   \u6210\u7ACB: ${c.es_date}`;
+    if (c.address) output += ` | \u5730\u5740: ${c.address}`;
+    output += "\n";
+    if (c.social_credit_code) output += `   \u4FE1\u7528\u4EE3\u7801: ${c.social_credit_code}
+`;
   });
   return output;
 }
 function formatStreamResults(events, keyword, raw) {
   if (raw) return JSON.stringify(events, null, 2);
-  if (events.length === 0) return `\u6DF1\u5EA6\u641C\u7D22"${keyword}"\u672A\u8FD4\u56DE\u4EFB\u4F55\u4E8B\u4EF6\u6570\u636E\u3002`;
-  let output = `\u6DF1\u5EA6\u641C\u7D22: "${keyword}" (\u6536\u5230 ${events.length} \u4E2A\u4E8B\u4EF6)
-${"=".repeat(60)}
+  if (events.length === 0) return `\u6DF1\u5EA6\u641C\u7D22"${keyword}"\u672A\u8FD4\u56DE\u4EFB\u4F55\u6570\u636E\u3002`;
+  let summary = "";
+  let companies = [];
+  for (const evt of events) {
+    if (!evt.data) continue;
+    let inner;
+    try {
+      inner = typeof evt.data === "string" ? JSON.parse(evt.data) : evt.data;
+    } catch {
+      continue;
+    }
+    if (inner.phase === "text" && inner.summary) {
+      summary = inner.summary;
+    }
+    if (inner.companyList || inner.resultList) {
+      companies = inner.companyList || inner.resultList;
+    }
+  }
+  let output = `\u6DF1\u5EA6\u641C\u7D22"${keyword}"
 
 `;
-  events.forEach((evt, i) => {
-    output += `--- \u4E8B\u4EF6 ${i + 1} ---
+  if (summary) {
+    output += `## AI \u5206\u6790\u6458\u8981
+${summary}
+
 `;
-    if (evt.ret) output += `\u72B6\u6001: ${evt.ret.join(", ")}
+  }
+  if (companies.length > 0) {
+    output += `## \u76F8\u5173\u4F01\u4E1A (${companies.length} \u6761)
 `;
-    if (evt.data) {
-      const data = evt.data;
-      if (data.reasoning) output += `\u63A8\u7406: ${data.reasoning}
+    companies.forEach((c, i) => {
+      output += formatCompany(c, i + 1) + "\n\n";
+    });
+  }
+  if (!summary && companies.length === 0) {
+    output += `\u672A\u63D0\u53D6\u5230\u6709\u6548\u5185\u5BB9\u3002\u4F7F\u7528 --raw \u67E5\u770B\u539F\u59CB\u6570\u636E\u3002
 `;
-      if (data.companyList || data.resultList) {
-        const list = data.companyList || data.resultList || [];
-        output += `\u4F01\u4E1A\u5217\u8868 (${list.length} \u6761):
-`;
-        list.forEach((c, j) => {
-          output += formatCompany(c, j + 1) + "\n";
-        });
-      } else {
-        output += JSON.stringify(data, null, 2).substring(0, 1e3) + "\n";
-      }
-    }
-    output += "\n";
-  });
+  }
   return output;
 }
 async function main() {
