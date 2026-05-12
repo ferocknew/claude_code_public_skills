@@ -1,7 +1,7 @@
 ---
 name: 88cha
 description: 当用户需要"搜索企业信息"、"查公司"、"查企业"、"企业工商信息"、"88查"、"查老板"、"查股东"时使用此 skill。支持通过 88cha.com 搜索企业工商信息，返回企业名称、法人、注册资本、经营范围、注册地址等信息。支持普通搜索和深度搜索两种模式。
-version: 260512.234051
+version: 260512.234820
 ---
 
 # 88查企业搜索
@@ -10,26 +10,33 @@ version: 260512.234051
 
 ## 首次使用
 
-**第一次执行必须提供 Cookie**，传入后自动保存到 `.cookie` 文件，后续无需再传。
+**无需手动提供 Cookie**，工具会自动通过 MTOP Token 交换机制获取访问凭证。
 
 ```bash
-node skill.js "腾讯" --cookie "YOUR_COOKIE"
+# 直接搜索即可
+node skill.js "腾讯"
+node skill.js "字节跳动" --page 2
+node skill.js "华为" --stream
 ```
 
-### 如何获取 Cookie
+### 自动 Token 机制
+
+工具会自动完成以下流程：
+1. 发送初始请求获取 `_m_h5_tk` Token
+2. 用 Token 计算 MTOP 签名
+3. 发送正式搜索请求
+
+如果自动获取失败（如频率限制），可手动提供 Cookie：
+```bash
+node skill.js "关键词" --cookie "YOUR_COOKIE"
+```
+
+### 手动获取 Cookie（备用）
 
 1. 用浏览器打开 https://88cha.com/ 并登录
-2. 按 F12 打开开发者工具，切换到 Network（网络）标签
-3. 在页面中随意搜索一个关键词，触发网络请求
-4. 在 Network 列表中点击任意一个发往 `acs-m.88cha.com` 的请求
-5. 在 Headers 中找到 `Cookie` 字段，复制完整值
-
-**关键要求：** Cookie 中必须包含 `_m_h5_tk` 字段，该字段用于 MTOP 接口签名计算，缺少会导致请求失败。
-
-**Cookie 过期处理：** 搜索失败（报签名错误或无数据）时，通常是 Cookie 已过期，需重新获取并传入：
-```bash
-node skill.js "关键词" --cookie "NEW_COOKIE"
-```
+2. 按 F12 打开开发者工具，切换到 Network 标签
+3. 搜索一个关键词，找到发往 `acs-m.88cha.com` 的请求
+4. 复制 Headers 中的完整 Cookie 值
 
 ## 可用工具
 
