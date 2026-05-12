@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 88查企业搜索工具 v260512.234051
+// 88查企业搜索工具 v260512.234820
 
 
 // run.js
@@ -7,7 +7,7 @@ var https = require("https");
 var crypto = require("crypto");
 var fs = require("fs");
 var path = require("path");
-var SKILL_VERSION = true ? "260512.234051" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260512.234820" : "1.0.0-dev";
 var APP_KEY = "12574478";
 var BASE_URL = "https://acs-m.88cha.com/h5";
 var COOKIE_FILE = path.join(__dirname, ".cookie");
@@ -114,9 +114,27 @@ function httpGet(url, headers) {
       let data = "";
       res.setEncoding("utf-8");
       res.on("data", (c) => data += c);
-      res.on("end", () => resolve(data));
+      res.on("end", () => resolve({ body: data, cookies: res.headers["set-cookie"] || [] }));
     }).on("error", reject);
   });
+}
+async function fetchToken() {
+  const t = Date.now().toString();
+  const dummySign = "0".repeat(32);
+  const url = `${BASE_URL}/mtop.com.alibaba.business.query.recommendcompany/2.0/?jsv=2.5.8&appKey=${APP_KEY}&t=${t}&sign=${dummySign}&api=mtop.com.alibaba.business.query.recommendcompany&v=2.0&dataType=json&data=%7B%7D`;
+  const { cookies } = await httpGet(url, {
+    "User-Agent": UA,
+    "Origin": "https://88cha.com"
+  });
+  let tk = "", tkEnc = "";
+  for (const c of cookies) {
+    const m1 = c.match(/_m_h5_tk=([^;]+)/);
+    if (m1) tk = m1[1];
+    const m2 = c.match(/_m_h5_tk_enc=([^;]+)/);
+    if (m2) tkEnc = m2[1];
+  }
+  if (!tk) throw new Error("\u81EA\u52A8\u83B7\u53D6 Token \u5931\u8D25");
+  return { tk, tkEnc, token: tk.split("_")[0], cookie: `_m_h5_tk=${tk}; _m_h5_tk_enc=${tkEnc}; mtop_partitioned_detect=1` };
 }
 function httpGetStream(url, headers) {
   return new Promise((resolve, reject) => {
@@ -160,8 +178,12 @@ function httpGetStream(url, headers) {
   });
 }
 async function searchCompanies(keyword, cookie, pageNo, pageSize) {
+  if (!cookie) {
+    const auth = await fetchToken();
+    cookie = auth.cookie;
+  }
   const token = extractToken(cookie);
-  if (!token) throw new Error("Cookie \u4E2D\u672A\u627E\u5230 _m_h5_tk\uFF0C\u8BF7\u63D0\u4F9B\u5B8C\u6574 Cookie");
+  if (!token) throw new Error("Cookie \u4E2D\u672A\u627E\u5230 _m_h5_tk");
   const t = Date.now().toString();
   const spid = generateSpid();
   const data = JSON.stringify({ query: keyword, sessionId: "", spid, pageNo, pageSize, scene: "default" });
@@ -180,12 +202,16 @@ async function searchCompanies(keyword, cookie, pageNo, pageSize) {
     data
   });
   const url = `${BASE_URL}/mtop.com.alibaba.business.query.recommendcompany/2.0/?${qs}`;
-  const body = await httpGet(url, buildHeaders(cookie, "application/json"));
+  const { body } = await httpGet(url, buildHeaders(cookie, "application/json"));
   return JSON.parse(body);
 }
 async function deepSearch(keyword, cookie) {
+  if (!cookie) {
+    const auth = await fetchToken();
+    cookie = auth.cookie;
+  }
   const token = extractToken(cookie);
-  if (!token) throw new Error("Cookie \u4E2D\u672A\u627E\u5230 _m_h5_tk\uFF0C\u8BF7\u63D0\u4F9B\u5B8C\u6574 Cookie");
+  if (!token) throw new Error("Cookie \u4E2D\u672A\u627E\u5230 _m_h5_tk");
   const t = Date.now().toString();
   const spid = generateSpid();
   const data = JSON.stringify({
@@ -327,14 +353,11 @@ async function main() {
   const params = parseArgs();
   if (!params.keyword) {
     console.error("\u9519\u8BEF\uFF1A\u8BF7\u63D0\u4F9B\u641C\u7D22\u5173\u952E\u8BCD");
-    console.log("\u7528\u6CD5: node skill.js <\u5173\u952E\u8BCD> --cookie <cookie_string>");
+    console.log("\u7528\u6CD5: node skill.js <\u5173\u952E\u8BCD>");
     process.exit(1);
   }
   if (!params.cookie) {
-    console.error("\u9519\u8BEF\uFF1A\u8BF7\u63D0\u4F9B Cookie");
-    console.log('\u65B9\u5F0F1: node skill.js \u5173\u952E\u8BCD --cookie "YOUR_COOKIE"\uFF08\u9996\u6B21\u4F20\u5165\u540E\u81EA\u52A8\u4FDD\u5B58\uFF09');
-    console.log("\u65B9\u5F0F2: \u8BBE\u7F6E\u73AF\u5883\u53D8\u91CF CHA88_COOKIE");
-    process.exit(1);
+    console.log("(\u81EA\u52A8\u83B7\u53D6 Token...)\n");
   }
   console.log(`
 ${"=".repeat(60)}`);

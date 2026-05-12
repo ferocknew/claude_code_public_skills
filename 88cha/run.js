@@ -391,15 +391,12 @@ async function main() {
 
   if (!params.keyword) {
     console.error("错误：请提供搜索关键词");
-    console.log("用法: node skill.js <关键词> --cookie <cookie_string>");
+    console.log("用法: node skill.js <关键词>");
     process.exit(1);
   }
 
   if (!params.cookie) {
-    console.error("错误：请提供 Cookie");
-    console.log('方式1: node skill.js 关键词 --cookie "YOUR_COOKIE"（首次传入后自动保存）');
-    console.log("方式2: 设置环境变量 CHA88_COOKIE");
-    process.exit(1);
+    console.log("(自动获取 Token...)\n");
   }
 
   console.log(`\n${"=".repeat(60)}`);
