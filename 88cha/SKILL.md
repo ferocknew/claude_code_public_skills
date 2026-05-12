@@ -8,6 +8,29 @@ version: 260512.234051
 
 通过 88cha.com 搜索企业工商信息，返回结构化数据。
 
+## 首次使用
+
+**第一次执行必须提供 Cookie**，传入后自动保存到 `.cookie` 文件，后续无需再传。
+
+```bash
+node skill.js "腾讯" --cookie "YOUR_COOKIE"
+```
+
+### 如何获取 Cookie
+
+1. 用浏览器打开 https://88cha.com/ 并登录
+2. 按 F12 打开开发者工具，切换到 Network（网络）标签
+3. 在页面中随意搜索一个关键词，触发网络请求
+4. 在 Network 列表中点击任意一个发往 `acs-m.88cha.com` 的请求
+5. 在 Headers 中找到 `Cookie` 字段，复制完整值
+
+**关键要求：** Cookie 中必须包含 `_m_h5_tk` 字段，该字段用于 MTOP 接口签名计算，缺少会导致请求失败。
+
+**Cookie 过期处理：** 搜索失败（报签名错误或无数据）时，通常是 Cookie 已过期，需重新获取并传入：
+```bash
+node skill.js "关键词" --cookie "NEW_COOKIE"
+```
+
 ## 可用工具
 
 ### search - 企业搜索（默认模式）
@@ -59,15 +82,5 @@ node skill.js "小米" --raw
 
 ## 注意事项
 
-1. **Cookie 获取**：需从浏览器获取 88cha.com 的完整 Cookie（包含 `_m_h5_tk`）
-2. **MTOP 签名**：使用阿里巴巴 MTOP 标准签名算法（MD5）
-3. **Cookie 过期**：搜索失败时通常是 Cookie 过期，需重新获取
-
-## 获取 Cookie
-
-1. 打开 https://88cha.com/
-2. 登录账户
-3. F12 → Network → 任意请求 → Headers → Cookie 中复制完整值
-4. 必须包含 `_m_h5_tk` 字段（用于签名计算）
-
-**注意：** 当搜索失败时，通常是 Cookie 已过期，请提醒使用者重新获取并提供新的 Cookie 值。
+1. **MTOP 签名**：使用阿里巴巴 MTOP 标准签名算法（MD5: `token & t & appKey & data`）
+2. **Cookie 过期**：搜索失败时通常是 Cookie 过期，需重新获取

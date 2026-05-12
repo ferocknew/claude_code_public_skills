@@ -123,9 +123,32 @@ function httpGet(url, headers) {
       let data = "";
       res.setEncoding("utf-8");
       res.on("data", c => data += c);
-      res.on("end", () => resolve(data));
+      res.on("end", () => resolve({ body: data, cookies: res.headers["set-cookie"] || [] }));
     }).on("error", reject);
   });
+}
+
+// ─── 自动获取 MTOP Token（无需手动提供 Cookie）───
+async function fetchToken() {
+  const t = Date.now().toString();
+  const dummySign = "0".repeat(32);
+  const url = `${BASE_URL}/mtop.com.alibaba.business.query.recommendcompany/2.0/?jsv=2.5.8&appKey=${APP_KEY}&t=${t}&sign=${dummySign}&api=mtop.com.alibaba.business.query.recommendcompany&v=2.0&dataType=json&data=%7B%7D`;
+
+  const { cookies } = await httpGet(url, {
+    "User-Agent": UA,
+    "Origin": "https://88cha.com",
+  });
+
+  let tk = "", tkEnc = "";
+  for (const c of cookies) {
+    const m1 = c.match(/_m_h5_tk=([^;]+)/);
+    if (m1) tk = m1[1];
+    const m2 = c.match(/_m_h5_tk_enc=([^;]+)/);
+    if (m2) tkEnc = m2[1];
+  }
+
+  if (!tk) throw new Error("自动获取 Token 失败");
+  return { tk, tkEnc, token: tk.split("_")[0], cookie: `_m_h5_tk=${tk}; _m_h5_tk_enc=${tkEnc}; mtop_partitioned_detect=1` };
 }
 
 function httpGetStream(url, headers) {
@@ -171,8 +194,12 @@ function httpGetStream(url, headers) {
 
 // ─── 企业搜索（JSON API）───
 async function searchCompanies(keyword, cookie, pageNo, pageSize) {
+  if (!cookie) {
+    const auth = await fetchToken();
+    cookie = auth.cookie;
+  }
   const token = extractToken(cookie);
-  if (!token) throw new Error("Cookie 中未找到 _m_h5_tk，请提供完整 Cookie");
+  if (!token) throw new Error("Cookie 中未找到 _m_h5_tk");
 
   const t = Date.now().toString();
   const spid = generateSpid();
@@ -194,14 +221,18 @@ async function searchCompanies(keyword, cookie, pageNo, pageSize) {
   });
 
   const url = `${BASE_URL}/mtop.com.alibaba.business.query.recommendcompany/2.0/?${qs}`;
-  const body = await httpGet(url, buildHeaders(cookie, "application/json"));
+  const { body } = await httpGet(url, buildHeaders(cookie, "application/json"));
   return JSON.parse(body);
 }
 
 // ─── 深度搜索（SSE API）───
 async function deepSearch(keyword, cookie) {
+  if (!cookie) {
+    const auth = await fetchToken();
+    cookie = auth.cookie;
+  }
   const token = extractToken(cookie);
-  if (!token) throw new Error("Cookie 中未找到 _m_h5_tk，请提供完整 Cookie");
+  if (!token) throw new Error("Cookie 中未找到 _m_h5_tk");
 
   const t = Date.now().toString();
   const spid = generateSpid();
