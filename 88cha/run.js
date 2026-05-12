@@ -322,7 +322,8 @@ function formatStreamResults(events, keyword, raw) {
     if (!evt.data) continue;
     let inner;
     try {
-      inner = typeof evt.data === "string" ? JSON.parse(evt.data) : evt.data;
+      const payload = typeof evt.data === "string" ? JSON.parse(evt.data) : evt.data;
+      inner = typeof payload.data === "string" ? JSON.parse(payload.data) : payload.data;
     } catch { continue; }
 
     if (inner.phase === "text" && inner.summary) {

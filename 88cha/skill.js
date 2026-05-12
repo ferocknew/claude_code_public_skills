@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 88查企业搜索工具 v260512.233942
+// 88查企业搜索工具 v260512.234051
 
 
 // run.js
@@ -7,7 +7,7 @@ var https = require("https");
 var crypto = require("crypto");
 var fs = require("fs");
 var path = require("path");
-var SKILL_VERSION = true ? "260512.233942" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260512.234051" : "1.0.0-dev";
 var APP_KEY = "12574478";
 var BASE_URL = "https://acs-m.88cha.com/h5";
 var COOKIE_FILE = path.join(__dirname, ".cookie");
@@ -289,7 +289,8 @@ function formatStreamResults(events, keyword, raw) {
     if (!evt.data) continue;
     let inner;
     try {
-      inner = typeof evt.data === "string" ? JSON.parse(evt.data) : evt.data;
+      const payload = typeof evt.data === "string" ? JSON.parse(evt.data) : evt.data;
+      inner = typeof payload.data === "string" ? JSON.parse(payload.data) : payload.data;
     } catch {
       continue;
     }
