@@ -6,6 +6,7 @@
 
 | 技能目录 | 名称 | 描述 |
 |---------|------|------|
+| `88cha` | 88查企业搜索 | 通过 88cha.com 搜索企业工商信息，支持普通搜索和深度搜索，返回企业名称、法人、注册资本、经营范围等 |
 | `agent-browser` | Browser Automation | 浏览器自动化，用于网页测试、表单填充、截图和数据提取 |
 | `cmo-weather-query` | Weather Query | 中央气象台天气信息查询，支持实时天气、天气预报、气象预警 |
 | `db_client` | Database Client | 数据库客户端，支持 MySQL、PostgreSQL、SQLite，以及 SSH 隧道连接远程数据库 |
@@ -13,6 +14,7 @@
 | `doc_reader` | DOCX Reader | 读取 Microsoft Word 文档（.docx）并转换为 Markdown 或 HTML 格式 |
 | `documents_ripgrep` | Document Search | 使用 ripgrep + textract 在代码和 Office 文件中全文搜索 |
 | `excel-alasql` | Excel with AlaSQL | 使用 SQL 查询处理 Excel 文件（.xlsx、.xls、.csv），支持中文文件名和列名 |
+| `gaode-map` | 高德地图查询 | 地理编码、POI搜索（v3+v5）、路径规划、交通态势、地址真实性验证，零运行时依赖 |
 | `figma-code-connect` | Figma Code Connect | 创建/维护 `.figma.ts` 文件，将 Figma 组件映射到代码片段 |
 | `figma-create-design-system-rules` | Figma DS Rules | 为 AI 编码助手生成项目级设计系统规则（CLAUDE.md / AGENTS.md） |
 | `figma-create-new-file` | Figma Create File | 在用户草稿箱中创建新的空白 Figma 文件 |
