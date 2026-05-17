@@ -15,6 +15,7 @@ Skills fall into two categories:
 
 | Skill | Type | Purpose |
 |-------|------|---------|
+| `88cha` | Bundled | Enterprise search via 88cha.com — company info, legal rep, registration details |
 | `agent-browser` | Agent-only | Browser automation, form filling, screenshots, web testing |
 | `cmo-weather-query` | Bundled | Weather query from China Meteorological Administration |
 | `db_client` | Bundled | Database client (MySQL, PostgreSQL, SQLite) with SSH tunnel |
@@ -22,7 +23,7 @@ Skills fall into two categories:
 | `doc_reader` | Bundled | Read .docx files, convert to Markdown/HTML |
 | `documents_ripgrep` | Bundled | Full-text search in code files and Office docs via ripgrep+textract |
 | `excel-alasql` | Bundled | SQL queries on Excel files via AlaSQL, Chinese column name support |
-| `gaode-map` | Bundled | AMap geocoding, POI search, route planning, personal map QR code |
+| `gaode-map` | Bundled | AMap geocoding, POI search (v3+v5), route planning, traffic status, address verification |
 | `figma-code-connect` | Agent-only | Create/maintain `.figma.ts` files mapping Figma components to code |
 | `figma-create-design-system-rules` | Agent-only | Generate project-level design system rules for AI coding agents |
 | `figma-create-new-file` | Agent-only | Create a new blank Figma file in user's drafts |
