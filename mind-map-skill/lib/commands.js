@@ -274,6 +274,70 @@ async function cmdSearch(keyword, opts) {
   };
 }
 
+// ===================== 概要（generalization） =====================
+
+/**
+ * 概要 CRUD
+ * POST /api/mind-map/generalization
+ */
+async function cmdGeneralization(action, uid, opts) {
+  const body = { action, uid };
+  if (opts.text !== undefined) body.text = opts.text;
+  if (opts.range !== undefined) body.range = opts.range;
+  if (opts.genUid !== undefined) body.genUid = opts.genUid;
+  const result = await apiRequest("POST", "/api/mind-map/generalization", body, opts);
+  return unwrapToolResult(result);
+}
+
+// ===================== 关联线（associative_line） =====================
+
+/**
+ * 关联线 CRUD
+ * POST /api/mind-map/associative_line
+ */
+async function cmdAssociativeLine(action, opts) {
+  const body = { action };
+  if (opts.fromUid !== undefined) body.fromUid = opts.fromUid;
+  if (opts.toUid !== undefined) body.toUid = opts.toUid;
+  if (opts.uid !== undefined) body.uid = opts.uid;
+  if (opts.text !== undefined) body.text = opts.text;
+  if (opts.style !== undefined) body.style = opts.style;
+  const result = await apiRequest("POST", "/api/mind-map/associative_line", body, opts);
+  return unwrapToolResult(result);
+}
+
+// ===================== 公式（formula） =====================
+
+/**
+ * 公式 CRUD
+ * POST /api/mind-map/formula
+ */
+async function cmdFormula(action, uid, opts) {
+  const body = { action, uid };
+  if (opts.latex !== undefined) body.latex = opts.latex;
+  if (opts.index !== undefined) body.index = parseInt(opts.index);
+  const result = await apiRequest("POST", "/api/mind-map/formula", body, opts);
+  return unwrapToolResult(result);
+}
+
+// ===================== 外框（outer_frame） =====================
+
+/**
+ * 外框 CRUD
+ * POST /api/mind-map/outer_frame
+ */
+async function cmdOuterFrame(action, opts) {
+  const body = { action };
+  if (opts.uids !== undefined) body.uids = opts.uids;
+  if (opts.uid !== undefined) body.uid = opts.uid;
+  if (opts.groupId !== undefined) body.groupId = opts.groupId;
+  if (opts.config !== undefined) body.config = opts.config;
+  const result = await apiRequest("POST", "/api/mind-map/outer_frame", body, opts);
+  return unwrapToolResult(result);
+}
+
+// ===================== 配置 =====================
+
 /**
  * 显示当前配置（不调用 API）
  */
@@ -290,4 +354,5 @@ module.exports = {
   cmdStatus, cmdRead, cmdAdd, cmdDelete, cmdUpdate, cmdWrite, cmdConfig,
   cmdExec, cmdMove, cmdUp, cmdDown, cmdInsert, cmdInsertParent,
   cmdNote, cmdLink, cmdUndo, cmdRedo, cmdExpand, cmdCollapse, cmdSearch,
+  cmdGeneralization, cmdAssociativeLine, cmdFormula, cmdOuterFrame,
 };
