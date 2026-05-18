@@ -4,14 +4,45 @@
  */
 
 /**
+ * 去除 HTML 标签（simple-mind-map 富文本格式）
+ * <p><span>文本</span></p> → 文本
+ */
+function stripHtml(html) {
+  if (!html) return "";
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+}
+
+/**
+ * 获取节点的纯文本
+ */
+function getNodeText(data) {
+  const raw = data.data ? data.data.text : (data.text || "");
+  return stripHtml(raw);
+}
+
+/**
+ * 获取节点 UID
+ */
+function getNodeUid(data) {
+  return data.data ? data.data.uid : (data.uid || "");
+}
+
+/**
  * 缩进树形视图
  * 格式: uid: text [标记]
  */
 function formatTree(data, indent = 0) {
   if (!data) return "";
   const prefix = "  ".repeat(indent);
-  const text = data.data ? data.data.text : (data.text || "");
-  const uid = data.data ? data.data.uid : (data.uid || "");
+  const text = getNodeText(data);
+  const uid = getNodeUid(data);
 
   // 构建标记
   const tags = [];
@@ -42,14 +73,14 @@ function formatSummary(data) {
   if (!data) return { error: "无数据" };
 
   const stats = getTreeStats(data);
-  const rootText = data.data ? data.data.text : (data.text || "");
-  const rootUid = data.data ? data.data.uid : (data.uid || "");
+  const rootText = getNodeText(data);
+  const rootUid = getNodeUid(data);
 
   // 一级子节点
   const children = data.children || [];
   const childList = children.map((c) => {
-    const cText = c.data ? c.data.text : (c.text || "");
-    const cUid = c.data ? c.data.uid : (c.uid || "");
+    const cText = getNodeText(c);
+    const cUid = getNodeUid(c);
     const childCount = (c.children || []).length;
     return { uid: cUid, text: cText, children: childCount };
   });
@@ -83,4 +114,32 @@ function getTreeStats(data, currentDepth = 1) {
   return { nodes, depth };
 }
 
-module.exports = { formatTree, formatSummary, getTreeStats };
+/**
+ * 搜索节点：按关键词匹配文本，返回 uid + 路径 + 文本
+ */
+function searchNodes(data, keyword, path) {
+  if (!data) return [];
+  const currentPath = path || [];
+  const results = [];
+
+  const text = getNodeText(data);
+  const uid = getNodeUid(data);
+
+  if (text && text.toLowerCase().includes(keyword.toLowerCase())) {
+    results.push({
+      uid,
+      text,
+      path: [...currentPath],
+    });
+  }
+
+  const children = data.children || [];
+  for (let i = 0; i < children.length; i++) {
+    const childPath = [...currentPath, text || `#${i}`];
+    results.push(...searchNodes(children[i], keyword, childPath));
+  }
+
+  return results;
+}
+
+module.exports = { formatTree, formatSummary, getTreeStats, searchNodes };
