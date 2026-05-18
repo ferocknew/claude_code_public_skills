@@ -25,6 +25,10 @@
  *   collapse [uid]               收起节点/全部
  *   search <keyword>             搜索节点
  *   exec <command> [args-json]   执行任意 execCommand
+ *   gen <action> <uid>           概要操作 (add/list/update/delete)
+ *   line <action>                关联线操作 (add/list/update/delete)
+ *   formula <action> <uid>       公式操作 (add/list/update/delete)
+ *   frame <action>               外框操作 (add/list/update/delete)
  *   config                       显示当前配置
  */
 
@@ -33,6 +37,7 @@ const {
   cmdStatus, cmdRead, cmdAdd, cmdDelete, cmdUpdate, cmdWrite, cmdConfig,
   cmdExec, cmdMove, cmdUp, cmdDown, cmdInsert, cmdInsertParent,
   cmdNote, cmdLink, cmdUndo, cmdRedo, cmdExpand, cmdCollapse, cmdSearch,
+  cmdGeneralization, cmdAssociativeLine, cmdFormula, cmdOuterFrame,
 } = require("./lib/commands");
 
 loadDotEnv(__dirname);
@@ -101,6 +106,12 @@ function showHelp() {
 高级:
   exec <command> [args-json]   执行任意 simple-mind-map execCommand
 
+概要/关联线/公式/外框:
+  gen <action> <uid>           概要操作 (add/list/update/delete)
+  line <action>                关联线操作 (add/list/update/delete)
+  formula <action> <uid>       公式操作 (add/list/update/delete)
+  frame <action>               外框操作 (add/list/update/delete)
+
 全局选项:
   --format <tree|json|summary>  读取格式（read 命令，默认 tree）
   --parent <uid>                父节点 UID（add 命令，默认根节点）
@@ -129,6 +140,14 @@ function showHelp() {
   node skill.js collapse
   node skill.js search "关键词"
   node skill.js exec SET_NODE_TAG '{"uid":"abc123","tag":["重要"]}'
+  node skill.js gen add abc123 "这是概要" --range '[0,2]'
+  node skill.js gen list abc123
+  node skill.js line add --fromUid abc123 --toUid def456
+  node skill.js line list
+  node skill.js formula add abc123 "E=mc^2"
+  node skill.js formula list abc123
+  node skill.js frame add --uids '["abc123","def456"]'
+  node skill.js frame list
 
 环境变量:
   MIND_MAP_URL                  API 服务器地址（默认 http://localhost:8086）
@@ -161,6 +180,11 @@ const COMMANDS = {
   collapse:      { handler: (opts, pos) => cmdCollapse(pos[0] || null, opts), args: [], req: [] },
   search:        { handler: (opts, pos) => cmdSearch(pos[0], opts), args: ["keyword"], req: ["搜索关键词"] },
   exec:          { handler: (opts, pos) => cmdExec(pos[0], pos[1], opts), args: ["command"], req: ["命令名"] },
+  // 概要/关联线/公式/外框
+  gen:           { handler: (opts, pos) => cmdGeneralization(pos[0], pos[1], opts), args: ["action", "uid"], req: ["操作类型", "节点 UID"] },
+  line:          { handler: (opts, pos) => cmdAssociativeLine(pos[0], opts), args: ["action"], req: ["操作类型"] },
+  formula:       { handler: (opts, pos) => cmdFormula(pos[0], pos[1], opts), args: ["action", "uid"], req: ["操作类型", "节点 UID"] },
+  frame:         { handler: (opts, pos) => cmdOuterFrame(pos[0], opts), args: ["action"], req: ["操作类型"] },
 };
 
 // ===================== 主入口 =====================

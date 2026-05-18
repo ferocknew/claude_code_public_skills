@@ -1,7 +1,7 @@
 ---
 name: mind-map-skill
-description: 思维导图远程控制工具。通过 REST API 操作 simple-mind-map 思维导图应用，支持完整 CRUD、节点移动/排序/插入、备注/超链接/图标/标签、撤销重做、展开收起、搜索、以及通过 exec 命令调用全部 45 个 simple-mind-map 命令。当用户提到以下场景时，应主动使用本技能：操作思维导图、读取思维导图内容、添加/删除/修改思维导图节点、移动节点、搜索节点、调整结构、用 JSON 数据覆盖思维导图。即使用户没有明确说"思维导图"，只要涉及 mind map、脑图、心智图等话题，都应考虑使用本技能。
-skill_version: 260518.143406
+description: 思维导图远程控制工具。通过 REST API 操作 simple-mind-map 思维导图应用，支持完整 CRUD、节点移动/排序/插入、备注/超链接/图标/标签、概要/关联线/公式/外框 CRUD、撤销重做、展开收起、搜索、以及通过 exec 命令调用全部 45 个 simple-mind-map 命令。当用户提到以下场景时，应主动使用本技能：操作思维导图、读取思维导图内容、添加/删除/修改思维导图节点、移动节点、搜索节点、调整结构、用 JSON 数据覆盖思维导图。即使用户没有明确说"思维导图"，只要涉及 mind map、脑图、心智图等话题，都应考虑使用本技能。
+skill_version: 260518.155635
 ---
 
 # 思维导图远程控制工具
@@ -247,8 +247,10 @@ node skill.js exec <command> [args-json]
 | `SET_NODE_SHAPE` | `{"uid":"abc","shape":"rectangle"}` | 设置形状 |
 | `SET_NODE_STYLE` | `{"uid":"abc","prop":"fillColor","value":"#ff0000"}` | 设置样式 |
 | `SET_NODE_IMAGE` | `{"uid":"abc","data":{"url":"...","title":"图"}}` | 设置图片 |
-| `ADD_GENERALIZATION` | `{"data":{"text":"概要"}}` | 添加概要 |
-| `ADD_OUTER_FRAME` | `{"uids":["abc"],"config":{}}` | 添加外框 |
+| `ADD_GENERALIZATION` | `{"data":{"text":"概要"}}` | 添加概要（推荐用 gen 命令） |
+| `ADD_OUTER_FRAME` | `{"uids":["abc"],"config":{}}` | 添加外框（推荐用 frame 命令） |
+| `INSERT_FORMULA` | `{"formula":"E=mc^2","uid":"abc"}` | 插入公式（推荐用 formula 命令） |
+| `ADD_ASSOCIATIVE_LINE` | `{"uid":"a","targetUid":"b"}` | 添加关联线（推荐用 line 命令） |
 | `GO_TARGET_NODE` | `{"uid":"abc"}` | 定位到节点 |
 | `RESET_LAYOUT` | `{}` | 重置布局 |
 | `UNEXPAND_TO_LEVEL` | `{"level":2}` | 展开到指定层级 |
@@ -258,6 +260,99 @@ node skill.js exec <command> [args-json]
 node skill.js exec SET_NODE_TAG '{"uid":"abc123","tag":["重要","待办"]}'
 node skill.js exec RESET_LAYOUT '{}'
 node skill.js exec UNEXPAND_TO_LEVEL '{"level":2}'
+```
+
+---
+
+### 21. gen — 概要操作
+
+```bash
+node skill.js gen <action> <uid> [options]
+```
+
+| action | 说明 | 额外选项 |
+|--------|------|---------|
+| `add` | 添加概要 | `--text "概要文本"`, `--range '[0,2]'` |
+| `list` | 列出概要 | 无 |
+| `update` | 更新概要 | `--text "新文本"`, `--genUid <uid>` |
+| `delete` | 删除概要 | `--genUid <uid>`（不传则清空全部） |
+
+**示例：**
+```bash
+node skill.js gen add abc123 "这是概要"
+node skill.js gen add abc123 "范围概要" --range '[0,2]'
+node skill.js gen list abc123
+node skill.js gen update abc123 --genUid xyz --text "更新后的概要"
+node skill.js gen delete abc123 --genUid xyz
+```
+
+### 22. line — 关联线操作
+
+```bash
+node skill.js line <action> [options]
+```
+
+| action | 说明 | 额外选项 |
+|--------|------|---------|
+| `add` | 添加关联线 | `--fromUid <uid>`, `--toUid <uid>` |
+| `list` | 列出关联线 | `--uid <uid>`（仅列出该节点的，不传则全部） |
+| `update` | 更新关联线 | `--fromUid <uid>`, `--toUid <uid>`, `--text "文本"`, `--style '{"color":"#ff0000"}'` |
+| `delete` | 删除关联线 | `--fromUid <uid>`, `--toUid <uid>` |
+
+**示例：**
+```bash
+node skill.js line add --fromUid abc123 --toUid def456
+node skill.js line list
+node skill.js line list --uid abc123
+node skill.js line update --fromUid abc123 --toUid def456 --text "关联说明"
+node skill.js line delete --fromUid abc123 --toUid def456
+```
+
+### 23. formula — 公式操作
+
+```bash
+node skill.js formula <action> <uid> [options]
+```
+
+需要启用 RichText 和 Formula 插件。公式以 LaTeX 形式嵌入在富文本节点中。
+
+| action | 说明 | 额外选项 |
+|--------|------|---------|
+| `add` | 插入公式 | `--latex "公式"` |
+| `list` | 列出公式 | 无 |
+| `update` | 更新公式 | `--index <n>`, `--latex "新公式"` |
+| `delete` | 删除公式 | `--index <n>`（不传则删除全部） |
+
+**示例：**
+```bash
+node skill.js formula add abc123 --latex "E=mc^2"
+node skill.js formula list abc123
+node skill.js formula update abc123 --index 0 --latex "F=ma"
+node skill.js formula delete abc123 --index 0
+```
+
+### 24. frame — 外框操作
+
+```bash
+node skill.js frame <action> [options]
+```
+
+外框用于对一组子节点添加视觉分组框。
+
+| action | 说明 | 额外选项 |
+|--------|------|---------|
+| `add` | 添加外框 | `--uids '["abc","def"]'`, `--config '{"text":"分组"}'` |
+| `list` | 列出外框 | `--uid <uid>`（父节点 UID，不传则遍历全部） |
+| `update` | 更新外框样式 | `--uid <uid>`, `--groupId <id>`, `--config '{"strokeColor":"#ff0000"}'` |
+| `delete` | 删除外框 | `--uid <uid>`, `--groupId <id>` |
+
+**示例：**
+```bash
+node skill.js frame add --uids '["abc123","def456"]' --config '{"text":"重要分组"}'
+node skill.js frame list
+node skill.js frame list --uid root123
+node skill.js frame update --uid root123 --groupId xyz --config '{"strokeColor":"#ff0000"}'
+node skill.js frame delete --uid root123 --groupId xyz
 ```
 
 ---
@@ -280,10 +375,11 @@ node skill.js exec UNEXPAND_TO_LEVEL '{"level":2}'
 1. `status` — 确认浏览器已连接
 2. `read` / `search` — 查看当前结构或搜索节点
 3. `add` / `insert` — 添加新节点
-4. `update` / `note` / `link` — 丰富节点内容
+4. `update` / `note` / `link` / `gen` / `formula` — 丰富节点内容
 5. `move` / `up` / `down` — 调整节点位置和结构
-6. `undo` — 误操作时撤销
-7. `write` — 用完整 JSON 数据替换整图
+6. `line` / `frame` — 添加关联线和外框
+7. `undo` — 误操作时撤销
+8. `write` — 用完整 JSON 数据替换整图
 
 ---
 

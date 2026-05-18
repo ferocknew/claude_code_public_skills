@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 思维导图远程控制工具 v260518.143406 - 无需安装依赖
+// 思维导图远程控制工具 v260518.155635 - 无需安装依赖
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -9,7 +9,7 @@ var __commonJS = (cb, mod) => function __require() {
 // lib/api.js
 var require_api = __commonJS({
   "lib/api.js"(exports2, module2) {
-    var SKILL_VERSION2 = true ? "260518.143406" : "dev";
+    var SKILL_VERSION2 = true ? "260518.155635" : "dev";
     function loadDotEnv2(baseDir) {
       const fs = require("fs");
       const path = require("path");
@@ -353,6 +353,40 @@ var require_commands = __commonJS({
         }))
       };
     }
+    async function cmdGeneralization2(action, uid, opts) {
+      const body = { action, uid };
+      if (opts.text !== void 0) body.text = opts.text;
+      if (opts.range !== void 0) body.range = opts.range;
+      if (opts.genUid !== void 0) body.genUid = opts.genUid;
+      const result = await apiRequest("POST", "/api/mind-map/generalization", body, opts);
+      return unwrapToolResult(result);
+    }
+    async function cmdAssociativeLine2(action, opts) {
+      const body = { action };
+      if (opts.fromUid !== void 0) body.fromUid = opts.fromUid;
+      if (opts.toUid !== void 0) body.toUid = opts.toUid;
+      if (opts.uid !== void 0) body.uid = opts.uid;
+      if (opts.text !== void 0) body.text = opts.text;
+      if (opts.style !== void 0) body.style = opts.style;
+      const result = await apiRequest("POST", "/api/mind-map/associative_line", body, opts);
+      return unwrapToolResult(result);
+    }
+    async function cmdFormula2(action, uid, opts) {
+      const body = { action, uid };
+      if (opts.latex !== void 0) body.latex = opts.latex;
+      if (opts.index !== void 0) body.index = parseInt(opts.index);
+      const result = await apiRequest("POST", "/api/mind-map/formula", body, opts);
+      return unwrapToolResult(result);
+    }
+    async function cmdOuterFrame2(action, opts) {
+      const body = { action };
+      if (opts.uids !== void 0) body.uids = opts.uids;
+      if (opts.uid !== void 0) body.uid = opts.uid;
+      if (opts.groupId !== void 0) body.groupId = opts.groupId;
+      if (opts.config !== void 0) body.config = opts.config;
+      const result = await apiRequest("POST", "/api/mind-map/outer_frame", body, opts);
+      return unwrapToolResult(result);
+    }
     function cmdConfig2() {
       const config = getConfig();
       return {
@@ -381,7 +415,11 @@ var require_commands = __commonJS({
       cmdRedo: cmdRedo2,
       cmdExpand: cmdExpand2,
       cmdCollapse: cmdCollapse2,
-      cmdSearch: cmdSearch2
+      cmdSearch: cmdSearch2,
+      cmdGeneralization: cmdGeneralization2,
+      cmdAssociativeLine: cmdAssociativeLine2,
+      cmdFormula: cmdFormula2,
+      cmdOuterFrame: cmdOuterFrame2
     };
   }
 });
@@ -408,7 +446,11 @@ var {
   cmdRedo,
   cmdExpand,
   cmdCollapse,
-  cmdSearch
+  cmdSearch,
+  cmdGeneralization,
+  cmdAssociativeLine,
+  cmdFormula,
+  cmdOuterFrame
 } = require_commands();
 loadDotEnv(__dirname);
 initTls();
@@ -472,6 +514,12 @@ function showHelp() {
 \u9AD8\u7EA7:
   exec <command> [args-json]   \u6267\u884C\u4EFB\u610F simple-mind-map execCommand
 
+\u6982\u8981/\u5173\u8054\u7EBF/\u516C\u5F0F/\u5916\u6846:
+  gen <action> <uid>           \u6982\u8981\u64CD\u4F5C (add/list/update/delete)
+  line <action>                \u5173\u8054\u7EBF\u64CD\u4F5C (add/list/update/delete)
+  formula <action> <uid>       \u516C\u5F0F\u64CD\u4F5C (add/list/update/delete)
+  frame <action>               \u5916\u6846\u64CD\u4F5C (add/list/update/delete)
+
 \u5168\u5C40\u9009\u9879:
   --format <tree|json|summary>  \u8BFB\u53D6\u683C\u5F0F\uFF08read \u547D\u4EE4\uFF0C\u9ED8\u8BA4 tree\uFF09
   --parent <uid>                \u7236\u8282\u70B9 UID\uFF08add \u547D\u4EE4\uFF0C\u9ED8\u8BA4\u6839\u8282\u70B9\uFF09
@@ -500,6 +548,14 @@ function showHelp() {
   node skill.js collapse
   node skill.js search "\u5173\u952E\u8BCD"
   node skill.js exec SET_NODE_TAG '{"uid":"abc123","tag":["\u91CD\u8981"]}'
+  node skill.js gen add abc123 "\u8FD9\u662F\u6982\u8981" --range '[0,2]'
+  node skill.js gen list abc123
+  node skill.js line add --fromUid abc123 --toUid def456
+  node skill.js line list
+  node skill.js formula add abc123 "E=mc^2"
+  node skill.js formula list abc123
+  node skill.js frame add --uids '["abc123","def456"]'
+  node skill.js frame list
 
 \u73AF\u5883\u53D8\u91CF:
   MIND_MAP_URL                  API \u670D\u52A1\u5668\u5730\u5740\uFF08\u9ED8\u8BA4 http://localhost:8086\uFF09
@@ -528,7 +584,12 @@ var COMMANDS = {
   expand: { handler: (opts, pos) => cmdExpand(pos[0] || null, opts), args: [], req: [] },
   collapse: { handler: (opts, pos) => cmdCollapse(pos[0] || null, opts), args: [], req: [] },
   search: { handler: (opts, pos) => cmdSearch(pos[0], opts), args: ["keyword"], req: ["\u641C\u7D22\u5173\u952E\u8BCD"] },
-  exec: { handler: (opts, pos) => cmdExec(pos[0], pos[1], opts), args: ["command"], req: ["\u547D\u4EE4\u540D"] }
+  exec: { handler: (opts, pos) => cmdExec(pos[0], pos[1], opts), args: ["command"], req: ["\u547D\u4EE4\u540D"] },
+  // 概要/关联线/公式/外框
+  gen: { handler: (opts, pos) => cmdGeneralization(pos[0], pos[1], opts), args: ["action", "uid"], req: ["\u64CD\u4F5C\u7C7B\u578B", "\u8282\u70B9 UID"] },
+  line: { handler: (opts, pos) => cmdAssociativeLine(pos[0], opts), args: ["action"], req: ["\u64CD\u4F5C\u7C7B\u578B"] },
+  formula: { handler: (opts, pos) => cmdFormula(pos[0], pos[1], opts), args: ["action", "uid"], req: ["\u64CD\u4F5C\u7C7B\u578B", "\u8282\u70B9 UID"] },
+  frame: { handler: (opts, pos) => cmdOuterFrame(pos[0], opts), args: ["action"], req: ["\u64CD\u4F5C\u7C7B\u578B"] }
 };
 async function main() {
   const args = process.argv.slice(2);
