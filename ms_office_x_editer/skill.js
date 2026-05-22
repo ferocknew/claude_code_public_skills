@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// DOCX Editor Skill v260522.131857
+// DOCX Editor Skill v260522.160124
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -9747,8 +9747,8 @@ var require_docx_zip = __commonJS({
       constructor(zip) {
         this.zip = zip;
       }
-      static async fromFile(filePath) {
-        const buf = fs.readFileSync(filePath);
+      static async fromFile(filePath2) {
+        const buf = fs.readFileSync(filePath2);
         const zip = await JSZip.loadAsync(buf);
         return new _DocxZip(zip);
       }
@@ -10055,7 +10055,7 @@ var require_image_ops = __commonJS({
   "lib/image_ops.js"(exports2, module2) {
     var path = require("path");
     var fs = require("fs");
-    function extToType(ext) {
+    function extToType(ext2) {
       const map = {
         ".png": "image/png",
         ".jpg": "image/jpeg",
@@ -10065,7 +10065,7 @@ var require_image_ops = __commonJS({
         ".emf": "image/x-emf",
         ".wmf": "image/x-wmf"
       };
-      return map[ext] || "application/octet-stream";
+      return map[ext2] || "application/octet-stream";
     }
     var ImageOps = {
       listImages(docx) {
@@ -10372,6 +10372,672 @@ var require_style_ops = __commonJS({
   }
 });
 
+// lib/xlsx_utils.js
+var require_xlsx_utils = __commonJS({
+  "lib/xlsx_utils.js"(exports2, module2) {
+    var { encodeXmlEntities, decodeXmlEntities } = require_xml_utils();
+    function colLetterToIndex(letter) {
+      let col = 0;
+      for (let i = 0; i < letter.length; i++) {
+        col = col * 26 + (letter.charCodeAt(i) - 64);
+      }
+      return col - 1;
+    }
+    function colIndexToLetter(index) {
+      let letter = "";
+      let n = index + 1;
+      while (n > 0) {
+        n--;
+        letter = String.fromCharCode(65 + n % 26) + letter;
+        n = Math.floor(n / 26);
+      }
+      return letter;
+    }
+    function refToCoord(ref) {
+      const m = ref.match(/^([A-Z]+)(\d+)$/);
+      if (!m) return null;
+      return { col: colLetterToIndex(m[1]), row: parseInt(m[2], 10) - 1 };
+    }
+    function coordToRef(col, row) {
+      return colIndexToLetter(col) + (row + 1);
+    }
+    function parseRange(rangeStr) {
+      const parts = rangeStr.split(":");
+      if (parts.length !== 2) return null;
+      const start = refToCoord(parts[0]);
+      const end = refToCoord(parts[1]);
+      if (!start || !end) return null;
+      return { startCol: start.col, startRow: start.row, endCol: end.col, endRow: end.row };
+    }
+    function getXmlAttr(tag, attrName) {
+      const re = new RegExp(`\\b${attrName}\\s*=\\s*"([^"]*)"`, "i");
+      const m = tag.match(re);
+      return m ? m[1] : null;
+    }
+    function setXmlAttr(tag, attrName, value) {
+      const re = new RegExp(`(\\b${attrName}\\s*=\\s*)"[^"]*"`, "i");
+      if (re.test(tag)) {
+        return tag.replace(re, `$1"${value}"`);
+      }
+      return tag.replace(/(\/?>)$/, ` ${attrName}="${value}"$1`);
+    }
+    function parseSharedStrings(xml) {
+      if (!xml) return { strings: [], xml: null };
+      const strings = [];
+      const siRe = /<si\b[^>]*>([\s\S]*?)<\/si>/g;
+      let m;
+      while ((m = siRe.exec(xml)) !== null) {
+        const siContent = m[1];
+        let text = "";
+        const directT = siContent.match(/<t\b[^>]*>([\s\S]*?)<\/t>/);
+        if (directT) {
+          text = decodeXmlEntities(directT[1]);
+        } else {
+          const rTRe = /<r\b[^>]*>[\s\S]*?<t\b[^>]*>([\s\S]*?)<\/t>[\s\S]*?<\/r>/g;
+          let rm;
+          while ((rm = rTRe.exec(siContent)) !== null) {
+            text += decodeXmlEntities(rm[1]);
+          }
+        }
+        strings.push(text);
+      }
+      return { strings, xml };
+    }
+    function buildSharedStrings(strings) {
+      let xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+      xml += `<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${strings.length}" uniqueCount="${strings.length}">`;
+      for (const s of strings) {
+        xml += `<si><t>${encodeXmlEntities(s)}</t></si>`;
+      }
+      xml += "</sst>";
+      return xml;
+    }
+    function findOrAddSharedString(strings, text) {
+      const idx = strings.indexOf(text);
+      if (idx !== -1) return { index: idx, strings, updated: false };
+      strings.push(text);
+      return { index: strings.length - 1, strings, updated: true };
+    }
+    function extractRows(sheetXml) {
+      const rows = [];
+      const rowRe = /<row\b[^>]*\br="(\d+)"[^>]*>/g;
+      let m;
+      while ((m = rowRe.exec(sheetXml)) !== null) {
+        const rowStart = m.index;
+        const rowNum = parseInt(m[1], 10);
+        const closeIdx = sheetXml.indexOf("</row>", rowStart);
+        if (closeIdx === -1) continue;
+        const rowEnd = closeIdx + "</row>".length;
+        rows.push({ xml: sheetXml.substring(rowStart, rowEnd), start: rowStart, end: rowEnd, rowNum });
+      }
+      return rows;
+    }
+    function extractCells(rowXml, rowNum) {
+      const cells = [];
+      const cRe = /<c\b[^>]*\br="([A-Z]+\d+)"[^>]*(?:\/>|>([\s\S]*?)<\/c>)/g;
+      let m;
+      while ((m = cRe.exec(rowXml)) !== null) {
+        const ref = m[1];
+        const coord = refToCoord(ref);
+        if (!coord) continue;
+        cells.push({
+          xml: m[0],
+          ref,
+          col: coord.col,
+          row: coord.row,
+          content: m[2] || ""
+        });
+      }
+      return cells;
+    }
+    function buildCellXml(ref, type, value, styleIndex) {
+      const sAttr = styleIndex !== null && styleIndex !== void 0 ? ` s="${styleIndex}"` : "";
+      if (type === "s") {
+        return `<c r="${ref}"${sAttr} t="s"><v>${value}</v></c>`;
+      } else if (type === "n") {
+        return `<c r="${ref}"${sAttr}><v>${value}</v></c>`;
+      } else if (type === "b") {
+        return `<c r="${ref}"${sAttr} t="b"><v>${value ? "1" : "0"}</v></c>`;
+      } else {
+        return `<c r="${ref}"${sAttr} t="str"><v>${encodeXmlEntities(value)}</v></c>`;
+      }
+    }
+    function parseCellValue(cellXml) {
+      const type = getXmlAttr(cellXml, "t") || "n";
+      const vMatch = cellXml.match(/<v\b[^>]*>([\s\S]*?)<\/v>/);
+      const rawValue = vMatch ? vMatch[1] : "";
+      return { type, value: rawValue };
+    }
+    function detectValueType(value) {
+      if (typeof value === "number") return "n";
+      if (typeof value === "boolean") return "b";
+      if (typeof value === "string") {
+        if (/^-?\d+(\.\d+)?$/.test(value)) return "n";
+        return "s";
+      }
+      return "s";
+    }
+    function updateDimension(sheetXml, maxCol, maxRow) {
+      const dimRef = maxCol >= 0 && maxRow >= 0 ? `A1:${coordToRef(maxCol, maxRow)}` : "A1";
+      return sheetXml.replace(
+        /<dimension\s+ref="[^"]*"/,
+        `<dimension ref="${dimRef}"`
+      );
+    }
+    module2.exports = {
+      colLetterToIndex,
+      colIndexToLetter,
+      refToCoord,
+      coordToRef,
+      parseRange,
+      getXmlAttr,
+      setXmlAttr,
+      parseSharedStrings,
+      buildSharedStrings,
+      findOrAddSharedString,
+      extractRows,
+      extractCells,
+      buildCellXml,
+      parseCellValue,
+      detectValueType,
+      updateDimension
+    };
+  }
+});
+
+// lib/sheet_ops.js
+var require_sheet_ops = __commonJS({
+  "lib/sheet_ops.js"(exports2, module2) {
+    var {
+      refToCoord,
+      coordToRef,
+      parseRange,
+      extractRows,
+      extractCells,
+      buildCellXml,
+      parseCellValue,
+      detectValueType,
+      updateDimension,
+      findOrAddSharedString,
+      buildSharedStrings,
+      getXmlAttr
+    } = require_xlsx_utils();
+    var { encodeXmlEntities, decodeXmlEntities } = require_xml_utils();
+    function listSheets(workbookXml, relsXml) {
+      const sheets = [];
+      const sheetRe = /<sheet\b[^>]*>/g;
+      let m;
+      while ((m = sheetRe.exec(workbookXml)) !== null) {
+        const tag = m[0];
+        const name = getXmlAttr(tag, "name");
+        const sheetId = getXmlAttr(tag, "sheetId");
+        const rId = getXmlAttr(tag, "r:id") || getXmlAttr(tag, "id");
+        let target = "";
+        if (rId && relsXml) {
+          const relRe = new RegExp(`Relationship\\s+Id="${rId}"[^>]*Target="([^"]*)"`, "i");
+          const rm = relsXml.match(relRe);
+          if (!rm) {
+            const relRe2 = new RegExp(`Relationship[^>]*Id="${rId}"[^>]*Target="([^"]*)"`, "i");
+            const rm2 = relsXml.match(relRe2);
+            if (rm2) target = rm2[1];
+          } else {
+            target = rm[1];
+          }
+        }
+        sheets.push({ name, sheetId: parseInt(sheetId, 10), rId, target, index: sheets.length });
+      }
+      return sheets;
+    }
+    function getSheetPath(sheet) {
+      if (sheet.target.startsWith("xl/")) return sheet.target;
+      return "xl/" + sheet.target;
+    }
+    function getSheetInfo(sheetXml) {
+      const rows = extractRows(sheetXml);
+      let maxCol = -1;
+      let maxRow = -1;
+      let cellCount = 0;
+      for (const row of rows) {
+        const cells = extractCells(row.xml, row.rowNum);
+        for (const cell of cells) {
+          cellCount++;
+          if (cell.col > maxCol) maxCol = cell.col;
+          if (cell.row > maxRow) maxRow = cell.row;
+        }
+      }
+      return {
+        totalRows: rows.length,
+        totalCells: cellCount,
+        maxColumn: maxCol >= 0 ? maxCol + 1 : 0,
+        maxRow: maxRow >= 0 ? maxRow + 1 : 0,
+        dimension: maxCol >= 0 ? `A1:${coordToRef(maxCol, maxRow)}` : "A1"
+      };
+    }
+    function readSheet(sheetXml, sharedStrings) {
+      const rows = extractRows(sheetXml);
+      if (rows.length === 0) return { rows: 0, cols: 0, data: [] };
+      let maxCol = 0;
+      let maxRow = 0;
+      for (const row of rows) {
+        const cells = extractCells(row.xml, row.rowNum);
+        for (const cell of cells) {
+          if (cell.col > maxCol) maxCol = cell.col;
+          if (cell.row > maxRow) maxRow = cell.row;
+        }
+      }
+      const data = [];
+      for (let r = 0; r <= maxRow; r++) {
+        data[r] = new Array(maxCol + 1).fill(null);
+      }
+      for (const row of rows) {
+        const cells = extractCells(row.xml, row.rowNum);
+        for (const cell of cells) {
+          const { type, value } = parseCellValue(cell.xml);
+          let cellValue = value;
+          if (type === "s" && sharedStrings) {
+            const idx = parseInt(value, 10);
+            cellValue = sharedStrings[idx] || "";
+          } else if (type === "n" && value !== "") {
+            cellValue = parseFloat(value);
+            if (Number.isInteger(cellValue) && !value.includes(".")) cellValue = parseInt(value, 10);
+          } else if (type === "b") {
+            cellValue = value === "1";
+          }
+          data[cell.row][cell.col] = cellValue;
+        }
+      }
+      return { rows: maxRow + 1, cols: maxCol + 1, data };
+    }
+    function readCell(sheetXml, col, row, sharedStrings) {
+      const rows = extractRows(sheetXml);
+      const rowNum = row + 1;
+      for (const r of rows) {
+        if (r.rowNum !== rowNum) continue;
+        const cells = extractCells(r.xml, r.rowNum);
+        for (const cell of cells) {
+          if (cell.col === col && cell.row === row) {
+            const { type, value } = parseCellValue(cell.xml);
+            let cellValue = value;
+            if (type === "s" && sharedStrings) {
+              const idx = parseInt(value, 10);
+              cellValue = sharedStrings[idx] || "";
+            } else if (type === "n" && value !== "") {
+              cellValue = parseFloat(value);
+              if (Number.isInteger(cellValue) && !value.includes(".")) cellValue = parseInt(value, 10);
+            } else if (type === "b") {
+              cellValue = value === "1";
+            }
+            return { ref: coordToRef(col, row), type, value: cellValue };
+          }
+        }
+      }
+      return null;
+    }
+    function readRange(sheetXml, startCol, startRow, endCol, endRow, sharedStrings) {
+      const result = [];
+      for (let r = startRow; r <= endRow; r++) {
+        const rowData = [];
+        for (let c = startCol; c <= endCol; c++) {
+          const cell = readCell(sheetXml, c, r, sharedStrings);
+          rowData.push(cell ? cell.value : null);
+        }
+        result.push(rowData);
+      }
+      return {
+        range: `${coordToRef(startCol, startRow)}:${coordToRef(endCol, endRow)}`,
+        rows: result.length,
+        cols: endCol - startCol + 1,
+        data: result
+      };
+    }
+    function writeCell(sheetXml, col, row, value, strings, styleIndex) {
+      const ref = coordToRef(col, row);
+      const rowNum = row + 1;
+      let type = detectValueType(value);
+      let cellValue = value;
+      if (type === "s") {
+        const result = findOrAddSharedString(strings, String(value));
+        strings = result.strings;
+        type = "s";
+        cellValue = String(result.index);
+      } else if (type === "n") {
+        type = "n";
+        cellValue = String(value);
+      } else if (type === "b") {
+        type = "b";
+        cellValue = value ? "1" : "0";
+      }
+      const newCellXml = buildCellXml(ref, type, cellValue, styleIndex);
+      const rows = extractRows(sheetXml);
+      let targetRow = null;
+      for (const r of rows) {
+        if (r.rowNum === rowNum) {
+          targetRow = r;
+          break;
+        }
+      }
+      if (targetRow) {
+        const cells = extractCells(targetRow.xml, targetRow.rowNum);
+        let existingCell = null;
+        for (const c of cells) {
+          if (c.col === col) {
+            existingCell = c;
+            break;
+          }
+        }
+        if (existingCell) {
+          sheetXml = sheetXml.substring(0, existingCell.start) + newCellXml + sheetXml.substring(existingCell.end);
+        } else {
+          const rowCloseIdx = sheetXml.indexOf("</row>", targetRow.start);
+          if (rowCloseIdx !== -1) {
+            sheetXml = sheetXml.substring(0, rowCloseIdx) + newCellXml + sheetXml.substring(rowCloseIdx);
+          }
+        }
+      } else {
+        const newRowXml = `<row r="${rowNum}">${newCellXml}</row>`;
+        const sheetDataCloseIdx = sheetXml.indexOf("</sheetData>");
+        if (sheetDataCloseIdx !== -1) {
+          sheetXml = sheetXml.substring(0, sheetDataCloseIdx) + newRowXml + sheetXml.substring(sheetDataCloseIdx);
+        } else {
+          sheetXml = sheetXml.replace(/<sheetData\s*\/>/, `<sheetData>${newRowXml}</sheetData>`);
+        }
+      }
+      let maxCol = col, maxRow = row;
+      const allRows = extractRows(sheetXml);
+      for (const r of allRows) {
+        const cells = extractCells(r.xml, r.rowNum);
+        for (const c of cells) {
+          if (c.col > maxCol) maxCol = c.col;
+          if (c.row > maxRow) maxRow = c.row;
+        }
+      }
+      sheetXml = updateDimension(sheetXml, maxCol, maxRow);
+      return { xml: sheetXml, strings, ssUpdated: true };
+    }
+    function writeRange(sheetXml, startCol, startRow, dataArray, strings) {
+      let currentXml = sheetXml;
+      let currentStrings = strings;
+      for (let r = 0; r < dataArray.length; r++) {
+        const row = dataArray[r];
+        if (!Array.isArray(row)) continue;
+        for (let c = 0; c < row.length; c++) {
+          if (row[c] === null || row[c] === void 0) continue;
+          const result = writeCell(currentXml, startCol + c, startRow + r, row[c], currentStrings);
+          currentXml = result.xml;
+          currentStrings = result.strings;
+        }
+      }
+      return { xml: currentXml, strings: currentStrings };
+    }
+    function renameSheet(workbookXml, sheetIndex, newName) {
+      const sheetRe = /<sheet\b[^>]*>/g;
+      let count = 0;
+      return workbookXml.replace(sheetRe, (match) => {
+        if (count === sheetIndex) {
+          count++;
+          return match.replace(/(\bname\s*=\s*)"[^"]*"/, `$1"${encodeXmlEntities(newName)}"`);
+        }
+        count++;
+        return match;
+      });
+    }
+    module2.exports = {
+      listSheets,
+      getSheetPath,
+      getSheetInfo,
+      readSheet,
+      readCell,
+      readRange,
+      writeCell,
+      writeRange,
+      renameSheet
+    };
+  }
+});
+
+// lib/xlsx_style_ops.js
+var require_xlsx_style_ops = __commonJS({
+  "lib/xlsx_style_ops.js"(exports2, module2) {
+    var { getXmlAttr, setXmlAttr } = require_xlsx_utils();
+    var { decodeXmlEntities, encodeXmlEntities } = require_xml_utils();
+    function readStylesOverview(stylesXml) {
+      if (!stylesXml) return { fonts: 0, fills: 0, borders: 0, cellXfs: 0 };
+      const fontsCount = getXmlAttr(stylesXml.match(/<fonts\b[^>]*>/)?.[0] || "", "count") || "0";
+      const fillsCount = getXmlAttr(stylesXml.match(/<fills\b[^>]*>/)?.[0] || "", "count") || "0";
+      const bordersCount = getXmlAttr(stylesXml.match(/<borders\b[^>]*>/)?.[0] || "", "count") || "0";
+      const cellXfsCount = getXmlAttr(stylesXml.match(/<cellXfs\b[^>]*>/)?.[0] || "", "count") || "0";
+      return {
+        fonts: parseInt(fontsCount, 10),
+        fills: parseInt(fillsCount, 10),
+        borders: parseInt(bordersCount, 10),
+        cellXfs: parseInt(cellXfsCount, 10)
+      };
+    }
+    function readCellStyle(stylesXml, xfIndex) {
+      const cellXfsMatch = stylesXml.match(/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/);
+      if (!cellXfsMatch) return null;
+      const xfsContent = cellXfsMatch[1];
+      const xfRe = /<xf\b[^>]*\/?>/g;
+      const xfs = [];
+      let m;
+      while ((m = xfRe.exec(xfsContent)) !== null) {
+        xfs.push(m[0]);
+      }
+      if (xfIndex >= xfs.length) return null;
+      const xf = xfs[xfIndex];
+      const fontId = parseInt(getXmlAttr(xf, "fontId") || "0", 10);
+      const fillId = parseInt(getXmlAttr(xf, "fillId") || "0", 10);
+      const borderId = parseInt(getXmlAttr(xf, "borderId") || "0", 10);
+      const numFmtId = parseInt(getXmlAttr(xf, "numFmtId") || "0", 10);
+      const font = readFont(stylesXml, fontId);
+      const fill = readFill(stylesXml, fillId);
+      return {
+        xfIndex,
+        fontId,
+        fillId,
+        borderId,
+        numFmtId,
+        font,
+        fill,
+        raw: xf
+      };
+    }
+    function readFont(stylesXml, fontIndex) {
+      const fontsMatch = stylesXml.match(/<fonts\b[^>]*>([\s\S]*?)<\/fonts>/);
+      if (!fontsMatch) return null;
+      const fonts = extractElements(fontsMatch[1], "font");
+      if (fontIndex >= fonts.length) return null;
+      const fontXml = fonts[fontIndex];
+      const result = {};
+      const szMatch = fontXml.match(/<sz\b[^>]*val="([^"]*)"/);
+      if (szMatch) result.fontSize = parseInt(szMatch[1], 10);
+      const nameMatch = fontXml.match(/<name\b[^>]*val="([^"]*)"/);
+      if (nameMatch) result.fontName = nameMatch[1];
+      result.bold = /<b\b/.test(fontXml) && !/<b\s+val="0"/.test(fontXml);
+      result.italic = /<i\b/.test(fontXml) && !/<i\s+val="0"/.test(fontXml);
+      const uMatch = fontXml.match(/<u\b[^>]*val="([^"]*)"/);
+      if (uMatch) result.underline = uMatch[1];
+      else if (/<u\b/.test(fontXml) && !/<u\s+val="0"/.test(fontXml)) result.underline = "single";
+      result.strike = /<strike\b/.test(fontXml) && !/<strike\s+val="0"/.test(fontXml);
+      const colorMatch = fontXml.match(/<color\b[^>]*rgb="([^"]*)"/);
+      if (colorMatch) result.color = colorMatch[1];
+      else {
+        const themeMatch = fontXml.match(/<color\b[^>]*theme="([^"]*)"/);
+        if (themeMatch) result.colorTheme = themeMatch[1];
+      }
+      return result;
+    }
+    function readFill(stylesXml, fillIndex) {
+      const fillsMatch = stylesXml.match(/<fills\b[^>]*>([\s\S]*?)<\/fills>/);
+      if (!fillsMatch) return null;
+      const fills = extractElements(fillsMatch[1], "fill");
+      if (fillIndex >= fills.length) return null;
+      const fillXml = fills[fillIndex];
+      const bgMatch = fillXml.match(/<bgColor\b[^>]*rgb="([^"]*)"/);
+      const fgMatch = fillXml.match(/<fgColor\b[^>]*rgb="([^"]*)"/);
+      const patternMatch = fillXml.match(/<patternFill\b[^>]*patternType="([^"]*)"/);
+      return {
+        patternType: patternMatch ? patternMatch[1] : null,
+        bgColor: bgMatch ? bgMatch[1] : null,
+        fgColor: fgMatch ? fgMatch[1] : null
+      };
+    }
+    function extractElements(xml, tagName) {
+      const elements = [];
+      const openRe = new RegExp(`<${tagName}\\b[^>]*>`, "g");
+      let m;
+      while ((m = openRe.exec(xml)) !== null) {
+        const start = m.index;
+        const closeTag = `</${tagName}>`;
+        let depth = 1;
+        let pos = m.index + m[0].length;
+        while (depth > 0 && pos < xml.length) {
+          const nextOpen = xml.indexOf(`<${tagName}`, pos);
+          const nextClose = xml.indexOf(closeTag, pos);
+          if (nextClose === -1) break;
+          if (nextOpen === -1 || nextClose < nextOpen) {
+            depth--;
+            if (depth === 0) {
+              elements.push(xml.substring(start, nextClose + closeTag.length));
+            }
+            pos = nextClose + closeTag.length;
+          } else {
+            depth++;
+            pos = nextOpen + 1;
+          }
+        }
+      }
+      return elements;
+    }
+    function applyStyle(stylesXml, currentXfIndex, styleChanges) {
+      if (!stylesXml) {
+        stylesXml = buildDefaultStylesXml();
+      }
+      const currentXf = getXfById(stylesXml, currentXfIndex || 0);
+      let fontId = parseInt(getXmlAttr(currentXf, "fontId") || "0", 10);
+      let fillId = parseInt(getXmlAttr(currentXf, "fillId") || "0", 10);
+      let borderId = parseInt(getXmlAttr(currentXf, "borderId") || "0", 10);
+      if (styleChanges.bold !== void 0 || styleChanges.italic !== void 0 || styleChanges.fontSize !== void 0 || styleChanges.fontFamily !== void 0 || styleChanges.color !== void 0 || styleChanges.underline !== void 0) {
+        const newFont = buildModifiedFont(stylesXml, fontId, styleChanges);
+        const fontResult = addOrFindFont(stylesXml, newFont);
+        fontId = fontResult.index;
+        stylesXml = fontResult.xml;
+        stylesXml = updateFontsCount(stylesXml, fontId + 1);
+      }
+      if (styleChanges.backgroundColor !== void 0) {
+        const newFill = `<fill><patternFill patternType="solid"><fgColor rgb="${styleChanges.backgroundColor}"/></patternFill></fill>`;
+        const fillResult = addOrFindFill(stylesXml, newFill);
+        fillId = fillResult.index;
+        stylesXml = fillResult.xml;
+        stylesXml = updateFillsCount(stylesXml, fillId + 1);
+      }
+      const newXf = `<xf numFmtId="0" fontId="${fontId}" fillId="${fillId}" borderId="${borderId}" xfId="0" applyFont="1"${styleChanges.backgroundColor ? ' applyFill="1"' : ""}/>`;
+      const xfResult = addOrFindXf(stylesXml, newXf);
+      const xfIndex = xfResult.index;
+      stylesXml = xfResult.xml;
+      stylesXml = updateCellXfsCount(stylesXml, xfIndex + 1);
+      return { stylesXml, xfIndex };
+    }
+    function getXfById(stylesXml, index) {
+      const cellXfsMatch = stylesXml.match(/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/);
+      if (!cellXfsMatch) return "";
+      const xfRe = /<xf\b[^>]*\/?>/g;
+      const xfs = [];
+      let m;
+      while ((m = xfRe.exec(cellXfsMatch[1])) !== null) xfs.push(m[0]);
+      return index < xfs.length ? xfs[index] : "";
+    }
+    function buildModifiedFont(stylesXml, fontId, changes) {
+      const existingFont = readFont(stylesXml, fontId) || {};
+      let fontXml = "<font>";
+      if (changes.bold !== void 0 ? changes.bold : existingFont.bold) fontXml += "<b/>";
+      if (changes.italic !== void 0 ? changes.italic : existingFont.italic) fontXml += "<i/>";
+      const underline = changes.underline !== void 0 ? changes.underline : existingFont.underline;
+      if (underline && underline !== "none") {
+        fontXml += underline === "single" ? "<u/>" : `<u val="${underline}"/>`;
+      }
+      if (changes.strikethrough !== void 0 ? changes.strikethrough : existingFont.strike) fontXml += "<strike/>";
+      const sz = changes.fontSize !== void 0 ? changes.fontSize : existingFont.fontSize;
+      if (sz !== void 0) fontXml += `<sz val="${sz}"/>`;
+      const color = changes.color !== void 0 ? changes.color : existingFont.color || void 0;
+      if (color) fontXml += `<color rgb="FF${color.replace(/^FF/, "")}"/>`;
+      const name = changes.fontFamily !== void 0 ? changes.fontFamily : existingFont.fontName;
+      if (name) fontXml += `<name val="${encodeXmlEntities(name)}"/>`;
+      fontXml += "</font>";
+      return fontXml;
+    }
+    function addOrFindFont(stylesXml, fontXml) {
+      const fontsMatch = stylesXml.match(/(<fonts\b[^>]*>)([\s\S]*?)(<\/fonts>)/);
+      if (!fontsMatch) return { index: 0, xml: stylesXml };
+      const existing = fontsMatch[2];
+      const fonts = extractElements(existing, "font");
+      const idx = fonts.findIndex((f) => normalizeXml(f) === normalizeXml(fontXml));
+      if (idx !== -1) return { index: idx, xml: stylesXml };
+      const newContent = existing + fontXml;
+      const newXml = stylesXml.replace(
+        /(<fonts\b[^>]*>)([\s\S]*?)(<\/fonts>)/,
+        `$1${newContent}$3`
+      );
+      return { index: fonts.length, xml: newXml };
+    }
+    function addOrFindFill(stylesXml, fillXml) {
+      const fillsMatch = stylesXml.match(/(<fills\b[^>]*>)([\s\S]*?)(<\/fills>)/);
+      if (!fillsMatch) return { index: 0, xml: stylesXml };
+      const existing = fillsMatch[2];
+      const fills = extractElements(existing, "fill");
+      const idx = fills.findIndex((f) => normalizeXml(f) === normalizeXml(fillXml));
+      if (idx !== -1) return { index: idx, xml: stylesXml };
+      const newContent = existing + fillXml;
+      const newXml = stylesXml.replace(
+        /(<fills\b[^>]*>)([\s\S]*?)(<\/fills>)/,
+        `$1${newContent}$3`
+      );
+      return { index: fills.length, xml: newXml };
+    }
+    function addOrFindXf(stylesXml, xfXml) {
+      const cellXfsMatch = stylesXml.match(/(<cellXfs\b[^>]*>)([\s\S]*?)(<\/cellXfs>)/);
+      if (!cellXfsMatch) return { index: 0, xml: stylesXml };
+      const existing = cellXfsMatch[2];
+      const xfRe = /<xf\b[^>]*\/?>/g;
+      const xfs = [];
+      let m;
+      while ((m = xfRe.exec(existing)) !== null) xfs.push(m[0]);
+      const normalized = normalizeXml(xfXml);
+      const idx = xfs.findIndex((x) => normalizeXml(x) === normalized);
+      if (idx !== -1) return { index: idx, xml: stylesXml };
+      const newContent = existing + xfXml;
+      const newXml = stylesXml.replace(
+        /(<cellXfs\b[^>]*>)([\s\S]*?)(<\/cellXfs>)/,
+        `$1${newContent}$3`
+      );
+      return { index: xfs.length, xml: newXml };
+    }
+    function updateFontsCount(stylesXml, count) {
+      return stylesXml.replace(/(<fonts\b[^>]*\bcount=")(\d+)(")/, `$1${count}$3`);
+    }
+    function updateFillsCount(stylesXml, count) {
+      return stylesXml.replace(/(<fills\b[^>]*\bcount=")(\d+)(")/, `$1${count}$3`);
+    }
+    function updateCellXfsCount(stylesXml, count) {
+      return stylesXml.replace(/(<cellXfs\b[^>]*\bcount=")(\d+)(")/, `$1${count}$3`);
+    }
+    function normalizeXml(xml) {
+      return xml.replace(/\s+/g, " ").replace(/\s*\/>/g, "/>").trim();
+    }
+    function buildDefaultStylesXml() {
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs><cellStyles count="1"><cellStyle name="\u5E38\u89C4" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+    }
+    module2.exports = {
+      readStylesOverview,
+      readCellStyle,
+      readFont,
+      readFill,
+      applyStyle,
+      extractElements
+    };
+  }
+});
+
 // lib/ops.js
 var require_ops = __commonJS({
   "lib/ops.js"(exports2, module2) {
@@ -10381,7 +11047,36 @@ var require_ops = __commonJS({
     var { HeaderFooterOps } = require_header_footer_ops();
     var { MetaOps } = require_meta_ops();
     var { StyleOps } = require_style_ops();
-    module2.exports = { XmlTextOps, XmlTableOps, ImageOps, HeaderFooterOps, MetaOps, StyleOps };
+    var { listSheets, getSheetPath, getSheetInfo, readSheet, readCell, readRange, writeCell, writeRange, renameSheet } = require_sheet_ops();
+    var { parseSharedStrings, buildSharedStrings, refToCoord, coordToRef, parseRange } = require_xlsx_utils();
+    var { readStylesOverview, readCellStyle, applyStyle } = require_xlsx_style_ops();
+    module2.exports = {
+      // docx
+      XmlTextOps,
+      XmlTableOps,
+      ImageOps,
+      HeaderFooterOps,
+      MetaOps,
+      StyleOps,
+      // xlsx
+      listSheets,
+      getSheetPath,
+      getSheetInfo,
+      readSheet,
+      readCell,
+      readRange,
+      writeCell,
+      writeRange,
+      renameSheet,
+      parseSharedStrings,
+      buildSharedStrings,
+      refToCoord,
+      coordToRef,
+      parseRange,
+      readStylesOverview,
+      readCellStyle,
+      applyStyle
+    };
   }
 });
 
@@ -10390,7 +11085,7 @@ var require_cli = __commonJS({
   "lib/cli.js"(exports2, module2) {
     var { DocxZip: DocxZip2 } = require_docx_zip();
     var { XmlTextOps, XmlTableOps, ImageOps, HeaderFooterOps, MetaOps, StyleOps } = require_ops();
-    var SKILL_VERSION2 = true ? "260522.131857" : "dev";
+    var SKILL_VERSION2 = true ? "260522.160124" : "dev";
     function parseArgs2(argv) {
       const args2 = { _: [] };
       let i = 0;
@@ -10485,16 +11180,16 @@ DOCX \u7F16\u8F91\u5DE5\u5177 v${SKILL_VERSION2}
 `);
     }
     async function dispatch2(args2) {
-      const filePath = args2._[0];
+      const filePath2 = args2._[0];
       const command = args2._[1];
       const p2 = args2._[2];
       const p3 = args2._[3];
-      if (!filePath) outputError("none", "\u8BF7\u6307\u5B9A docx \u6587\u4EF6\u8DEF\u5F84");
+      if (!filePath2) outputError("none", "\u8BF7\u6307\u5B9A docx \u6587\u4EF6\u8DEF\u5F84");
       if (!command) outputError("none", "\u8BF7\u6307\u5B9A\u547D\u4EE4\u3002\u8FD0\u884C node skill.js --help \u67E5\u770B\u5E2E\u52A9");
       const fs = require("fs");
-      if (!fs.existsSync(filePath)) outputError(command, `\u6587\u4EF6\u4E0D\u5B58\u5728: ${filePath}`);
-      const docx = await DocxZip2.fromFile(filePath);
-      const outputPath = args2.output || filePath;
+      if (!fs.existsSync(filePath2)) outputError(command, `\u6587\u4EF6\u4E0D\u5B58\u5728: ${filePath2}`);
+      const docx = await DocxZip2.fromFile(filePath2);
+      const outputPath = args2.output || filePath2;
       switch (command) {
         case "info":
           return cmdInfo(docx, command);
@@ -10757,19 +11452,439 @@ DOCX \u7F16\u8F91\u5DE5\u5177 v${SKILL_VERSION2}
   }
 });
 
+// lib/xlsx_cli.js
+var require_xlsx_cli = __commonJS({
+  "lib/xlsx_cli.js"(exports2, module2) {
+    var { DocxZip: DocxZip2 } = require_docx_zip();
+    var { parseSharedStrings, buildSharedStrings, refToCoord, coordToRef, parseRange } = require_xlsx_utils();
+    var { listSheets, getSheetPath, getSheetInfo, readSheet, readCell, readRange, writeCell, writeRange, renameSheet } = require_sheet_ops();
+    var { readStylesOverview, readCellStyle, applyStyle } = require_xlsx_style_ops();
+    var { MetaOps } = require_meta_ops();
+    function output(ok, command, data) {
+      console.log(JSON.stringify({ ok, command, data }, null, 2));
+    }
+    function outputError(command, message) {
+      console.log(JSON.stringify({ ok: false, command, error: message }, null, 2));
+      process.exit(1);
+    }
+    function parseJson(str, command) {
+      try {
+        return JSON.parse(str);
+      } catch (e) {
+        outputError(command, `JSON \u89E3\u6790\u5931\u8D25: ${e.message}`);
+      }
+    }
+    function showXlsxHelp2(version) {
+      console.log(`
+XLSX \u7F16\u8F91\u5DE5\u5177 v${version}
+
+\u7528\u6CD5: node skill.js <file.xlsx> <command> [arguments] [options]
+
+\u53EA\u8BFB\u547D\u4EE4:
+  xlsx-info                          \u5DE5\u4F5C\u7C3F\u6982\u89C8
+  xlsx-sheet-list                    \u5217\u51FA\u6240\u6709\u5DE5\u4F5C\u8868
+  xlsx-sheet-read <index>            \u8BFB\u53D6\u6574\u4E2A\u5DE5\u4F5C\u8868
+  xlsx-cell-read <sheet> <ref>       \u8BFB\u53D6\u5355\u5143\u683C (\u5982 0 A1)
+  xlsx-range-read <sheet> <range>    \u8BFB\u53D6\u533A\u57DF (\u5982 0 A1:C3)
+  xlsx-style-read <sheet> <ref>      \u8BFB\u53D6\u5355\u5143\u683C\u6837\u5F0F
+  meta-read                          \u8BFB\u53D6\u6587\u6863\u5C5E\u6027
+
+\u5199\u5165\u547D\u4EE4:
+  xlsx-cell-write <sheet> <ref> <value>  \u5199\u5165\u5355\u5143\u683C
+  xlsx-range-write <sheet> <start> <json>  \u6279\u91CF\u5199\u5165 (JSON \u4E8C\u7EF4\u6570\u7EC4)
+  xlsx-sheet-rename <index> <name>    \u91CD\u547D\u540D\u5DE5\u4F5C\u8868
+  xlsx-style-apply <sheet> <ref> '<json>'  \u4FEE\u6539\u5355\u5143\u683C\u6837\u5F0F
+  meta-update '<json>'               \u4FEE\u6539\u6587\u6863\u5C5E\u6027
+
+\u9009\u9879:
+  -o, --output <path>                \u8F93\u51FA\u8DEF\u5F84\uFF08\u9ED8\u8BA4\u8986\u76D6\u539F\u6587\u4EF6\uFF09
+  --dry-run                          \u9884\u89C8\u4FEE\u6539\uFF0C\u4E0D\u5B9E\u9645\u6267\u884C
+
+\u793A\u4F8B:
+  node skill.js file.xlsx xlsx-info
+  node skill.js file.xlsx xlsx-sheet-list
+  node skill.js file.xlsx xlsx-sheet-read 0
+  node skill.js file.xlsx xlsx-cell-read 0 A1
+  node skill.js file.xlsx xlsx-range-read 0 A1:C3
+  node skill.js file.xlsx xlsx-cell-write 0 A1 "Hello"
+  node skill.js file.xlsx xlsx-range-write 0 A1 '[["Name","Age"],["Tom",20]]'
+  node skill.js file.xlsx xlsx-sheet-rename 0 "\u9500\u552E\u6570\u636E"
+  node skill.js file.xlsx xlsx-style-apply 0 A1 '{"bold":true,"color":"FF0000"}'
+  node skill.js file.xlsx meta-read
+`);
+    }
+    async function xlsxDispatch2(args2) {
+      const filePath2 = args2._[0];
+      const command = args2._[1];
+      const p2 = args2._[2];
+      const p3 = args2._[3];
+      const p4 = args2._[4];
+      if (!filePath2) outputError("none", "\u8BF7\u6307\u5B9A xlsx \u6587\u4EF6\u8DEF\u5F84");
+      if (!command) outputError("none", "\u8BF7\u6307\u5B9A\u547D\u4EE4\u3002\u8FD0\u884C node skill.js --help \u67E5\u770B\u5E2E\u52A9");
+      const fs = require("fs");
+      if (!fs.existsSync(filePath2)) outputError(command, `\u6587\u4EF6\u4E0D\u5B58\u5728: ${filePath2}`);
+      const zip = await DocxZip2.fromFile(filePath2);
+      const outputPath = args2.output || filePath2;
+      switch (command) {
+        case "xlsx-info":
+          return cmdXlsxInfo(zip, command, outputPath);
+        case "xlsx-sheet-list":
+          return cmdXlsxSheetList(zip, command);
+        case "xlsx-sheet-read":
+          return cmdXlsxSheetRead(zip, command, p2);
+        case "xlsx-cell-read":
+          return cmdXlsxCellRead(zip, command, p2, p3);
+        case "xlsx-range-read":
+          return cmdXlsxRangeRead(zip, command, p2, p3);
+        case "xlsx-cell-write":
+          return cmdXlsxCellWrite(zip, command, p2, p3, p4, outputPath, args2);
+        case "xlsx-range-write":
+          return cmdXlsxRangeWrite(zip, command, p2, p3, p4, outputPath, args2);
+        case "xlsx-sheet-rename":
+          return cmdXlsxSheetRename(zip, command, p2, p3, outputPath, args2);
+        case "xlsx-style-read":
+          return cmdXlsxStyleRead(zip, command, p2, p3);
+        case "xlsx-style-apply":
+          return cmdXlsxStyleApply(zip, command, p2, p3, p4, outputPath, args2);
+        case "meta-read":
+          return cmdXlsxMetaRead(zip, command);
+        case "meta-update":
+          return cmdXlsxMetaUpdate(zip, command, p2, outputPath, args2);
+        default:
+          outputError(command, `\u672A\u77E5 xlsx \u547D\u4EE4: ${command}`);
+      }
+    }
+    async function loadWorkbook(zip, command) {
+      const workbookXml = await zip.readXml("xl/workbook.xml");
+      if (!workbookXml) outputError(command, "\u65E0\u6CD5\u8BFB\u53D6 xl/workbook.xml");
+      const relsXml = await zip.readXml("xl/_rels/workbook.xml.rels");
+      const sheets = listSheets(workbookXml, relsXml);
+      return { workbookXml, relsXml, sheets };
+    }
+    async function loadSharedStrings(zip) {
+      let ssXml = await zip.readXml("xl/sharedStrings.xml");
+      if (!ssXml) return { strings: [], xml: null };
+      return parseSharedStrings(ssXml);
+    }
+    function getSheetIndex(str, command) {
+      if (str === void 0) outputError(command, "\u8BF7\u6307\u5B9A\u5DE5\u4F5C\u8868\u7D22\u5F15\uFF08\u4ECE 0 \u5F00\u59CB\uFF09");
+      const idx = parseInt(str, 10);
+      if (isNaN(idx) || idx < 0) outputError(command, "\u5DE5\u4F5C\u8868\u7D22\u5F15\u5FC5\u987B\u662F\u975E\u8D1F\u6574\u6570");
+      return idx;
+    }
+    async function cmdXlsxInfo(zip, command, outputPath) {
+      const { sheets } = await loadWorkbook(zip, command);
+      const ss = await loadSharedStrings(zip);
+      const stylesXml = await zip.readXml("xl/styles.xml");
+      const sheetDetails = [];
+      for (const sheet of sheets) {
+        const sheetPath = getSheetPath(sheet);
+        const sheetXml = await zip.readXml(sheetPath);
+        const info = sheetXml ? getSheetInfo(sheetXml) : { totalRows: 0, totalCells: 0, maxColumn: 0, maxRow: 0 };
+        sheetDetails.push({ name: sheet.name, index: sheet.index, ...info });
+      }
+      let meta = {};
+      const coreXml = await zip.readXml("docProps/core.xml");
+      if (coreXml) meta = MetaOps.read(coreXml);
+      const stylesInfo = readStylesOverview(stylesXml);
+      output(true, command, {
+        sheets: sheets.length,
+        sharedStrings: ss.strings.length,
+        styles: stylesInfo,
+        sheetDetails,
+        meta
+      });
+    }
+    async function cmdXlsxSheetList(zip, command) {
+      const { sheets } = await loadWorkbook(zip, command);
+      output(true, command, { total: sheets.length, sheets: sheets.map((s) => ({ index: s.index, name: s.name, sheetId: s.sheetId, target: s.target })) });
+    }
+    async function cmdXlsxSheetRead(zip, command, indexStr) {
+      const idx = getSheetIndex(indexStr, command);
+      const { sheets } = await loadWorkbook(zip, command);
+      if (idx >= sheets.length) outputError(command, `\u5DE5\u4F5C\u8868\u7D22\u5F15 ${idx} \u4E0D\u5B58\u5728\uFF08\u5171 ${sheets.length} \u4E2A\uFF09`);
+      const sheetPath = getSheetPath(sheets[idx]);
+      const sheetXml = await zip.readXml(sheetPath);
+      if (!sheetXml) outputError(command, `\u65E0\u6CD5\u8BFB\u53D6 ${sheetPath}`);
+      const ss = await loadSharedStrings(zip);
+      const result = readSheet(sheetXml, ss.strings);
+      output(true, command, { sheet: sheets[idx].name, index: idx, ...result });
+    }
+    async function cmdXlsxCellRead(zip, command, sheetStr, refStr) {
+      const idx = getSheetIndex(sheetStr, command);
+      if (!refStr) outputError(command, "\u8BF7\u6307\u5B9A\u5355\u5143\u683C\u5F15\u7528\uFF08\u5982 A1\uFF09");
+      const coord = refToCoord(refStr);
+      if (!coord) outputError(command, `\u65E0\u6548\u7684\u5355\u5143\u683C\u5F15\u7528: ${refStr}`);
+      const { sheets } = await loadWorkbook(zip, command);
+      if (idx >= sheets.length) outputError(command, `\u5DE5\u4F5C\u8868\u7D22\u5F15 ${idx} \u4E0D\u5B58\u5728`);
+      const sheetPath = getSheetPath(sheets[idx]);
+      const sheetXml = await zip.readXml(sheetPath);
+      if (!sheetXml) outputError(command, `\u65E0\u6CD5\u8BFB\u53D6 ${sheetPath}`);
+      const ss = await loadSharedStrings(zip);
+      const cell = readCell(sheetXml, coord.col, coord.row, ss.strings);
+      if (!cell) {
+        output(true, command, { sheet: sheets[idx].name, ref: refStr, value: null, type: "empty" });
+      } else {
+        output(true, command, { sheet: sheets[idx].name, ...cell });
+      }
+    }
+    async function cmdXlsxRangeRead(zip, command, sheetStr, rangeStr) {
+      const idx = getSheetIndex(sheetStr, command);
+      if (!rangeStr) outputError(command, "\u8BF7\u6307\u5B9A\u533A\u57DF\u5F15\u7528\uFF08\u5982 A1:C3\uFF09");
+      const range = parseRange(rangeStr);
+      if (!range) outputError(command, `\u65E0\u6548\u7684\u533A\u57DF\u5F15\u7528: ${rangeStr}`);
+      const { sheets } = await loadWorkbook(zip, command);
+      if (idx >= sheets.length) outputError(command, `\u5DE5\u4F5C\u8868\u7D22\u5F15 ${idx} \u4E0D\u5B58\u5728`);
+      const sheetPath = getSheetPath(sheets[idx]);
+      const sheetXml = await zip.readXml(sheetPath);
+      if (!sheetXml) outputError(command, `\u65E0\u6CD5\u8BFB\u53D6 ${sheetPath}`);
+      const ss = await loadSharedStrings(zip);
+      const result = readRange(sheetXml, range.startCol, range.startRow, range.endCol, range.endRow, ss.strings);
+      output(true, command, { sheet: sheets[idx].name, index: idx, ...result });
+    }
+    async function cmdXlsxCellWrite(zip, command, sheetStr, refStr, valueStr, outputPath, args2) {
+      const idx = getSheetIndex(sheetStr, command);
+      if (!refStr) outputError(command, "\u8BF7\u6307\u5B9A\u5355\u5143\u683C\u5F15\u7528\uFF08\u5982 A1\uFF09");
+      const coord = refToCoord(refStr);
+      if (!coord) outputError(command, `\u65E0\u6548\u7684\u5355\u5143\u683C\u5F15\u7528: ${refStr}`);
+      if (valueStr === void 0) outputError(command, "\u8BF7\u6307\u5B9A\u8981\u5199\u5165\u7684\u503C");
+      let value;
+      try {
+        value = JSON.parse(valueStr);
+      } catch (e) {
+        value = valueStr;
+      }
+      const { sheets } = await loadWorkbook(zip, command);
+      if (idx >= sheets.length) outputError(command, `\u5DE5\u4F5C\u8868\u7D22\u5F15 ${idx} \u4E0D\u5B58\u5728`);
+      const sheetPath = getSheetPath(sheets[idx]);
+      let sheetXml = await zip.readXml(sheetPath);
+      if (!sheetXml) outputError(command, `\u65E0\u6CD5\u8BFB\u53D6 ${sheetPath}`);
+      const ss = await loadSharedStrings(zip);
+      const result = writeCell(sheetXml, coord.col, coord.row, value, ss.strings);
+      if (!args2.dryRun) {
+        await zip.writeXml(sheetPath, result.xml);
+        if (result.ssUpdated) {
+          const ssXml = buildSharedStrings(result.strings);
+          await zip.writeXml("xl/sharedStrings.xml", ssXml);
+        }
+        await zip.save(outputPath);
+      }
+      output(true, command, {
+        sheet: sheets[idx].name,
+        index: idx,
+        ref: refStr,
+        value,
+        dryRun: !!args2.dryRun,
+        outputPath: args2.dryRun ? null : outputPath
+      });
+    }
+    async function cmdXlsxRangeWrite(zip, command, sheetStr, startRefStr, jsonStr, outputPath, args2) {
+      const idx = getSheetIndex(sheetStr, command);
+      if (!startRefStr) outputError(command, "\u8BF7\u6307\u5B9A\u8D77\u59CB\u5355\u5143\u683C\u5F15\u7528\uFF08\u5982 A1\uFF09");
+      const coord = refToCoord(startRefStr);
+      if (!coord) outputError(command, `\u65E0\u6548\u7684\u5355\u5143\u683C\u5F15\u7528: ${startRefStr}`);
+      if (!jsonStr) outputError(command, "\u8BF7\u6307\u5B9A JSON \u4E8C\u7EF4\u6570\u7EC4");
+      const dataArray = parseJson(jsonStr, command);
+      if (!Array.isArray(dataArray)) outputError(command, "\u53C2\u6570\u5FC5\u987B\u662F\u4E8C\u7EF4\u6570\u7EC4");
+      const { sheets } = await loadWorkbook(zip, command);
+      if (idx >= sheets.length) outputError(command, `\u5DE5\u4F5C\u8868\u7D22\u5F15 ${idx} \u4E0D\u5B58\u5728`);
+      const sheetPath = getSheetPath(sheets[idx]);
+      let sheetXml = await zip.readXml(sheetPath);
+      if (!sheetXml) outputError(command, `\u65E0\u6CD5\u8BFB\u53D6 ${sheetPath}`);
+      const ss = await loadSharedStrings(zip);
+      const result = writeRange(sheetXml, coord.col, coord.row, dataArray, ss.strings);
+      if (!args2.dryRun) {
+        await zip.writeXml(sheetPath, result.xml);
+        if (result.strings.length > 0) {
+          const ssXml = buildSharedStrings(result.strings);
+          await zip.writeXml("xl/sharedStrings.xml", ssXml);
+        }
+        await zip.save(outputPath);
+      }
+      output(true, command, {
+        sheet: sheets[idx].name,
+        index: idx,
+        startRef: startRefStr,
+        rows: dataArray.length,
+        cols: dataArray[0]?.length || 0,
+        dryRun: !!args2.dryRun,
+        outputPath: args2.dryRun ? null : outputPath
+      });
+    }
+    async function cmdXlsxSheetRename(zip, command, indexStr, newName, outputPath, args2) {
+      const idx = getSheetIndex(indexStr, command);
+      if (!newName) outputError(command, "\u8BF7\u6307\u5B9A\u65B0\u7684\u5DE5\u4F5C\u8868\u540D\u79F0");
+      const { workbookXml, sheets } = await loadWorkbook(zip, command);
+      if (idx >= sheets.length) outputError(command, `\u5DE5\u4F5C\u8868\u7D22\u5F15 ${idx} \u4E0D\u5B58\u5728`);
+      const oldName = sheets[idx].name;
+      const newWorkbookXml = renameSheet(workbookXml, idx, newName);
+      if (!args2.dryRun) {
+        await zip.writeXml("xl/workbook.xml", newWorkbookXml);
+        await zip.save(outputPath);
+      }
+      output(true, command, {
+        index: idx,
+        oldName,
+        newName,
+        dryRun: !!args2.dryRun,
+        outputPath: args2.dryRun ? null : outputPath
+      });
+    }
+    async function cmdXlsxStyleRead(zip, command, sheetStr, refStr) {
+      const idx = getSheetIndex(sheetStr, command);
+      if (!refStr) outputError(command, "\u8BF7\u6307\u5B9A\u5355\u5143\u683C\u5F15\u7528\uFF08\u5982 A1\uFF09");
+      const coord = refToCoord(refStr);
+      if (!coord) outputError(command, `\u65E0\u6548\u7684\u5355\u5143\u683C\u5F15\u7528: ${refStr}`);
+      const { sheets } = await loadWorkbook(zip, command);
+      if (idx >= sheets.length) outputError(command, `\u5DE5\u4F5C\u8868\u7D22\u5F15 ${idx} \u4E0D\u5B58\u5728`);
+      const sheetPath = getSheetPath(sheets[idx]);
+      const sheetXml = await zip.readXml(sheetPath);
+      if (!sheetXml) outputError(command, `\u65E0\u6CD5\u8BFB\u53D6 ${sheetPath}`);
+      const stylesXml = await zip.readXml("xl/styles.xml");
+      const { extractRows, extractCells } = require_xlsx_utils();
+      const rows = extractRows(sheetXml);
+      let cellXfIndex = 0;
+      let found = false;
+      for (const row of rows) {
+        if (row.rowNum !== coord.row + 1) continue;
+        const cells = extractCells(row.xml, row.rowNum);
+        for (const cell of cells) {
+          if (cell.col === coord.col && cell.row === coord.row) {
+            const sMatch = cell.xml.match(/\bs\s*=\s*"(\d+)"/);
+            cellXfIndex = sMatch ? parseInt(sMatch[1], 10) : 0;
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+      const styleDetail = stylesXml ? readCellStyle(stylesXml, cellXfIndex) : null;
+      output(true, command, {
+        sheet: sheets[idx].name,
+        ref: refStr,
+        cellFound: found,
+        xfIndex: cellXfIndex,
+        style: styleDetail
+      });
+    }
+    async function cmdXlsxStyleApply(zip, command, sheetStr, refStr, jsonStr, outputPath, args2) {
+      const idx = getSheetIndex(sheetStr, command);
+      if (!refStr) outputError(command, "\u8BF7\u6307\u5B9A\u5355\u5143\u683C\u5F15\u7528\uFF08\u5982 A1\uFF09");
+      const coord = refToCoord(refStr);
+      if (!coord) outputError(command, `\u65E0\u6548\u7684\u5355\u5143\u683C\u5F15\u7528: ${refStr}`);
+      if (!jsonStr) outputError(command, "\u8BF7\u6307\u5B9A\u6837\u5F0F\u53C2\u6570 JSON");
+      const styleChanges = parseJson(jsonStr, command);
+      const { sheets } = await loadWorkbook(zip, command);
+      if (idx >= sheets.length) outputError(command, `\u5DE5\u4F5C\u8868\u7D22\u5F15 ${idx} \u4E0D\u5B58\u5728`);
+      const sheetPath = getSheetPath(sheets[idx]);
+      let sheetXml = await zip.readXml(sheetPath);
+      if (!sheetXml) outputError(command, `\u65E0\u6CD5\u8BFB\u53D6 ${sheetPath}`);
+      let stylesXml = await zip.readXml("xl/styles.xml");
+      const { extractRows, extractCells, getXmlAttr } = require_xlsx_utils();
+      const rows = extractRows(sheetXml);
+      let currentXfIndex = 0;
+      let cellFound = false;
+      for (const row of rows) {
+        if (row.rowNum !== coord.row + 1) continue;
+        const cells = extractCells(row.xml, row.rowNum);
+        for (const cell of cells) {
+          if (cell.col === coord.col && cell.row === coord.row) {
+            const sMatch = cell.xml.match(/\bs\s*=\s*"(\d+)"/);
+            currentXfIndex = sMatch ? parseInt(sMatch[1], 10) : 0;
+            cellFound = true;
+            break;
+          }
+        }
+        if (cellFound) break;
+      }
+      if (!cellFound) outputError(command, `\u5355\u5143\u683C ${refStr} \u4E0D\u5B58\u5728\uFF0C\u8BF7\u5148\u5199\u5165\u6570\u636E`);
+      const styleResult = applyStyle(stylesXml, currentXfIndex, styleChanges);
+      const newSheetRows = extractRows(sheetXml);
+      for (const row of newSheetRows) {
+        if (row.rowNum !== coord.row + 1) continue;
+        const cells = extractCells(row.xml, row.rowNum);
+        for (const cell of cells) {
+          if (cell.col === coord.col && cell.row === coord.row) {
+            if (/\bs\s*=\s*"\d+"/.test(cell.xml)) {
+              sheetXml = sheetXml.replace(
+                cell.xml,
+                cell.xml.replace(/\bs\s*=\s*"\d+"/, `s="${styleResult.xfIndex}"`)
+              );
+            } else {
+              sheetXml = sheetXml.replace(
+                cell.xml,
+                cell.xml.replace(/<c r="/, `<c s="${styleResult.xfIndex}" r="`)
+              );
+            }
+            break;
+          }
+        }
+        break;
+      }
+      if (!args2.dryRun) {
+        await zip.writeXml(sheetPath, sheetXml);
+        await zip.writeXml("xl/styles.xml", styleResult.stylesXml);
+        await zip.save(outputPath);
+      }
+      output(true, command, {
+        sheet: sheets[idx].name,
+        ref: refStr,
+        xfIndex: styleResult.xfIndex,
+        styleChanges,
+        dryRun: !!args2.dryRun,
+        outputPath: args2.dryRun ? null : outputPath
+      });
+    }
+    async function cmdXlsxMetaRead(zip, command) {
+      const coreXml = await zip.readXml("docProps/core.xml");
+      if (!coreXml) outputError(command, "\u65E0\u6CD5\u8BFB\u53D6 docProps/core.xml");
+      const meta = MetaOps.read(coreXml);
+      const appXml = await zip.readXml("docProps/app.xml");
+      const appMeta = appXml ? MetaOps.readApp(appXml) : {};
+      output(true, command, { core: meta, app: appMeta });
+    }
+    async function cmdXlsxMetaUpdate(zip, command, jsonStr, outputPath, args2) {
+      if (!jsonStr) outputError(command, `\u8BF7\u6307\u5B9A\u4FEE\u6539\u53C2\u6570\uFF0C\u683C\u5F0F: '{"dc:title":"\u65B0\u6807\u9898"}' `);
+      const updates = parseJson(jsonStr, command);
+      const coreXml = await zip.readXml("docProps/core.xml");
+      if (!coreXml) outputError(command, "\u65E0\u6CD5\u8BFB\u53D6 docProps/core.xml");
+      const result = MetaOps.update(coreXml, updates, args2.dryRun);
+      if (!args2.dryRun && Object.keys(result.updated).length > 0) {
+        await zip.writeXml("docProps/core.xml", result.xml);
+        await zip.save(outputPath);
+      }
+      output(true, command, { updated: result.updated, dryRun: !!args2.dryRun, outputPath: args2.dryRun ? null : outputPath });
+    }
+    module2.exports = { xlsxDispatch: xlsxDispatch2, showXlsxHelp: showXlsxHelp2 };
+  }
+});
+
 // run.js
 var { DocxZip } = require_docx_zip();
 var { dispatch, parseArgs, showHelp, SKILL_VERSION } = require_cli();
+var { xlsxDispatch, showXlsxHelp } = require_xlsx_cli();
 var args = parseArgs(process.argv.slice(2));
 if (args.help || args._.length === 0) {
   showHelp();
+  showXlsxHelp(SKILL_VERSION);
   process.exit(0);
 }
 if (args.version) {
-  console.log(`DOCX \u7F16\u8F91\u5DE5\u5177 v${SKILL_VERSION}`);
+  console.log(`MS Office \u7F16\u8F91\u5DE5\u5177 v${SKILL_VERSION}`);
   process.exit(0);
 }
-dispatch(args).catch((err) => {
+var filePath = args._[0];
+var ext = filePath.match(/\.(\w+)$/)?.[1]?.toLowerCase();
+var dispatchFn;
+if (ext === "xlsx") {
+  dispatchFn = xlsxDispatch;
+} else if (ext === "docx") {
+  dispatchFn = dispatch;
+} else {
+  console.log(JSON.stringify({ ok: false, command: "none", error: `\u4E0D\u652F\u6301\u7684\u6587\u4EF6\u7C7B\u578B: .${ext || "\u672A\u77E5"}\uFF0C\u4EC5\u652F\u6301 .docx \u548C .xlsx` }, null, 2));
+  process.exit(1);
+}
+dispatchFn(args).catch((err) => {
   console.log(JSON.stringify({ ok: false, command: "unknown", error: err.message }, null, 2));
   process.exit(1);
 });
