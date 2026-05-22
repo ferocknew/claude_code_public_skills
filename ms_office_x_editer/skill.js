@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// DOCX Editor Skill v260522.160124
+// DOCX Editor Skill v260522.161357
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -10726,7 +10726,7 @@ var require_sheet_ops = __commonJS({
           }
         }
         if (existingCell) {
-          sheetXml = sheetXml.substring(0, existingCell.start) + newCellXml + sheetXml.substring(existingCell.end);
+          sheetXml = sheetXml.replace(existingCell.xml, newCellXml);
         } else {
           const rowCloseIdx = sheetXml.indexOf("</row>", targetRow.start);
           if (rowCloseIdx !== -1) {
@@ -11085,7 +11085,7 @@ var require_cli = __commonJS({
   "lib/cli.js"(exports2, module2) {
     var { DocxZip: DocxZip2 } = require_docx_zip();
     var { XmlTextOps, XmlTableOps, ImageOps, HeaderFooterOps, MetaOps, StyleOps } = require_ops();
-    var SKILL_VERSION2 = true ? "260522.160124" : "dev";
+    var SKILL_VERSION2 = true ? "260522.161357" : "dev";
     function parseArgs2(argv) {
       const args2 = { _: [] };
       let i = 0;
