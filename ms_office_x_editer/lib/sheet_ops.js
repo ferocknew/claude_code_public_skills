@@ -228,9 +228,8 @@ function writeCell(sheetXml, col, row, value, strings, styleIndex) {
     }
 
     if (existingCell) {
-      // 替换现有单元格
-      sheetXml = sheetXml.substring(0, existingCell.start) + newCellXml + sheetXml.substring(existingCell.end);
-      // 重新提取，因为位置已变
+      // 替换现有单元格（直接在 sheetXml 中用字符串替换）
+      sheetXml = sheetXml.replace(existingCell.xml, newCellXml);
     } else {
       // 在 </row> 前插入新单元格
       const rowCloseIdx = sheetXml.indexOf("</row>", targetRow.start);
