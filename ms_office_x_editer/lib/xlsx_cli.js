@@ -4,7 +4,7 @@
 
 const { DocxZip } = require("./docx_zip");
 const { parseSharedStrings, buildSharedStrings, refToCoord, coordToRef, parseRange } = require("./xlsx_utils");
-const { listSheets, getSheetPath, getSheetInfo, readSheet, readCell, readRange, writeCell, writeRange, renameSheet } = require("./sheet_ops");
+const { listSheets, getSheetPath, getSheetInfo, readSheet, readCell, readRange, writeCell, writeRange, renameSheet, readMergeCells, mergeCells, unmergeCells } = require("./sheet_ops");
 const { readStylesOverview, readCellStyle, applyStyle } = require("./xlsx_style_ops");
 const { MetaOps } = require("./meta_ops");
 
@@ -46,6 +46,8 @@ XLSX 编辑工具 v${version}
   xlsx-range-write <sheet> <start> <json>  批量写入 (JSON 二维数组)
   xlsx-sheet-rename <index> <name>    重命名工作表
   xlsx-style-apply <sheet> <ref> '<json>'  修改单元格样式
+  xlsx-cell-merge <sheet> <range>     合并单元格 (如 0 A1:D1)
+  xlsx-cell-unmerge <sheet> <ref>     取消合并 (如 0 A1)
   meta-update '<json>'               修改文档属性
 
 选项:
@@ -62,6 +64,8 @@ XLSX 编辑工具 v${version}
   node skill.js file.xlsx xlsx-range-write 0 A1 '[["Name","Age"],["Tom",20]]'
   node skill.js file.xlsx xlsx-sheet-rename 0 "销售数据"
   node skill.js file.xlsx xlsx-style-apply 0 A1 '{"bold":true,"color":"FF0000"}'
+  node skill.js file.xlsx xlsx-cell-merge 0 A1:D1
+  node skill.js file.xlsx xlsx-cell-unmerge 0 A1
   node skill.js file.xlsx meta-read
 `);
 }
@@ -95,6 +99,8 @@ async function xlsxDispatch(args) {
     case "xlsx-sheet-rename": return cmdXlsxSheetRename(zip, command, p2, p3, outputPath, args);
     case "xlsx-style-read": return cmdXlsxStyleRead(zip, command, p2, p3);
     case "xlsx-style-apply": return cmdXlsxStyleApply(zip, command, p2, p3, p4, outputPath, args);
+    case "xlsx-cell-merge": return cmdXlsxCellMerge(zip, command, p2, p3, outputPath, args);
+    case "xlsx-cell-unmerge": return cmdXlsxCellUnmerge(zip, command, p2, p3, outputPath, args);
     case "meta-read": return cmdXlsxMetaRead(zip, command);
     case "meta-update": return cmdXlsxMetaUpdate(zip, command, p2, outputPath, args);
     default: outputError(command, `未知 xlsx 命令: ${command}`);
@@ -138,7 +144,8 @@ async function cmdXlsxInfo(zip, command, outputPath) {
     const sheetPath = getSheetPath(sheet);
     const sheetXml = await zip.readXml(sheetPath);
     const info = sheetXml ? getSheetInfo(sheetXml) : { totalRows: 0, totalCells: 0, maxColumn: 0, maxRow: 0 };
-    sheetDetails.push({ name: sheet.name, index: sheet.index, ...info });
+    const mergeCells = sheetXml ? readMergeCells(sheetXml) : [];
+    sheetDetails.push({ name: sheet.name, index: sheet.index, ...info, mergeCells });
   }
 
   let meta = {};
@@ -468,6 +475,58 @@ async function cmdXlsxMetaUpdate(zip, command, jsonStr, outputPath, args) {
     await zip.save(outputPath);
   }
   output(true, command, { updated: result.updated, dryRun: !!args.dryRun, outputPath: args.dryRun ? null : outputPath });
+}
+
+async function cmdXlsxCellMerge(zip, command, sheetStr, rangeStr, outputPath, args) {
+  const idx = getSheetIndex(sheetStr, command);
+  if (!rangeStr) outputError(command, "请指定合并区域（如 A1:D1）");
+  const range = parseRange(rangeStr);
+  if (!range) outputError(command, `无效的区域引用: ${rangeStr}`);
+
+  const { sheets } = await loadWorkbook(zip, command);
+  if (idx >= sheets.length) outputError(command, `工作表索引 ${idx} 不存在`);
+
+  const sheetPath = getSheetPath(sheets[idx]);
+  let sheetXml = await zip.readXml(sheetPath);
+  if (!sheetXml) outputError(command, `无法读取 ${sheetPath}`);
+
+  sheetXml = mergeCells(sheetXml, rangeStr);
+
+  if (!args.dryRun) {
+    await zip.writeXml(sheetPath, sheetXml);
+    await zip.save(outputPath);
+  }
+
+  output(true, command, {
+    sheet: sheets[idx].name, index: idx, range: rangeStr,
+    dryRun: !!args.dryRun,
+    outputPath: args.dryRun ? null : outputPath,
+  });
+}
+
+async function cmdXlsxCellUnmerge(zip, command, sheetStr, refStr, outputPath, args) {
+  const idx = getSheetIndex(sheetStr, command);
+  if (!refStr) outputError(command, "请指定单元格或区域引用（如 A1 或 A1:D1）");
+
+  const { sheets } = await loadWorkbook(zip, command);
+  if (idx >= sheets.length) outputError(command, `工作表索引 ${idx} 不存在`);
+
+  const sheetPath = getSheetPath(sheets[idx]);
+  let sheetXml = await zip.readXml(sheetPath);
+  if (!sheetXml) outputError(command, `无法读取 ${sheetPath}`);
+
+  sheetXml = unmergeCells(sheetXml, refStr);
+
+  if (!args.dryRun) {
+    await zip.writeXml(sheetPath, sheetXml);
+    await zip.save(outputPath);
+  }
+
+  output(true, command, {
+    sheet: sheets[idx].name, index: idx, ref: refStr,
+    dryRun: !!args.dryRun,
+    outputPath: args.dryRun ? null : outputPath,
+  });
 }
 
 module.exports = { xlsxDispatch, showXlsxHelp };
