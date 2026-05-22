@@ -1,8 +1,8 @@
 ---
 name: ms_office_x_editer
 description: 当用户要求"编辑 Word 文档"、"修改 docx 文件"、"编辑 Excel 文件"、"修改 xlsx 文件"、"替换文档中的文本"、"修改表格"、"查看文档信息"、"修改样式"、"设置字体颜色"、"设置加粗"、"读取 Excel"、"写入 Excel"、"修改工作表"时使用此 skill。支持 docx 和 xlsx 两种格式。
-version: 260522.161357
-skill_version: 260522.161357
+version: 260522.162750
+skill_version: 260522.162750
 ---
 
 # MS Office 编辑工具
@@ -116,6 +116,8 @@ node skill.js doc.docx style-apply '{"find":"标题","fontFamily":{"ascii":"Aria
 | `xlsx-range-write <sheet> <start> <json>` | 批量写入 | `node skill.js file.xlsx xlsx-range-write 0 A1 '[["Name","Age"]]'` |
 | `xlsx-sheet-rename <index> <name>` | 重命名工作表 | `node skill.js file.xlsx xlsx-sheet-rename 0 "数据表"` |
 | `xlsx-style-apply <sheet> <ref> '<json>'` | 修改单元格样式 | `node skill.js file.xlsx xlsx-style-apply 0 A1 '{"bold":true}'` |
+| `xlsx-cell-merge <sheet> <range>` | 合并单元格 | `node skill.js file.xlsx xlsx-cell-merge 0 A1:D1` |
+| `xlsx-cell-unmerge <sheet> <ref>` | 取消合并 | `node skill.js file.xlsx xlsx-cell-unmerge 0 A1` |
 | `meta-update` | 修改文档属性 | `node skill.js file.xlsx meta-update '{"dc:title":"新标题"}'` |
 
 ## XLSX 样式参数（xlsx-style-apply 使用）
@@ -130,6 +132,36 @@ node skill.js doc.docx style-apply '{"find":"标题","fontFamily":{"ascii":"Aria
 | `fontFamily` | string | 字体，如 `"Arial"`, `"宋体"` |
 | `color` | string | 字体颜色（HEX，不含#），如 `"FF0000"` |
 | `backgroundColor` | string | 背景颜色（HEX，不含#），如 `"FFFF00"` |
+| `border` | object | 边框设置（见下方说明） |
+| `alignment` | object | 对齐设置（见下方说明） |
+
+### 边框参数
+
+简写模式（全边框统一设置）：
+```json
+{"border": {"style": "thin", "color": "000000"}}
+```
+
+详细模式（各边独立设置）：
+```json
+{"border": {"top": {"style": "thin", "color": "000000"}, "bottom": {"style": "medium"}}}
+```
+
+边框样式值：`thin`, `medium`, `thick`, `dotted`, `dashed`, `double`, `hair`, `none`
+
+### 对齐参数
+
+```json
+{"alignment": {"horizontal": "center", "vertical": "center", "wrapText": true}}
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `horizontal` | string | 水平对齐：`"left"`, `"center"`, `"right"` |
+| `vertical` | string | 垂直对齐：`"top"`, `"center"`, `"bottom"` |
+| `wrapText` | boolean | 自动换行 |
+| `textRotation` | number | 文本旋转角度 |
+| `indent` | number | 缩进 |
 
 ### XLSX 使用示例
 
@@ -159,6 +191,13 @@ node skill.js file.xlsx xlsx-sheet-rename 0 "销售数据"
 # 修改样式
 node skill.js file.xlsx xlsx-style-apply 0 A1 '{"bold":true,"color":"FF0000"}'
 node skill.js file.xlsx xlsx-style-apply 0 A1 '{"fontSize":14,"backgroundColor":"FFFF00"}'
+node skill.js file.xlsx xlsx-style-apply 0 A1 '{"border":{"style":"thin","color":"000000"}}'
+node skill.js file.xlsx xlsx-style-apply 0 A1 '{"alignment":{"horizontal":"center","vertical":"center"}}'
+node skill.js file.xlsx xlsx-style-apply 0 A1 '{"bold":true,"fontSize":16,"border":{"style":"thin"},"alignment":{"horizontal":"center"}}'
+
+# 合并/取消合并单元格
+node skill.js file.xlsx xlsx-cell-merge 0 A1:D1
+node skill.js file.xlsx xlsx-cell-unmerge 0 A1
 
 # 元数据操作（docx/xlsx 通用）
 node skill.js file.xlsx meta-read

@@ -36,11 +36,15 @@ function readCellStyle(stylesXml, xfIndex) {
   if (!cellXfsMatch) return null;
 
   const xfsContent = cellXfsMatch[1];
-  const xfRe = /<xf\b[^>]*\/?>/g;
-  const xfs = [];
+  // 使用 extractElements 获取完整 xf 元素（可能包含 <alignment/> 子元素）
+  const xfs = extractElements(xfsContent, "xf");
+  // 也收集自关闭的 <xf ... />
+  const selfCloseRe = /<xf\b[^>]*\/>/g;
   let m;
-  while ((m = xfRe.exec(xfsContent)) !== null) {
-    xfs.push(m[0]);
+  while ((m = selfCloseRe.exec(xfsContent)) !== null) {
+    if (!xfs.some(x => x === m[0])) {
+      xfs.push(m[0]);
+    }
   }
 
   if (xfIndex >= xfs.length) return null;
@@ -55,6 +59,25 @@ function readCellStyle(stylesXml, xfIndex) {
   const font = readFont(stylesXml, fontId);
   // 读取填充详情
   const fill = readFill(stylesXml, fillId);
+  // 读取边框详情
+  const border = readBorder(stylesXml, borderId);
+
+  // 读取对齐信息（xf 内嵌的 <alignment>）
+  let alignment = null;
+  const alignMatch = xf.match(/<alignment\b[^>]*\/?>/);
+  if (alignMatch) {
+    alignment = {};
+    const hMatch = alignMatch[0].match(/horizontal="([^"]*)"/);
+    if (hMatch) alignment.horizontal = hMatch[1];
+    const vMatch = alignMatch[0].match(/vertical="([^"]*)"/);
+    if (vMatch) alignment.vertical = vMatch[1];
+    const wrapMatch = alignMatch[0].match(/wrapText="([^"]*)"/);
+    if (wrapMatch) alignment.wrapText = wrapMatch[1] === "1" || wrapMatch[1] === "true";
+    const rotateMatch = alignMatch[0].match(/textRotation="([^"]*)"/);
+    if (rotateMatch) alignment.textRotation = parseInt(rotateMatch[1], 10);
+    const indentMatch = alignMatch[0].match(/indent="([^"]*)"/);
+    if (indentMatch) alignment.indent = parseInt(indentMatch[1], 10);
+  }
 
   return {
     xfIndex,
@@ -64,6 +87,8 @@ function readCellStyle(stylesXml, xfIndex) {
     numFmtId,
     font,
     fill,
+    border,
+    alignment,
     raw: xf,
   };
 }
@@ -109,6 +134,41 @@ function readFont(stylesXml, fontIndex) {
   else {
     const themeMatch = fontXml.match(/<color\b[^>]*theme="([^"]*)"/);
     if (themeMatch) result.colorTheme = themeMatch[1];
+  }
+
+  return result;
+}
+
+/**
+ * 读取指定索引的边框
+ */
+function readBorder(stylesXml, borderIndex) {
+  const bordersMatch = stylesXml.match(/<borders\b[^>]*>([\s\S]*?)<\/borders>/);
+  if (!bordersMatch) return null;
+
+  const borders = extractElements(bordersMatch[1], "border");
+  if (borderIndex >= borders.length) return null;
+
+  const borderXml = borders[borderIndex];
+  const result = {};
+
+  const sides = ["left", "right", "top", "bottom", "diagonal"];
+  for (const side of sides) {
+    const sideRe = new RegExp(`<${side}\\b[^>]*>`);
+    if (sideRe.test(borderXml)) {
+      // 检查是否有 style 属性（空标签如 <left/> 表示无边框）
+      const fullRe = new RegExp(`<${side}\\b([^>]*)>`);
+      const m = borderXml.match(fullRe);
+      if (m) {
+        const attrs = m[1];
+        const styleMatch = attrs.match(/style="([^"]*)"/);
+        if (styleMatch && styleMatch[1]) {
+          result[side] = { style: styleMatch[1] };
+          const colorMatch = attrs.match(/color\b[^>]*rgb="([^"]*)"/);
+          if (colorMatch) result[side].color = colorMatch[1];
+        }
+      }
+    }
   }
 
   return result;
@@ -208,8 +268,34 @@ function applyStyle(stylesXml, currentXfIndex, styleChanges) {
     stylesXml = updateFillsCount(stylesXml, fillId + 1);
   }
 
+  // 修改边框
+  if (styleChanges.border !== undefined) {
+    const borderXml = buildBorderXml(styleChanges.border);
+    const borderResult = addOrFindBorder(stylesXml, borderXml);
+    borderId = borderResult.index;
+    stylesXml = borderResult.xml;
+    stylesXml = updateBordersCount(stylesXml, borderId + 1);
+  }
+
+  // 构建对齐 XML
+  let alignmentXml = "";
+  let applyAlignment = "";
+  if (styleChanges.alignment !== undefined) {
+    const align = styleChanges.alignment;
+    let alignAttrs = "";
+    if (align.horizontal) alignAttrs += ` horizontal="${align.horizontal}"`;
+    if (align.vertical) alignAttrs += ` vertical="${align.vertical}"`;
+    if (align.wrapText) alignAttrs += ` wrapText="1"`;
+    if (align.textRotation !== undefined) alignAttrs += ` textRotation="${align.textRotation}"`;
+    if (align.indent !== undefined) alignAttrs += ` indent="${align.indent}"`;
+    if (alignAttrs) {
+      alignmentXml = `<alignment${alignAttrs}/>`;
+      applyAlignment = ' applyAlignment="1"';
+    }
+  }
+
   // 构建 xf
-  const newXf = `<xf numFmtId="0" fontId="${fontId}" fillId="${fillId}" borderId="${borderId}" xfId="0" applyFont="1"${styleChanges.backgroundColor ? ' applyFill="1"' : ""}/>`;
+  const newXf = `<xf numFmtId="0" fontId="${fontId}" fillId="${fillId}" borderId="${borderId}" xfId="0" applyFont="1"${styleChanges.backgroundColor ? ' applyFill="1"' : ""}${styleChanges.border ? ' applyBorder="1"' : ""}${applyAlignment}>${alignmentXml}</xf>`;
 
   // 在 cellXfs 中查找或追加
   const xfResult = addOrFindXf(stylesXml, newXf);
@@ -223,10 +309,12 @@ function applyStyle(stylesXml, currentXfIndex, styleChanges) {
 function getXfById(stylesXml, index) {
   const cellXfsMatch = stylesXml.match(/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/);
   if (!cellXfsMatch) return "";
-  const xfRe = /<xf\b[^>]*\/?>/g;
-  const xfs = [];
+  const xfs = extractElements(cellXfsMatch[1], "xf");
+  const selfCloseRe = /<xf\b[^>]*\/>/g;
   let m;
-  while ((m = xfRe.exec(cellXfsMatch[1])) !== null) xfs.push(m[0]);
+  while ((m = selfCloseRe.exec(cellXfsMatch[1])) !== null) {
+    if (!xfs.some(x => x === m[0])) xfs.push(m[0]);
+  }
   return index < xfs.length ? xfs[index] : "";
 }
 
@@ -288,14 +376,72 @@ function addOrFindFill(stylesXml, fillXml) {
   return { index: fills.length, xml: newXml };
 }
 
+/**
+ * 构建边框 XML
+ * border 可以是：
+ * - 简写 {"style":"thin","color":"000000"} → 全四边相同
+ * - 详细 {"top":{"style":"thin","color":"000000"},"bottom":{"style":"medium"}} → 各边独立
+ */
+function buildBorderXml(border) {
+  let xml = "<border>";
+  const sides = ["left", "right", "top", "bottom", "diagonal"];
+
+  if (border.style || border.color) {
+    // 简写模式：全部四边使用相同设置
+    const style = border.style || "thin";
+    const color = border.color || "000000";
+    for (const side of sides) {
+      xml += `<${side} style="${style}"><color auto="1" rgb="FF${color.replace(/^FF/, '')}"/></${side}>`;
+    }
+  } else {
+    // 详细模式：各边独立设置
+    for (const side of sides) {
+      if (border[side]) {
+        const s = border[side].style || "thin";
+        const c = border[side].color || "000000";
+        xml += `<${side} style="${s}"><color auto="1" rgb="FF${c.replace(/^FF/, '')}"/></${side}>`;
+      } else {
+        xml += `<${side}/>`;
+      }
+    }
+  }
+
+  xml += "</border>";
+  return xml;
+}
+
+function addOrFindBorder(stylesXml, borderXml) {
+  const bordersMatch = stylesXml.match(/(<borders\b[^>]*>)([\s\S]*?)(<\/borders>)/);
+  if (!bordersMatch) return { index: 0, xml: stylesXml };
+  const existing = bordersMatch[2];
+  const borders = extractElements(existing, "border");
+  const idx = borders.findIndex(b => normalizeXml(b) === normalizeXml(borderXml));
+  if (idx !== -1) return { index: idx, xml: stylesXml };
+
+  const newContent = existing + borderXml;
+  const newXml = stylesXml.replace(
+    /(<borders\b[^>]*>)([\s\S]*?)(<\/borders>)/,
+    `$1${newContent}$3`
+  );
+  return { index: borders.length, xml: newXml };
+}
+
 function addOrFindXf(stylesXml, xfXml) {
   const cellXfsMatch = stylesXml.match(/(<cellXfs\b[^>]*>)([\s\S]*?)(<\/cellXfs>)/);
   if (!cellXfsMatch) return { index: 0, xml: stylesXml };
   const existing = cellXfsMatch[2];
-  const xfRe = /<xf\b[^>]*\/?>/g;
-  const xfs = [];
+
+  // 提取所有 xf 元素（可能包含 <alignment/> 子元素）
+  const xfs = extractElements(existing, "xf");
+  // 也匹配自关闭的 <xf ... />
+  const selfCloseRe = /<xf\b[^>]*\/>/g;
   let m;
-  while ((m = xfRe.exec(existing)) !== null) xfs.push(m[0]);
+  while ((m = selfCloseRe.exec(existing)) !== null) {
+    // 检查是否已被 extractElements 包含（有子元素的不会被此正则匹配）
+    if (!xfs.some(x => x === m[0])) {
+      xfs.push(m[0]);
+    }
+  }
 
   const normalized = normalizeXml(xfXml);
   const idx = xfs.findIndex(x => normalizeXml(x) === normalized);
@@ -315,6 +461,10 @@ function updateFontsCount(stylesXml, count) {
 
 function updateFillsCount(stylesXml, count) {
   return stylesXml.replace(/(<fills\b[^>]*\bcount=")(\d+)(")/, `$1${count}$3`);
+}
+
+function updateBordersCount(stylesXml, count) {
+  return stylesXml.replace(/(<borders\b[^>]*\bcount=")(\d+)(")/, `$1${count}$3`);
 }
 
 function updateCellXfsCount(stylesXml, count) {
@@ -342,6 +492,7 @@ module.exports = {
   readCellStyle,
   readFont,
   readFill,
+  readBorder,
   applyStyle,
   extractElements,
 };

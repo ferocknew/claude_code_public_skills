@@ -303,6 +303,136 @@ function renameSheet(workbookXml, sheetIndex, newName) {
   });
 }
 
+// ─── 合并单元格 ──────────────────────────────────────────────────
+
+/**
+ * 读取合并单元格区域列表
+ * 返回 [{ref}] 如 [{ref:"A1:D1"}, {ref:"B2:B5"}]
+ */
+function readMergeCells(sheetXml) {
+  const mergeMatch = sheetXml.match(/<mergeCells\b[^>]*>([\s\S]*?)<\/mergeCells>/);
+  if (!mergeMatch) return [];
+
+  const content = mergeMatch[1];
+  const cells = [];
+  const mcRe = /<mergeCell\b[^>]*ref="([^"]*)"[^>]*\/>/g;
+  let m;
+  while ((m = mcRe.exec(content)) !== null) {
+    cells.push({ ref: m[1] });
+  }
+  return cells;
+}
+
+/**
+ * 合并单元格
+ * range 格式: "A1:D1"
+ * 返回修改后的 sheetXml
+ */
+function mergeCells(sheetXml, range) {
+  // 检查是否已存在相同合并区域
+  const existing = readMergeCells(sheetXml);
+  if (existing.some(mc => mc.ref === range)) {
+    return sheetXml; // 已存在，无需重复
+  }
+
+  // 检查是否与现有合并区域重叠
+  const rangeCoord = parseRange(range);
+  if (!rangeCoord) return sheetXml;
+  for (const mc of existing) {
+    const mcCoord = parseRange(mc.ref);
+    if (mcCoord && rangesOverlap(rangeCoord, mcCoord)) {
+      // 先移除重叠的合并区域
+      sheetXml = unmergeCells(sheetXml, mc.ref);
+    }
+  }
+
+  const newMergeCell = `<mergeCell ref="${range}"/>`;
+
+  if (/<mergeCells\b/.test(sheetXml)) {
+    // 已有 mergeCells 段，追加
+    sheetXml = sheetXml.replace(
+      /(<mergeCells\b[^>]*>)([\s\S]*?)(<\/mergeCells>)/,
+      (match, open, content, close) => {
+        // 更新 count
+        const countMatch = open.match(/count="(\d+)"/);
+        const newCount = countMatch ? parseInt(countMatch[1], 10) + 1 : existing.length + 1;
+        open = open.replace(/count="\d+"/, `count="${newCount}"`);
+        return `${open}${content}${newMergeCell}${close}`;
+      }
+    );
+  } else {
+    // 需要创建 mergeCells 段，放在 </sheetData> 之后
+    const mergeCellsXml = `<mergeCells count="1">${newMergeCell}</mergeCells>`;
+    const sheetDataCloseIdx = sheetXml.indexOf("</sheetData>");
+    if (sheetDataCloseIdx !== -1) {
+      sheetXml = sheetXml.substring(0, sheetDataCloseIdx) + `</sheetData>${mergeCellsXml}` + sheetXml.substring(sheetDataCloseIdx + "</sheetData>".length);
+    }
+  }
+
+  return sheetXml;
+}
+
+/**
+ * 取消合并单元格
+ * ref 可以是精确匹配的合并区域（如 "A1:D1"）或包含在该区域内的单元格（如 "A1"）
+ * 返回修改后的 sheetXml
+ */
+function unmergeCells(sheetXml, ref) {
+  const existing = readMergeCells(sheetXml);
+  if (existing.length === 0) return sheetXml;
+
+  // 查找要移除的合并区域
+  let toRemove = null;
+  // 先精确匹配
+  toRemove = existing.find(mc => mc.ref === ref);
+
+  // 如果不是精确匹配，检查 ref 是否是某个合并区域的单元格
+  if (!toRemove) {
+    const coord = refToCoord(ref);
+    if (coord) {
+      for (const mc of existing) {
+        const mcRange = parseRange(mc.ref);
+        if (mcRange &&
+            coord.col >= mcRange.startCol && coord.col <= mcRange.endCol &&
+            coord.row >= mcRange.startRow && coord.row <= mcRange.endRow) {
+          toRemove = mc;
+          break;
+        }
+      }
+    }
+  }
+
+  if (!toRemove) return sheetXml;
+
+  // 移除该 mergeCell
+  sheetXml = sheetXml.replace(new RegExp(`<mergeCell\\b[^>]*ref="${escapeRegExp(toRemove.ref)}"[^>]*/>`), "");
+
+  // 更新 count 或移除整个 mergeCells 段
+  const remaining = readMergeCells(sheetXml);
+  if (remaining.length === 0) {
+    sheetXml = sheetXml.replace(/<mergeCells\b[^>]*>[\s\S]*?<\/mergeCells>/, "");
+  } else {
+    sheetXml = sheetXml.replace(
+      /(<mergeCells\b[^>]*\bcount=")(\d+)(")/,
+      `$1${remaining.length}$3`
+    );
+  }
+
+  return sheetXml;
+}
+
+/**
+ * 检查两个区域是否重叠
+ */
+function rangesOverlap(a, b) {
+  return !(a.endCol < b.startCol || a.startCol > b.endCol ||
+           a.endRow < b.startRow || a.startRow > b.endRow);
+}
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 module.exports = {
   listSheets,
   getSheetPath,
@@ -313,4 +443,7 @@ module.exports = {
   writeCell,
   writeRange,
   renameSheet,
+  readMergeCells,
+  mergeCells,
+  unmergeCells,
 };
