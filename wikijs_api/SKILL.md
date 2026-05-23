@@ -6,51 +6,68 @@ version: 260523.120718
 
 # Wiki.js GraphQL API 工具
 
-本 skill 提供通过 GraphQL API 与 Wiki.js 实例交互的完整功能，包括页面查询、创建、更新，以及用户、资产和评论管理。
+通过 GraphQL API 与 Wiki.js 实例交互，支持页面查询、创建、更新，以及用户、资产和评论管理。
 
 > ⚠️ **安全警告：本技能绝对不允许通过 API 删除页面或评论。删除操作必须由人工在 Wiki.js 管理后台进行，以防误删造成数据丢失。**
 
-## 概述
+---
 
-Wiki.js 提供完整的 GraphQL API，可用于访问和修改 Wiki 中的所有资源。本工具简化了 GraphQL 查询的构建和执行过程。
-
-## 运行方式
-
-**直接运行，无需安装依赖：**
+## 快速开始
 
 ```bash
-# 查询所有页面
-node skill.js query <base-url> <token> pages
+# 设置环境变量（可选）
+export WIKI_URL="https://wiki.example.com"
+export WIKI_TOKEN="your-api-token"
 
-# 查询单个页面
-node skill.js query <base-url> <token> page <page-id>
+# 查询所有页面
+node skill.js query pages
 
 # 创建页面
-node skill.js create <base-url> <token> <path> <title> <content>
+node skill.js create "new/page" "标题" "内容"
 
 # 更新页面
-node skill.js update <base-url> <token> <page-id> <content>
+node skill.js update 15 "新内容"
 
 # 搜索页面
-node skill.js search <base-url> <token> <query>
+node skill.js search "关键词"
 
-# 查询评论
-node skill.js comments <base-url> <token> list <path> <locale>
+# 查询评论（默认 YAML 格式）
+node skill.js comments list "test/history" "zh"
 
 # 创建评论
-node skill.js comments <base-url> <token> create <page-id> <content>
-
-# 更新评论
-node skill.js comments <base-url> <token> update <comment-id> <content>
-
-# 查询用户
-node skill.js query <base-url> <token> users
+node skill.js comments create 78 "评论内容"
 ```
 
-**参数说明：**
-- `base-url`: Wiki.js 实例的基础 URL（如 `https://wiki.example.com`）
-- `token`: API 访问令牌（从管理后台的 API Access 生成）
-- `path`: 页面路径（如 `docs/getting-started`）
+---
+
+## 命令参考
+
+| 命令 | 说明 |
+|------|------|
+| `query <resource>` | 查询资源（pages, users, groups, assets） |
+| `create <path> <title> <content>` | 创建页面 |
+| `update <page-id> <content>` | 更新页面 |
+| `search <query>` | 搜索页面（默认带预览摘要） |
+| `comments list <path> <locale>` | 查询评论列表 |
+| `comments single <comment-id>` | 查询单条评论 |
+| `comments create <page-id> <content>` | 创建评论 |
+| `comments update <comment-id> <content>` | 更新评论 |
+
+---
+
+## 常用选项
+
+| 选项 | 说明 |
+|------|------|
+| `--format <type>` | 输出格式（json/yaml/table/默认） |
+| `--fields <list>` | 指定返回字段（逗号分隔） |
+| `--orderBy <field>` | 排序字段（查询页面） |
+| `--limit <number>` | 限制结果数量 |
+| `--path <path>` | 页面路径（创建/更新/搜索） |
+| `--title <title>` | 页面标题（更新） |
+| `--replyTo <id>` | 回复评论 ID |
+| `--guestName <name>` | 访客名称 |
+| `--guestEmail <email>` | 访客邮箱 |
 
 ---
 
@@ -58,414 +75,68 @@ node skill.js query <base-url> <token> users
 
 访问 API 需要有效的 API Token，从 **管理后台 > API Access** 生成。
 
-Token 必须作为 Bearer token 传递：
+Token 通过 Bearer 方式传递：
 
 ```
 Authorization: Bearer eyJhbGc...aXczt18H6437W
 ```
 
-**权限范围：** 不同操作需要不同的权限，确保 API Token 包含所需的权限范围。
+---
+
+## 错误代码
+
+| 代码范围 | 类别 |
+|---------|------|
+| 1001-1020 | 认证/用户错误 |
+| 2001-2009 | 资产错误 |
+| 3001-3004 | 邮件错误 |
+| 4001-4002 | 搜索错误 |
+| 5001-5002 | 本地化错误 |
+| 6001-6013 | 页面/渲染错误 |
+| 7001-7004 | 系统错误 |
+| 8001-8006 | 评论错误 |
 
 ---
 
-## 操作模式
-
-### 1. 查询页面
-
-```bash
-# 列出所有页面
-node skill.js query https://wiki.example.com <token> pages
-
-# 按标题排序
-node skill.js query https://wiki.example.com <token> pages --orderBy TITLE
-
-# 限制返回数量
-node skill.js query https://wiki.example.com <token> pages --limit 10
-
-# 查询单个页面
-node skill.js query https://wiki.example.com <token> page 15
-```
-
-**返回字段：** id, path, title, description, contentType, locale, createdAt, updatedAt
-
-### 2. 创建页面
-
-```bash
-# 基本创建
-node skill.js create https://wiki.example.com <token> "new/page" "新页面" "内容"
-
-# 指定内容类型
-node skill.js create https://wiki.example.com <token> "new/page" "新页面" "内容" --contentType markdown
-
-# 指定编辑器
-node skill.js create https://wiki.example.com <token> "new/page" "新页面" "内容" --editor markdown
-
-# 指定父页面
-node skill.js create https://wiki.example.com <token> "parent/new" "新页面" "内容" --parentId 5
-```
-
-### 3. 更新页面
-
-```bash
-# 更新内容
-node skill.js update https://wiki.example.com <token> 15 "新内容"
-
-# 更新标题和内容
-node skill.js update https://wiki.example.com <token> 15 "新内容" --title "新标题"
-
-# 更新路径
-node skill.js update https://wiki.example.com <token> 15 "新内容" --path "new/path"
-```
-
-### 4. 搜索页面
-
-```bash
-node skill.js search https://wiki.example.com <token> "关键词"
-
-# 指定搜索路径
-node skill.js search https://wiki.example.com <token> "关键词" --path "docs"
-
-# 限制结果
-node skill.js search https://wiki.example.com <token> "关键词" --limit 20
-```
-
-**默认输出格式：** YAML（节省 Token）
-
-### 5. 评论管理
-
-> ⚠️ **评论删除需人工在管理后台处理，不支持 API 删除**
-
-```bash
-# 查询评论列表（默认 YAML 格式）
-node skill.js comments <base-url> <token> list <path> <locale>
-
-# 查询单条评论
-node skill.js comments <base-url> <token> single <comment-id>
-
-# 创建评论
-node skill.js comments <base-url> <token> create <page-id> <content>
-
-# 创建评论（回复他人）
-node skill.js comments <base-url> <token> create <page-id> <content> --replyTo <comment-id>
-
-# 创建评论（访客模式）
-node skill.js comments <base-url> <token> create <page-id> <content> --guestName "访客" --guestEmail "guest@example.com"
-
-# 更新评论
-node skill.js comments <base-url> <token> update <comment-id> <content>
-
-# 指定返回字段
-node skill.js comments <base-url> <token> list <path> <locale> --fields "id,content,authorName,createdAt"
-
-# 输出 JSON 格式
-node skill.js comments <base-url> <token> list <path> <locale> --format json
-```
-
-**评论查询返回字段：**
-- id, content, render（渲染后内容）
-- authorName, authorId, authorEmail, authorIP
-- createdAt, updatedAt
-
-### 6. 查询用户
-
-```bash
-node skill.js search https://wiki.example.com <token> "关键词"
-
-# 指定搜索路径
-node skill.js search https://wiki.example.com <token> "关键词" --path "docs"
-
-# 限制结果
-node skill.js search https://wiki.example.com <token> "关键词" --limit 20
-```
-
-### 7. 查询用户
-
-```bash
-# 列出所有用户
-node skill.js query https://wiki.example.com <token> users
-
-# 搜索用户
-node skill.js query https://wiki.example.com <token> users --search "john"
-```
-
-### 8. 查询用户组
-
-```bash
-node skill.js query https://wiki.example.com <token> groups
-```
-
-### 9. 查询资产
-
-```bash
-# 列出所有资产
-node skill.js query https://wiki.example.com <token> assets
-
-# 列出特定文件夹
-node skill.js query https://wiki.example.com <token> assets --folderId 1
-```
-
----
-
-## GraphQL 查询示例
-
-### 获取所有页面
-
-```graphql
-{
-  pages {
-    list (orderBy: TITLE) {
-      id
-      path
-      title
-      description
-      contentType
-      locale
-      createdAt
-      updatedAt
-    }
-  }
-}
-```
-
-### 获取单个页面
-
-```graphql
-{
-  pages {
-    single (id: 15) {
-      id
-      path
-      title
-      content
-      contentType
-      createdAt
-      updatedAt
-    }
-  }
-}
-```
-
-### 创建页面（Mutation）
-
-```graphql
-mutation {
-  pages {
-    create (
-      path: "new/page"
-      title: "新页面"
-      content: "页面内容"
-      contentType: markdown
-      editor: markdown
-      description: "页面描述"
-      isPublished: true
-      locale: zh
-    ) {
-      responseResult {
-        succeeded
-        slug
-        message
-        errorCode
-      }
-      page {
-        id
-        path
-        title
-      }
-    }
-  }
-}
-```
-
-### 更新页面（Mutation）
-
-```graphql
-mutation {
-  pages {
-    update (
-      id: 15
-      content: "新内容"
-      title: "新标题"
-    ) {
-      responseResult {
-        succeeded
-        slug
-        message
-        errorCode
-      }
-      page {
-        id
-        path
-        title
-        updatedAt
-      }
-    }
-  }
-}
-```
-
-### 搜索页面
-
-```graphql
-{
-  pageSearch {
-    query (query: "关键词") {
-      results {
-        id
-        title
-        path
-        description
-      }
-      totalHits
-    }
-  }
-}
-```
-
----
-
-## 错误处理
-
-所有 Mutation 操作返回 `responseResult`：
-
-```graphql
-type ResponseStatus {
-  succeeded: Boolean!
-  errorCode: Int!
-  slug: String!
-  message: String
-}
-```
-
-### 错误代码参考
-
-| 代码 | Slug | 类别 |
-|------|------|------|
-| 1001-1020 | Auth* | 认证/用户错误 |
-| 2001-2009 | Asset* | 资产错误 |
-| 3001-3004 | Mail* | 邮件错误 |
-| 4001-4002 | Search* | 搜索错误 |
-| 5001-5002 | Locale* | 本地化错误 |
-| 6001-6013 | Page* | 页面/渲染错误 |
-| 7001-7004 | System* | 系统错误 |
-| 8001-8006 | Comment* | 评论错误 |
-
----
-
-## 支持的内容类型
-
-- `markdown` - Markdown 格式
-- `html` - HTML 格式
-- `json` - JSON 格式
-
----
-
-## 支持的编辑器
-
-- `markdown` - Markdown 编辑器
-- `ckeditor` - CKEditor 富文本编辑器
-- `api` - API 编辑器
-- `code` - 代码编辑器
+## 支持类型
+
+| 内容类型 | 编辑器 |
+|---------|--------|
+| markdown | markdown |
+| html | ckeditor |
+| json | api |
+| - | code |
 
 ---
 
 ## GraphQL Playground
 
-访问 `https://your-wiki.com/graphql` 可以打开 GraphQL Playground，用于测试查询和探索所有可用的资源。
+访问 `https://your-wiki.com/graphql` 打开 Playground 测试查询。
 
-在 GraphQL Playground 的 HTTP Headers 面板中添加：
-
+HTTP Headers:
 ```json
-{
-  "Authorization": "Bearer YOUR_TOKEN"
-}
+{ "Authorization": "Bearer YOUR_TOKEN" }
 ```
 
 ---
 
-## 限制与注意事项
+## 更多示例
 
-### 限制
-
-- API Token 需要适当的权限范围
-- 某些操作可能需要管理员权限
-- 大量查询可能触发速率限制
-
-### 注意事项
-
-1. **路径冲突**：创建页面时，目标路径不能已存在
-2. **内容验证**：页面内容不能为空
-3. **权限验证**：确保 Token 具有所需权限
-4. **版本要求**：API Access 功能需要 Wiki.js 2.2+
-
----
-
-## 完整示例
-
-### 创建文档页面
-
-```bash
-node skill.js create \
-  https://wiki.example.com \
-  YOUR_TOKEN \
-  "docs/api-reference" \
-  "API 参考" \
-  "# API 参考文档\n\n这是一份 API 参考文档。"
-```
-
-### 批量更新页面
-
-```bash
-# 创建脚本批量更新
-for id in 10 11 12; do
-  node skill.js update \
-    https://wiki.example.com \
-    YOUR_TOKEN \
-    $id \
-    "更新后的内容"
-done
-```
-
-### 搜索并导出
-
-```bash
-# 搜索结果导出到 JSON
-node skill.js search https://wiki.example.com YOUR_TOKEN "关键词" --format json > results.json
-```
-
----
-
-## 环境变量
-
-支持通过环境变量设置默认值：
-
-```bash
-# 设置默认 URL
-export WIKI_URL="https://wiki.example.com"
-
-# 设置默认 Token
-export WIKI_TOKEN="your-api-token"
-
-# 简化命令
-node skill.js query pages
-node skill.js create "new/page" "标题" "内容"
-```
+- [GraphQL 查询示例](./examples/graphql.md)
+- [脚本示例](./examples/scripts.md)
 
 ---
 
 ## 常见问题
 
-### Q: 如何获取 API Token？
+**Q: 如何获取 API Token？**
+登录 Wiki.js 管理后台，导航到 **API Access**，点击 **+ New Token**。
 
-A: 登录 Wiki.js 管理后台，导航到 **API Access**，点击 **+ New Token**，设置名称和权限范围，复制生成的 Token。
+**Q: 权限不足怎么办？**
+检查 API Token 的权限范围，确保包含所需权限（如 `pages:read`, `pages:write`）。
 
-### Q: 权限不足怎么办？
+**Q: 如何调试 GraphQL 查询？**
+使用 GraphQL Playground (`/graphql`) 测试查询。
 
-A: 检查 API Token 的权限范围，确保包含所需的权限（如 `pages:read`, `pages:write`）。
-
-### Q: 如何调试 GraphQL 查询？
-
-A: 使用 GraphQL Playground (`/graphql`) 测试查询，查看完整的错误信息和建议。
-
-### Q: 支持批量操作吗？
-
-A: 目前需要通过脚本循环实现批量操作，或构建包含多个操作的 GraphQL 查询。
+**Q: 评论路径不包含语言前缀？**
+是的，评论 API 使用 `path`（如 `test/history`）和 `locale`（如 `zh`）参数，不包含 `/zh` 前缀。
