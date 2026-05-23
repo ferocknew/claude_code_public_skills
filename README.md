@@ -35,6 +35,7 @@
 | `where-am-i` | Where Am I | 查询公网 IP 地址、地理位置、ISP 运营商信息 |
 | `where-is-this` | Where Is This | 输入经纬度坐标，逆地理编码为详细地址信息 |
 | `x_release_by_agent_browser` | X/Twitter Publish | 通过 agent-browser 自动化在 X/Twitter 上发布推文 |
+| `wikijs_api` | Wiki.js API Client | Wiki.js GraphQL API 客户端，支持页面 CRUD、搜索、历史查看，支持 YAML 输出节省 Token |
 
 ## 技能文件结构
 
