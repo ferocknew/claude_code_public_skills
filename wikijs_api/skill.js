@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wiki.js GraphQL API 工具 v260523.113611 - 包含所有依赖，无需安装
+// Wiki.js GraphQL API 工具 v260523.114516 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -3016,7 +3016,7 @@ var require_lib2 = __commonJS({
 
 // run.js
 var fetch = require_lib2();
-var SKILL_VERSION = true ? "260523.113611" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260523.114516" : "1.0.0-dev";
 var DEFAULT_URL = process.env.WIKI_URL || "";
 var DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
 var GRAPHQL_ENDPOINT = "/graphql";
@@ -3155,7 +3155,7 @@ function handleError(error, context = "") {
   }
   process.exit(1);
 }
-async function cmdQuery(url, token, resource, options) {
+async function cmdQuery(url, token, resource, options, pageId = null) {
   let query = "";
   let dataPath = "";
   switch (resource) {
@@ -3177,7 +3177,6 @@ async function cmdQuery(url, token, resource, options) {
       dataPath = "pages.list";
       break;
     case "page":
-      const pageId = options.positional?.[1];
       if (!pageId) {
         console.error("\u9519\u8BEF: \u8BF7\u6307\u5B9A\u9875\u9762 ID");
         process.exit(1);
@@ -3304,13 +3303,13 @@ async function cmdCreate(url, token, path, title, content, options) {
       create (
         path: "${path}"
         title: "${title.replace(/"/g, '\\"')}"
+        description: "${options.description || ""}"
         content: """${content.replace(/"/g, '\\"')}"""
-        contentType: ${options.contentType || "markdown"}
-        editor: ${options.editor || "markdown"}
-        ${options.description ? `description: "${options.description.replace(/"/g, '\\"')}"` : ""}
+        editor: "${options.editor || "markdown"}"
+        isPrivate: false
         isPublished: true
-        locale: ${options.locale || "zh"}
-        ${options.parentId ? `parentId: ${options.parentId}` : ""}
+        locale: "${options.locale || "zh"}"
+        tags: []
       ) {
         responseResult {
           succeeded
@@ -3349,7 +3348,15 @@ async function cmdUpdate(url, token, pageId, content, options) {
   if (options.path) updateFields.push(`path: "${options.path}"`);
   const query = `mutation {
     pages {
-      update (${updateFields.join("\n")}) {
+      update (
+        ${updateFields.join("\n")}
+        description: "${options.description || ""}"
+        editor: "${options.editor || "markdown"}"
+        isPrivate: false
+        isPublished: true
+        locale: "${options.locale || "zh"}"
+        tags: []
+      ) {
         responseResult {
           succeeded
           slug
@@ -3412,8 +3419,8 @@ async function cmdDelete(url, token, pageId) {
 }
 async function cmdSearch(url, token, queryStr, options) {
   const query = `{
-    pageSearch {
-      query (query: "${queryStr.replace(/"/g, '\\"')}"${options.path ? `, path: "${options.path}"` : ""}) {
+    pages {
+      search(query: "${queryStr.replace(/"/g, '\\"')}"${options.path ? `, path: "${options.path}"` : ""}${options.locale ? `, locale: "${options.locale}"` : ""}) {
         results {
           id
           title
@@ -3422,18 +3429,26 @@ async function cmdSearch(url, token, queryStr, options) {
           locale
         }
         totalHits
+        suggestions
       }
     }
   }`;
   try {
     const result = await graphqlQuery(url, token, query);
-    const searchResult = result.pageSearch.query;
-    console.log(`\u641C\u7D22 "${queryStr}" \u627E\u5230 ${searchResult.totalHits} \u6761\u7ED3\u679C:`);
+    const searchResult = result.pages.search;
+    console.log(`
+\u641C\u7D22 "${queryStr}" \u627E\u5230 ${searchResult.totalHits} \u6761\u7ED3\u679C:
+`);
     if (options.limit) {
-      console.log(`\u663E\u793A\u524D ${options.limit} \u6761`);
+      console.log(`\u663E\u793A\u524D ${options.limit} \u6761
+`);
       formatOutput(searchResult.results.slice(0, parseInt(options.limit)), options.format);
     } else {
       formatOutput(searchResult.results, options.format);
+    }
+    if (searchResult.suggestions && searchResult.suggestions.length > 0) {
+      console.log(`
+\u5EFA\u8BAE\u641C\u7D22\u8BCD: ${searchResult.suggestions.join(", ")}`);
     }
   } catch (error) {
     handleError(error, "\u641C\u7D22\u9875\u9762\u5931\u8D25");
@@ -3480,7 +3495,8 @@ function main() {
         console.error("\u652F\u6301\u7684\u8D44\u6E90: pages, page, users, groups, assets");
         process.exit(1);
       }
-      cmdQuery(url, token, positional[3], options);
+      const pageId = positional[3] === "page" ? positional[4] : null;
+      cmdQuery(url, token, positional[3], options, pageId);
       break;
     case "create":
       if (!positional[3] || !positional[4] || !positional[5]) {
