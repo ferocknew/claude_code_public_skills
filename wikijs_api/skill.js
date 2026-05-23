@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wiki.js GraphQL API 工具 v260523.114516 - 包含所有依赖，无需安装
+// Wiki.js GraphQL API 工具 v260523.115201 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -276,21 +276,21 @@ var require_tr46 = __commonJS({
         label = punycode.toUnicode(label);
         processing_option = PROCESSING_OPTIONS.NONTRANSITIONAL;
       }
-      var error = false;
+      var error2 = false;
       if (normalize(label) !== label || label[3] === "-" && label[4] === "-" || label[0] === "-" || label[label.length - 1] === "-" || label.indexOf(".") !== -1 || label.search(combiningMarksRegex) === 0) {
-        error = true;
+        error2 = true;
       }
       var len = countSymbols(label);
       for (var i = 0; i < len; ++i) {
         var status = findStatus(label.codePointAt(i));
         if (processing === PROCESSING_OPTIONS.TRANSITIONAL && status[1] !== "valid" || processing === PROCESSING_OPTIONS.NONTRANSITIONAL && status[1] !== "valid" && status[1] !== "deviation") {
-          error = true;
+          error2 = true;
           break;
         }
       }
       return {
         label,
-        error
+        error: error2
       };
     }
     function processing(domain_name, useSTD3, processing_option) {
@@ -1937,8 +1937,8 @@ var require_lib2 = __commonJS({
       this.timeout = timeout;
       if (body instanceof Stream) {
         body.on("error", function(err) {
-          const error = err.name === "AbortError" ? err : new FetchError(`Invalid response body while trying to fetch ${_this.url}: ${err.message}`, "system", err);
-          _this[INTERNALS].error = error;
+          const error2 = err.name === "AbortError" ? err : new FetchError(`Invalid response body while trying to fetch ${_this.url}: ${err.message}`, "system", err);
+          _this[INTERNALS].error = error2;
         });
       }
     }
@@ -2769,25 +2769,25 @@ var require_lib2 = __commonJS({
       const dest = new URL$1(destination).protocol;
       return orig === dest;
     };
-    function fetch2(url, opts) {
-      if (!fetch2.Promise) {
+    function fetch3(url, opts) {
+      if (!fetch3.Promise) {
         throw new Error("native promise missing, set fetch.Promise to your favorite alternative");
       }
-      Body.Promise = fetch2.Promise;
-      return new fetch2.Promise(function(resolve, reject) {
+      Body.Promise = fetch3.Promise;
+      return new fetch3.Promise(function(resolve, reject) {
         const request = new Request(url, opts);
         const options = getNodeRequestOptions(request);
         const send = (options.protocol === "https:" ? https : http).request;
         const signal = request.signal;
         let response = null;
         const abort = function abort2() {
-          let error = new AbortError("The user aborted a request.");
-          reject(error);
+          let error2 = new AbortError("The user aborted a request.");
+          reject(error2);
           if (request.body && request.body instanceof Stream.Readable) {
-            destroyStream(request.body, error);
+            destroyStream(request.body, error2);
           }
           if (!response || !response.body) return;
-          response.body.emit("error", error);
+          response.body.emit("error", error2);
         };
         if (signal && signal.aborted) {
           abort();
@@ -2845,7 +2845,7 @@ var require_lib2 = __commonJS({
         req.on("response", function(res) {
           clearTimeout(reqTimeout);
           const headers = createHeadersLenient(res.headers);
-          if (fetch2.isRedirect(res.statusCode)) {
+          if (fetch3.isRedirect(res.statusCode)) {
             const location = headers.get("Location");
             let locationURL = null;
             try {
@@ -2907,7 +2907,7 @@ var require_lib2 = __commonJS({
                   requestOpts.body = void 0;
                   requestOpts.headers.delete("content-length");
                 }
-                resolve(fetch2(new Request(locationURL, requestOpts)));
+                resolve(fetch3(new Request(locationURL, requestOpts)));
                 finalize();
                 return;
             }
@@ -2999,11 +2999,11 @@ var require_lib2 = __commonJS({
         stream.end();
       }
     }
-    fetch2.isRedirect = function(code) {
+    fetch3.isRedirect = function(code) {
       return code === 301 || code === 302 || code === 303 || code === 307 || code === 308;
     };
-    fetch2.Promise = global.Promise;
-    module2.exports = exports2 = fetch2;
+    fetch3.Promise = global.Promise;
+    module2.exports = exports2 = fetch3;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.default = exports2;
     exports2.Headers = Headers;
@@ -3014,153 +3014,134 @@ var require_lib2 = __commonJS({
   }
 });
 
-// run.js
-var fetch = require_lib2();
-var SKILL_VERSION = true ? "260523.114516" : "1.0.0-dev";
-var DEFAULT_URL = process.env.WIKI_URL || "";
-var DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
-var GRAPHQL_ENDPOINT = "/graphql";
-function showHelp() {
-  console.log(`
-Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
-
-\u7528\u6CD5:
-  node skill.js <command> [options...]
-
-\u547D\u4EE4:
-  query <url> <token> <resource>     \u67E5\u8BE2\u8D44\u6E90
-  create <url> <token> <path> <title> <content>  \u521B\u5EFA\u9875\u9762
-  update <url> <token> <page-id> <content> [options]  \u66F4\u65B0\u9875\u9762
-  delete <url> <token> <page-id>     \u5220\u9664\u9875\u9762
-  search <url> <token> <query>       \u641C\u7D22\u9875\u9762
-
-\u67E5\u8BE2\u8D44\u6E90\u7C7B\u578B:
-  pages       \u67E5\u8BE2\u6240\u6709\u9875\u9762
-  page <id>   \u67E5\u8BE2\u5355\u4E2A\u9875\u9762
-  users       \u67E5\u8BE2\u6240\u6709\u7528\u6237
-  groups      \u67E5\u8BE2\u6240\u6709\u7528\u6237\u7EC4
-  assets      \u67E5\u8BE2\u6240\u6709\u8D44\u4EA7
-
-\u9009\u9879:
-  --orderBy <field>    \u6392\u5E8F\u5B57\u6BB5\uFF08\u67E5\u8BE2\u9875\u9762\uFF09
-  --limit <number>     \u9650\u5236\u7ED3\u679C\u6570\u91CF
-  --path <path>        \u9875\u9762\u8DEF\u5F84\uFF08\u521B\u5EFA/\u66F4\u65B0/\u641C\u7D22\uFF09
-  --title <title>      \u9875\u9762\u6807\u9898\uFF08\u66F4\u65B0\uFF09
-  --contentType <type> \u5185\u5BB9\u7C7B\u578B\uFF08markdown/html/json\uFF09
-  --editor <editor>    \u7F16\u8F91\u5668\u7C7B\u578B\uFF08markdown/ckeditor/api/code\uFF09
-  --parentId <id>      \u7236\u9875\u9762 ID\uFF08\u521B\u5EFA\uFF09
-  --folderId <id>      \u6587\u4EF6\u5939 ID\uFF08\u67E5\u8BE2\u8D44\u4EA7\uFF09
-  --search <query>     \u641C\u7D22\u5173\u952E\u8BCD\uFF08\u67E5\u8BE2\u7528\u6237\uFF09
-  --format <type>      \u8F93\u51FA\u683C\u5F0F\uFF08json/table\uFF09
-
-\u793A\u4F8B:
-  # \u67E5\u8BE2\u6240\u6709\u9875\u9762
-  node skill.js query https://wiki.example.com TOKEN pages
-
-  # \u6309\u6807\u9898\u6392\u5E8F\u67E5\u8BE2
-  node skill.js query https://wiki.example.com TOKEN pages --orderBy TITLE
-
-  # \u67E5\u8BE2\u5355\u4E2A\u9875\u9762
-  node skill.js query https://wiki.example.com TOKEN page 15
-
-  # \u521B\u5EFA\u9875\u9762
-  node skill.js create https://wiki.example.com TOKEN "new/page" "\u65B0\u9875\u9762" "\u5185\u5BB9"
-
-  # \u66F4\u65B0\u9875\u9762
-  node skill.js update https://wiki.example.com TOKEN 15 "\u65B0\u5185\u5BB9"
-
-  # \u5220\u9664\u9875\u9762
-  node skill.js delete https://wiki.example.com TOKEN 15
-
-  # \u641C\u7D22\u9875\u9762
-  node skill.js search https://wiki.example.com TOKEN "\u5173\u952E\u8BCD"
-
-  # \u4F7F\u7528\u73AF\u5883\u53D8\u91CF\u7B80\u5316\u547D\u4EE4
-  export WIKI_URL="https://wiki.example.com"
-  export WIKI_TOKEN="your-token"
-  node skill.js query pages
-  node skill.js create "new/page" "\u6807\u9898" "\u5185\u5BB9"
-
-\u5FEB\u6377\u9009\u9879:
-  -h, --help     \u663E\u793A\u6B64\u5E2E\u52A9\u4FE1\u606F
-  -v, --version  \u663E\u793A\u7248\u672C\u4FE1\u606F
-`);
-}
-function showVersion() {
-  console.log(`Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}`);
-  console.log("GraphQL \u7AEF\u70B9: /graphql");
-}
-function parseArgs(args) {
-  const options = {};
-  const positional = [];
-  for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith("--")) {
-      const key = args[i].slice(2);
-      const value = args[i + 1];
-      if (value && !value.startsWith("--")) {
-        options[key] = value;
-        i++;
-      } else {
-        options[key] = true;
+// lib/parser.js
+var require_parser = __commonJS({
+  "lib/parser.js"(exports2, module2) {
+    function parseArgs2(args) {
+      const options = {};
+      const positional = [];
+      for (let i = 0; i < args.length; i++) {
+        if (args[i].startsWith("--")) {
+          const key = args[i].slice(2);
+          const value = args[i + 1];
+          if (value && !value.startsWith("--")) {
+            options[key] = value;
+            i++;
+          } else {
+            options[key] = true;
+          }
+        } else if (args[i].startsWith("-")) {
+          options[args[i].slice(1)] = true;
+        } else {
+          positional.push(args[i]);
+        }
       }
-    } else if (args[i].startsWith("-")) {
-      options[args[i].slice(1)] = true;
-    } else {
-      positional.push(args[i]);
+      return { positional, options };
     }
+    module2.exports = {
+      parseArgs: parseArgs2
+    };
   }
-  return { positional, options };
-}
-async function graphqlQuery(url, token, query, variables = {}) {
-  const endpoint = url.replace(/\/$/, "") + GRAPHQL_ENDPOINT;
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      query,
-      variables
-    })
-  });
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`HTTP ${response.status}: ${error}`);
+});
+
+// lib/errors.js
+var require_errors = __commonJS({
+  "lib/errors.js"(exports2, module2) {
+    function handleError2(error2, context = "") {
+      console.error(`\u274C \u9519\u8BEF: ${context}`);
+      console.error(error2.message);
+      if (error2.message.includes("401") || error2.message.includes("403")) {
+        console.error("\n\u{1F4A1} \u63D0\u793A: \u8BF7\u68C0\u67E5 API Token \u662F\u5426\u6B63\u786E\u4E14\u6709\u8DB3\u591F\u7684\u6743\u9650");
+      } else if (error2.message.includes("404")) {
+        console.error("\n\u{1F4A1} \u63D0\u793A: \u8BF7\u68C0\u67E5 Wiki.js URL \u662F\u5426\u6B63\u786E");
+      } else if (error2.message.includes("ECONNREFUSED")) {
+        console.error("\n\u{1F4A1} \u63D0\u793A: \u65E0\u6CD5\u8FDE\u63A5\u5230 Wiki.js \u670D\u52A1\u5668");
+      }
+      process.exit(1);
+    }
+    module2.exports = {
+      handleError: handleError2
+    };
   }
-  const result = await response.json();
-  if (result.errors) {
-    throw new Error(`GraphQL \u9519\u8BEF: ${result.errors[0].message}`);
+});
+
+// lib/api.js
+var require_api = __commonJS({
+  "lib/api.js"(exports2, module2) {
+    var GRAPHQL_ENDPOINT = "/graphql";
+    async function graphqlQuery(url, token, query, variables = {}) {
+      const endpoint = url.replace(/\/$/, "") + GRAPHQL_ENDPOINT;
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          query,
+          variables
+        })
+      });
+      if (!response.ok) {
+        const error2 = await response.text();
+        throw new Error(`HTTP ${response.status}: ${error2}`);
+      }
+      const result = await response.json();
+      if (result.errors) {
+        throw new Error(`GraphQL \u9519\u8BEF: ${result.errors[0].message}`);
+      }
+      return result.data;
+    }
+    module2.exports = {
+      graphqlQuery
+    };
   }
-  return result.data;
-}
-function formatOutput(data, format = "json") {
-  if (format === "json") {
-    console.log(JSON.stringify(data, null, 2));
-  } else if (format === "table") {
-    console.table(data);
-  } else {
-    console.log(data);
+});
+
+// lib/output.js
+var require_output = __commonJS({
+  "lib/output.js"(exports2, module2) {
+    function formatOutput(data, format = "json") {
+      if (format === "json") {
+        console.log(JSON.stringify(data, null, 2));
+      } else if (format === "table") {
+        console.table(data);
+      } else {
+        console.log(data);
+      }
+    }
+    function showSuccess(message, details = {}) {
+      console.log(`\u2705 ${message}`);
+      Object.entries(details).forEach(([key, value]) => {
+        console.log(`   ${key}: ${value}`);
+      });
+    }
+    function showError(message, details = {}) {
+      console.error(`\u274C ${message}`);
+      Object.entries(details).forEach(([key, value]) => {
+        console.error(`   ${key}: ${value}`);
+      });
+    }
+    module2.exports = {
+      formatOutput,
+      showSuccess,
+      showError
+    };
   }
-}
-function handleError(error, context = "") {
-  console.error(`\u274C \u9519\u8BEF: ${context}`);
-  console.error(error.message);
-  if (error.message.includes("401") || error.message.includes("403")) {
-    console.error("\n\u{1F4A1} \u63D0\u793A: \u8BF7\u68C0\u67E5 API Token \u662F\u5426\u6B63\u786E\u4E14\u6709\u8DB3\u591F\u7684\u6743\u9650");
-  } else if (error.message.includes("404")) {
-    console.error("\n\u{1F4A1} \u63D0\u793A: \u8BF7\u68C0\u67E5 Wiki.js URL \u662F\u5426\u6B63\u786E");
-  } else if (error.message.includes("ECONNREFUSED")) {
-    console.error("\n\u{1F4A1} \u63D0\u793A: \u65E0\u6CD5\u8FDE\u63A5\u5230 Wiki.js \u670D\u52A1\u5668");
-  }
-  process.exit(1);
-}
-async function cmdQuery(url, token, resource, options, pageId = null) {
-  let query = "";
-  let dataPath = "";
-  switch (resource) {
-    case "pages":
-      query = `{
+});
+
+// lib/commands.js
+var require_commands = __commonJS({
+  "lib/commands.js"(exports2, module2) {
+    var { graphqlQuery } = require_api();
+    var { formatOutput, showSuccess } = require_output();
+    var { handleError: handleError2 } = require_errors();
+    async function cmdQuery2(url, token, resource, options, pageId = null) {
+      let query = "";
+      let dataPath = "";
+      switch (resource) {
+        case "pages":
+          query = `{
         pages {
           list ${options.orderBy ? `(orderBy: ${options.orderBy})` : ""} {
             id
@@ -3174,14 +3155,14 @@ async function cmdQuery(url, token, resource, options, pageId = null) {
           }
         }
       }`;
-      dataPath = "pages.list";
-      break;
-    case "page":
-      if (!pageId) {
-        console.error("\u9519\u8BEF: \u8BF7\u6307\u5B9A\u9875\u9762 ID");
-        process.exit(1);
-      }
-      query = `{
+          dataPath = "pages.list";
+          break;
+        case "page":
+          if (!pageId) {
+            console.error("\u9519\u8BEF: \u8BF7\u6307\u5B9A\u9875\u9762 ID");
+            process.exit(1);
+          }
+          query = `{
         pages {
           single (id: ${pageId}) {
             id
@@ -3196,11 +3177,11 @@ async function cmdQuery(url, token, resource, options, pageId = null) {
           }
         }
       }`;
-      dataPath = "pages.single";
-      break;
-    case "users":
-      if (options.search) {
-        query = `{
+          dataPath = "pages.single";
+          break;
+        case "users":
+          if (options.search) {
+            query = `{
           users {
             search (query: "${options.search}") {
               id
@@ -3208,14 +3189,13 @@ async function cmdQuery(url, token, resource, options, pageId = null) {
               email
               providerKey
               isActive
-              isVerified
               createdAt
             }
           }
         }`;
-        dataPath = "users.search";
-      } else {
-        query = `{
+            dataPath = "users.search";
+          } else {
+            query = `{
           users {
             list {
               id
@@ -3223,82 +3203,47 @@ async function cmdQuery(url, token, resource, options, pageId = null) {
               email
               providerKey
               isActive
-              isVerified
               createdAt
             }
           }
         }`;
-        dataPath = "users.list";
-      }
-      break;
-    case "groups":
-      query = `{
+            dataPath = "users.list";
+          }
+          break;
+        case "groups":
+          query = `{
         groups {
           list {
             id
             name
-            redirectOnLogin
             isSystem
           }
         }
       }`;
-      dataPath = "groups.list";
-      break;
-    case "assets":
-      if (options.folderId) {
-        query = `{
-          assets {
-            list (folderId: ${options.folderId}) {
-              id
-              filename
-              folderId
-              mimeType
-              size
-              createdAt
-              updatedAt
-            }
-          }
-        }`;
-        dataPath = "assets.list";
-      } else {
-        query = `{
-          assets {
-            list {
-              id
-              filename
-              folderId
-              mimeType
-              size
-              createdAt
-              updatedAt
-            }
-          }
-        }`;
-        dataPath = "assets.list";
+          dataPath = "groups.list";
+          break;
+        default:
+          console.error(`\u9519\u8BEF: \u4E0D\u652F\u6301\u7684\u8D44\u6E90\u7C7B\u578B: ${resource}`);
+          console.error("\u652F\u6301\u7684\u8D44\u6E90: pages, page, users, groups");
+          process.exit(1);
       }
-      break;
-    default:
-      console.error(`\u9519\u8BEF: \u4E0D\u652F\u6301\u7684\u8D44\u6E90\u7C7B\u578B: ${resource}`);
-      console.error("\u652F\u6301\u7684\u8D44\u6E90: pages, page, users, groups, assets");
-      process.exit(1);
-  }
-  try {
-    const result = await graphqlQuery(url, token, query);
-    const data = dataPath.split(".").reduce((obj, key) => obj?.[key], result);
-    if (options.limit && Array.isArray(data)) {
-      console.log(`\u663E\u793A\u524D ${options.limit} \u6761\u8BB0\u5F55 (\u5171 ${data.length} \u6761)`);
-      formatOutput(data.slice(0, parseInt(options.limit)), options.format);
-    } else {
-      const count = Array.isArray(data) ? data.length : 1;
-      console.log(`\u67E5\u8BE2\u7ED3\u679C: ${count} \u6761\u8BB0\u5F55`);
-      formatOutput(data, options.format);
+      try {
+        const result = await graphqlQuery(url, token, query);
+        const data = dataPath.split(".").reduce((obj, key) => obj?.[key], result);
+        if (options.limit && Array.isArray(data)) {
+          console.log(`\u663E\u793A\u524D ${options.limit} \u6761\u8BB0\u5F55 (\u5171 ${data.length} \u6761)`);
+          formatOutput(data.slice(0, parseInt(options.limit)), options.format);
+        } else {
+          const count = Array.isArray(data) ? data.length : 1;
+          console.log(`\u67E5\u8BE2\u7ED3\u679C: ${count} \u6761\u8BB0\u5F55`);
+          formatOutput(data, options.format);
+        }
+      } catch (error2) {
+        handleError2(error2, `\u67E5\u8BE2 ${resource} \u5931\u8D25`);
+      }
     }
-  } catch (error) {
-    handleError(error, `\u67E5\u8BE2 ${resource} \u5931\u8D25`);
-  }
-}
-async function cmdCreate(url, token, path, title, content, options) {
-  const query = `mutation {
+    async function cmdCreate2(url, token, path, title, content, options) {
+      const query = `mutation {
     pages {
       create (
         path: "${path}"
@@ -3325,28 +3270,28 @@ async function cmdCreate(url, token, path, title, content, options) {
       }
     }
   }`;
-  try {
-    const result = await graphqlQuery(url, token, query);
-    const response = result.pages.create;
-    if (response.responseResult.succeeded) {
-      console.log("\u2705 \u9875\u9762\u521B\u5EFA\u6210\u529F\uFF01");
-      console.log(`   ID: ${response.page.id}`);
-      console.log(`   \u8DEF\u5F84: ${response.page.path}`);
-      console.log(`   \u6807\u9898: ${response.page.title}`);
-    } else {
-      console.error(`\u274C \u521B\u5EFA\u5931\u8D25: ${response.responseResult.message}`);
-      console.error(`   \u9519\u8BEF\u4EE3\u7801: ${response.responseResult.errorCode}`);
-      process.exit(1);
+      try {
+        const result = await graphqlQuery(url, token, query);
+        const response = result.pages.create;
+        if (response.responseResult.succeeded) {
+          showSuccess("\u9875\u9762\u521B\u5EFA\u6210\u529F\uFF01", {
+            "ID": response.page.id,
+            "\u8DEF\u5F84": response.page.path,
+            "\u6807\u9898": response.page.title
+          });
+        } else {
+          handleError2(error, `\u521B\u5EFA\u5931\u8D25: ${response.responseResult.message}`);
+          process.exit(1);
+        }
+      } catch (error2) {
+        handleError2(error2, "\u521B\u5EFA\u9875\u9762\u5931\u8D25");
+      }
     }
-  } catch (error) {
-    handleError(error, "\u521B\u5EFA\u9875\u9762\u5931\u8D25");
-  }
-}
-async function cmdUpdate(url, token, pageId, content, options) {
-  const updateFields = [`id: ${pageId}`, `content: """${content.replace(/"/g, '\\"')}"""`];
-  if (options.title) updateFields.push(`title: "${options.title.replace(/"/g, '\\"')}"`);
-  if (options.path) updateFields.push(`path: "${options.path}"`);
-  const query = `mutation {
+    async function cmdUpdate2(url, token, pageId, content, options) {
+      const updateFields = [`id: ${pageId}`, `content: """${content.replace(/"/g, '\\"')}"""`];
+      if (options.title) updateFields.push(`title: "${options.title.replace(/"/g, '\\"')}"`);
+      if (options.path) updateFields.push(`path: "${options.path}"`);
+      const query = `mutation {
     pages {
       update (
         ${updateFields.join("\n")}
@@ -3372,26 +3317,26 @@ async function cmdUpdate(url, token, pageId, content, options) {
       }
     }
   }`;
-  try {
-    const result = await graphqlQuery(url, token, query);
-    const response = result.pages.update;
-    if (response.responseResult.succeeded) {
-      console.log("\u2705 \u9875\u9762\u66F4\u65B0\u6210\u529F\uFF01");
-      console.log(`   ID: ${response.page.id}`);
-      console.log(`   \u8DEF\u5F84: ${response.page.path}`);
-      console.log(`   \u6807\u9898: ${response.page.title}`);
-      console.log(`   \u66F4\u65B0\u65F6\u95F4: ${response.page.updatedAt}`);
-    } else {
-      console.error(`\u274C \u66F4\u65B0\u5931\u8D25: ${response.responseResult.message}`);
-      console.error(`   \u9519\u8BEF\u4EE3\u7801: ${response.responseResult.errorCode}`);
-      process.exit(1);
+      try {
+        const result = await graphqlQuery(url, token, query);
+        const response = result.pages.update;
+        if (response.responseResult.succeeded) {
+          showSuccess("\u9875\u9762\u66F4\u65B0\u6210\u529F\uFF01", {
+            "ID": response.page.id,
+            "\u8DEF\u5F84": response.page.path,
+            "\u6807\u9898": response.page.title,
+            "\u66F4\u65B0\u65F6\u95F4": response.page.updatedAt
+          });
+        } else {
+          handleError2(error, `\u66F4\u65B0\u5931\u8D25: ${response.responseResult.message}`);
+          process.exit(1);
+        }
+      } catch (error2) {
+        handleError2(error2, "\u66F4\u65B0\u9875\u9762\u5931\u8D25");
+      }
     }
-  } catch (error) {
-    handleError(error, "\u66F4\u65B0\u9875\u9762\u5931\u8D25");
-  }
-}
-async function cmdDelete(url, token, pageId) {
-  const query = `mutation {
+    async function cmdDelete2(url, token, pageId) {
+      const query = `mutation {
     pages {
       delete (id: ${pageId}) {
         responseResult {
@@ -3403,22 +3348,38 @@ async function cmdDelete(url, token, pageId) {
       }
     }
   }`;
-  try {
-    const result = await graphqlQuery(url, token, query);
-    const response = result.pages.delete;
-    if (response.responseResult.succeeded) {
-      console.log("\u2705 \u9875\u9762\u5220\u9664\u6210\u529F\uFF01");
-    } else {
-      console.error(`\u274C \u5220\u9664\u5931\u8D25: ${response.responseResult.message}`);
-      console.error(`   \u9519\u8BEF\u4EE3\u7801: ${response.responseResult.errorCode}`);
-      process.exit(1);
+      try {
+        const result = await graphqlQuery(url, token, query);
+        const response = result.pages.delete;
+        if (response.responseResult.succeeded) {
+          showSuccess("\u9875\u9762\u5220\u9664\u6210\u529F\uFF01");
+        } else {
+          handleError2(error, `\u5220\u9664\u5931\u8D25: ${response.responseResult.message}`);
+          process.exit(1);
+        }
+      } catch (error2) {
+        handleError2(error2, "\u5220\u9664\u9875\u9762\u5931\u8D25");
+      }
     }
-  } catch (error) {
-    handleError(error, "\u5220\u9664\u9875\u9762\u5931\u8D25");
-  }
-}
-async function cmdSearch(url, token, queryStr, options) {
-  const query = `{
+    function extractSnippet(content, keyword, contextLength = 100) {
+      if (!content) return "";
+      const plainText = content.replace(/!\[([^\]]*)\]\([^)]+\)/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/```[\s\S]*?```/g, "").replace(/`([^`]+)`/g, "$1").replace(/#{1,6}\s+/g, "").replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\*([^*]+)\*/g, "$1").replace(/\s+/g, " ").trim();
+      if (!plainText) return "";
+      const keywordLower = keyword.toLowerCase();
+      const textLower = plainText.toLowerCase();
+      const index = textLower.indexOf(keywordLower);
+      if (index === -1) {
+        return plainText.slice(0, contextLength) + "...";
+      }
+      const start = Math.max(0, index - contextLength / 2);
+      const end = Math.min(plainText.length, index + keyword.length + contextLength / 2);
+      let snippet = plainText.slice(start, end);
+      if (start > 0) snippet = "..." + snippet;
+      if (end < plainText.length) snippet = snippet + "...";
+      return snippet;
+    }
+    async function cmdSearch2(url, token, queryStr, options) {
+      const query = `{
     pages {
       search(query: "${queryStr.replace(/"/g, '\\"')}"${options.path ? `, path: "${options.path}"` : ""}${options.locale ? `, locale: "${options.locale}"` : ""}) {
         results {
@@ -3433,26 +3394,145 @@ async function cmdSearch(url, token, queryStr, options) {
       }
     }
   }`;
-  try {
-    const result = await graphqlQuery(url, token, query);
-    const searchResult = result.pages.search;
-    console.log(`
+      try {
+        const result = await graphqlQuery(url, token, query);
+        const searchResult = result.pages.search;
+        console.log(`
 \u641C\u7D22 "${queryStr}" \u627E\u5230 ${searchResult.totalHits} \u6761\u7ED3\u679C:
 `);
-    if (options.limit) {
-      console.log(`\u663E\u793A\u524D ${options.limit} \u6761
-`);
-      formatOutput(searchResult.results.slice(0, parseInt(options.limit)), options.format);
-    } else {
-      formatOutput(searchResult.results, options.format);
-    }
-    if (searchResult.suggestions && searchResult.suggestions.length > 0) {
-      console.log(`
+        let results = searchResult.results;
+        if (options.limit) {
+          results = results.slice(0, parseInt(options.limit));
+        }
+        if (options.preview || options.snippet) {
+          const contextLength = parseInt(options.contextLength) || 100;
+          const previewCount = parseInt(options.previewCount) || 3;
+          for (let i = 0; i < Math.min(results.length, previewCount); i++) {
+            const page = results[i];
+            const pageQuery = `{
+          pages {
+            single (id: ${page.id}) {
+              content
+            }
+          }
+        }`;
+            const pageResult = await graphqlQuery(url, token, pageQuery);
+            const content = pageResult.pages.single?.content || "";
+            page.snippet = extractSnippet(content, queryStr, contextLength);
+          }
+        }
+        if (options.format === "json") {
+          formatOutput(results, "json");
+        } else {
+          results.forEach((r, idx) => {
+            console.log(`${idx + 1}. [${r.title}](${r.path})`);
+            if (r.snippet) {
+              console.log(`   ${r.snippet}`);
+            }
+            console.log();
+          });
+        }
+        if (searchResult.suggestions && searchResult.suggestions.length > 0) {
+          console.log(`
 \u5EFA\u8BAE\u641C\u7D22\u8BCD: ${searchResult.suggestions.join(", ")}`);
+        }
+      } catch (error2) {
+        handleError2(error2, "\u641C\u7D22\u9875\u9762\u5931\u8D25");
+      }
     }
-  } catch (error) {
-    handleError(error, "\u641C\u7D22\u9875\u9762\u5931\u8D25");
+    module2.exports = {
+      cmdQuery: cmdQuery2,
+      cmdCreate: cmdCreate2,
+      cmdUpdate: cmdUpdate2,
+      cmdDelete: cmdDelete2,
+      cmdSearch: cmdSearch2
+    };
   }
+});
+
+// run.js
+var fetch2 = require_lib2();
+var SKILL_VERSION = true ? "260523.115201" : "1.0.0-dev";
+var DEFAULT_URL = process.env.WIKI_URL || "";
+var DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
+var { parseArgs } = require_parser();
+var { handleError } = require_errors();
+var { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch } = require_commands();
+function showHelp() {
+  console.log(`
+Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
+
+\u7528\u6CD5:
+  node skill.js <command> [options...]
+
+\u547D\u4EE4:
+  query <url> <token> <resource>     \u67E5\u8BE2\u8D44\u6E90
+  create <url> <token> <path> <title> <content>  \u521B\u5EFA\u9875\u9762
+  update <url> <token> <page-id> <content> [options]  \u66F4\u65B0\u9875\u9762
+  delete <url> <token> <page-id>     \u5220\u9664\u9875\u9762
+  search <url> <token> <query>       \u641C\u7D22\u9875\u9762
+
+\u67E5\u8BE2\u8D44\u6E90\u7C7B\u578B:
+  pages       \u67E5\u8BE2\u6240\u6709\u9875\u9762
+  page <id>   \u67E5\u8BE2\u5355\u4E2A\u9875\u9762
+  users       \u67E5\u8BE2\u6240\u6709\u7528\u6237
+  groups      \u67E5\u8BE2\u6240\u6709\u7528\u6237\u7EC4
+  assets      \u67E5\u8BE2\u6240\u6709\u8D44\u4EA7
+
+\u9009\u9879:
+  --orderBy <field>    \u6392\u5E8F\u5B57\u6BB5\uFF08\u67E5\u8BE2\u9875\u9762\uFF09
+  --limit <number>     \u9650\u5236\u7ED3\u679C\u6570\u91CF
+  --path <path>        \u9875\u9762\u8DEF\u5F84\uFF08\u521B\u5EFA/\u66F4\u65B0/\u641C\u7D22\uFF09
+  --title <title>      \u9875\u9762\u6807\u9898\uFF08\u66F4\u65B0\uFF09
+  --editor <editor>    \u7F16\u8F91\u5668\u7C7B\u578B\uFF08markdown/ckeditor/api/code\uFF09
+  --parentId <id>      \u7236\u9875\u9762 ID\uFF08\u521B\u5EFA\uFF09
+  --preview            \u663E\u793A\u5185\u5BB9\u9884\u89C8\u6458\u8981\uFF08\u8282\u7701 Token\uFF09
+  --previewCount <n>   \u9884\u89C8\u6761\u6570\uFF08\u9ED8\u8BA4 3\uFF09
+  --contextLength <n>  \u6458\u8981\u4E0A\u4E0B\u6587\u957F\u5EA6\uFF08\u9ED8\u8BA4 100 \u5B57\u7B26\uFF09
+  --format <type>      \u8F93\u51FA\u683C\u5F0F\uFF08json/table/\u9ED8\u8BA4\uFF09
+
+\u793A\u4F8B:
+  # \u67E5\u8BE2\u6240\u6709\u9875\u9762
+  node skill.js query https://wiki.example.com TOKEN pages
+
+  # \u6309\u6807\u9898\u6392\u5E8F\u67E5\u8BE2
+  node skill.js query https://wiki.example.com TOKEN pages --orderBy TITLE
+
+  # \u67E5\u8BE2\u5355\u4E2A\u9875\u9762
+  node skill.js query https://wiki.example.com TOKEN page 15
+
+  # \u521B\u5EFA\u9875\u9762
+  node skill.js create https://wiki.example.com TOKEN "new/page" "\u65B0\u9875\u9762" "\u5185\u5BB9"
+
+  # \u66F4\u65B0\u9875\u9762
+  node skill.js update https://wiki.example.com TOKEN 15 "\u65B0\u5185\u5BB9"
+
+  # \u5220\u9664\u9875\u9762
+  node skill.js delete https://wiki.example.com TOKEN 15
+
+  # \u641C\u7D22\u9875\u9762
+  node skill.js search https://wiki.example.com TOKEN "\u5173\u952E\u8BCD"
+
+  # \u641C\u7D22\u5E76\u663E\u793A\u5185\u5BB9\u9884\u89C8\uFF08\u8282\u7701 Token\uFF09
+  node skill.js search https://wiki.example.com TOKEN "\u5173\u952E\u8BCD" --preview
+
+  # \u641C\u7D22\u5E76\u9884\u89C8\u524D 5 \u6761\uFF0C\u6BCF\u6761 150 \u5B57\u7B26\u4E0A\u4E0B\u6587
+  node skill.js search https://wiki.example.com TOKEN "\u5173\u952E\u8BCD" --preview --previewCount 5 --contextLength 150
+
+  # \u4F7F\u7528\u73AF\u5883\u53D8\u91CF\u7B80\u5316\u547D\u4EE4
+  export WIKI_URL="https://wiki.example.com"
+  export WIKI_TOKEN="your-token"
+  node skill.js query pages
+  node skill.js create "new/page" "\u6807\u9898" "\u5185\u5BB9"
+
+\u5FEB\u6377\u9009\u9879:
+  -h, --help     \u663E\u793A\u6B64\u5E2E\u52A9\u4FE1\u606F
+  -v, --version  \u663E\u793A\u7248\u672C\u4FE1\u606F
+`);
+}
+function showVersion() {
+  console.log(`Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}`);
+  console.log("GraphQL \u7AEF\u70B9: /graphql");
 }
 function main() {
   const { positional, options } = parseArgs(process.argv.slice(2));

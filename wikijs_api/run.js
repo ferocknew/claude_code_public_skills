@@ -18,10 +18,14 @@ const SKILL_VERSION = typeof __VERSION !== "undefined" ? __VERSION : "1.0.0-dev"
 const DEFAULT_URL = process.env.WIKI_URL || "";
 const DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
 
-// GraphQL 端点
-const GRAPHQL_ENDPOINT = "/graphql";
+// 导入模块
+const { parseArgs } = require("./lib/parser");
+const { handleError } = require("./lib/errors");
+const { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch } = require("./lib/commands");
 
-// 显示帮助
+/**
+ * 显示帮助
+ */
 function showHelp() {
   console.log(`
 Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
@@ -48,12 +52,12 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   --limit <number>     限制结果数量
   --path <path>        页面路径（创建/更新/搜索）
   --title <title>      页面标题（更新）
-  --contentType <type> 内容类型（markdown/html/json）
   --editor <editor>    编辑器类型（markdown/ckeditor/api/code）
   --parentId <id>      父页面 ID（创建）
-  --folderId <id>      文件夹 ID（查询资产）
-  --search <query>     搜索关键词（查询用户）
-  --format <type>      输出格式（json/table）
+  --preview            显示内容预览摘要（节省 Token）
+  --previewCount <n>   预览条数（默认 3）
+  --contextLength <n>  摘要上下文长度（默认 100 字符）
+  --format <type>      输出格式（json/table/默认）
 
 示例:
   # 查询所有页面
@@ -77,6 +81,12 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   # 搜索页面
   node skill.js search https://wiki.example.com TOKEN "关键词"
 
+  # 搜索并显示内容预览（节省 Token）
+  node skill.js search https://wiki.example.com TOKEN "关键词" --preview
+
+  # 搜索并预览前 5 条，每条 150 字符上下文
+  node skill.js search https://wiki.example.com TOKEN "关键词" --preview --previewCount 5 --contextLength 150
+
   # 使用环境变量简化命令
   export WIKI_URL="https://wiki.example.com"
   export WIKI_TOKEN="your-token"
@@ -89,420 +99,17 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
 `);
 }
 
-// 显示版本
+/**
+ * 显示版本
+ */
 function showVersion() {
   console.log(`Wiki.js GraphQL API 客户端 v${SKILL_VERSION}`);
   console.log("GraphQL 端点: /graphql");
 }
 
-// 解析命令行参数
-function parseArgs(args) {
-  const options = {};
-  const positional = [];
-
-  for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith("--")) {
-      const key = args[i].slice(2);
-      const value = args[i + 1];
-      if (value && !value.startsWith("--")) {
-        options[key] = value;
-        i++;
-      } else {
-        options[key] = true;
-      }
-    } else if (args[i].startsWith("-")) {
-      options[args[i].slice(1)] = true;
-    } else {
-      positional.push(args[i]);
-    }
-  }
-
-  return { positional, options };
-}
-
-// 执行 GraphQL 查询
-async function graphqlQuery(url, token, query, variables = {}) {
-  const endpoint = url.replace(/\/$/, "") + GRAPHQL_ENDPOINT;
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      query,
-      variables
-    })
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`HTTP ${response.status}: ${error}`);
-  }
-
-  const result = await response.json();
-
-  if (result.errors) {
-    throw new Error(`GraphQL 错误: ${result.errors[0].message}`);
-  }
-
-  return result.data;
-}
-
-// 格式化输出
-function formatOutput(data, format = "json") {
-  if (format === "json") {
-    console.log(JSON.stringify(data, null, 2));
-  } else if (format === "table") {
-    console.table(data);
-  } else {
-    console.log(data);
-  }
-}
-
-// 错误处理
-function handleError(error, context = "") {
-  console.error(`❌ 错误: ${context}`);
-  console.error(error.message);
-
-  // 检查常见错误代码
-  if (error.message.includes("401") || error.message.includes("403")) {
-    console.error("\n💡 提示: 请检查 API Token 是否正确且有足够的权限");
-  } else if (error.message.includes("404")) {
-    console.error("\n💡 提示: 请检查 Wiki.js URL 是否正确");
-  } else if (error.message.includes("ECONNREFUSED")) {
-    console.error("\n💡 提示: 无法连接到 Wiki.js 服务器");
-  }
-
-  process.exit(1);
-}
-
-// 查询命令
-async function cmdQuery(url, token, resource, options, pageId = null) {
-  let query = "";
-  let dataPath = "";
-
-  switch (resource) {
-    case "pages":
-      query = `{
-        pages {
-          list ${options.orderBy ? `(orderBy: ${options.orderBy})` : ""} {
-            id
-            path
-            title
-            description
-            contentType
-            locale
-            createdAt
-            updatedAt
-          }
-        }
-      }`;
-      dataPath = "pages.list";
-      break;
-
-    case "page":
-      if (!pageId) {
-        console.error("错误: 请指定页面 ID");
-        process.exit(1);
-      }
-      query = `{
-        pages {
-          single (id: ${pageId}) {
-            id
-            path
-            title
-            content
-            description
-            contentType
-            locale
-            createdAt
-            updatedAt
-          }
-        }
-      }`;
-      dataPath = "pages.single";
-      break;
-
-    case "users":
-      if (options.search) {
-        query = `{
-          users {
-            search (query: "${options.search}") {
-              id
-              name
-              email
-              providerKey
-              isActive
-              isVerified
-              createdAt
-            }
-          }
-        }`;
-        dataPath = "users.search";
-      } else {
-        query = `{
-          users {
-            list {
-              id
-              name
-              email
-              providerKey
-              isActive
-              isVerified
-              createdAt
-            }
-          }
-        }`;
-        dataPath = "users.list";
-      }
-      break;
-
-    case "groups":
-      query = `{
-        groups {
-          list {
-            id
-            name
-            redirectOnLogin
-            isSystem
-          }
-        }
-      }`;
-      dataPath = "groups.list";
-      break;
-
-    case "assets":
-      if (options.folderId) {
-        query = `{
-          assets {
-            list (folderId: ${options.folderId}) {
-              id
-              filename
-              folderId
-              mimeType
-              size
-              createdAt
-              updatedAt
-            }
-          }
-        }`;
-        dataPath = "assets.list";
-      } else {
-        query = `{
-          assets {
-            list {
-              id
-              filename
-              folderId
-              mimeType
-              size
-              createdAt
-              updatedAt
-            }
-          }
-        }`;
-        dataPath = "assets.list";
-      }
-      break;
-
-    default:
-      console.error(`错误: 不支持的资源类型: ${resource}`);
-      console.error("支持的资源: pages, page, users, groups, assets");
-      process.exit(1);
-  }
-
-  try {
-    const result = await graphqlQuery(url, token, query);
-    const data = dataPath.split(".").reduce((obj, key) => obj?.[key], result);
-
-    if (options.limit && Array.isArray(data)) {
-      console.log(`显示前 ${options.limit} 条记录 (共 ${data.length} 条)`);
-      formatOutput(data.slice(0, parseInt(options.limit)), options.format);
-    } else {
-      const count = Array.isArray(data) ? data.length : 1;
-      console.log(`查询结果: ${count} 条记录`);
-      formatOutput(data, options.format);
-    }
-  } catch (error) {
-    handleError(error, `查询 ${resource} 失败`);
-  }
-}
-
-// 创建页面命令
-async function cmdCreate(url, token, path, title, content, options) {
-  const query = `mutation {
-    pages {
-      create (
-        path: "${path}"
-        title: "${title.replace(/"/g, '\\"')}"
-        description: "${options.description || ""}"
-        content: """${content.replace(/"/g, '\\"')}"""
-        editor: "${options.editor || "markdown"}"
-        isPrivate: false
-        isPublished: true
-        locale: "${options.locale || "zh"}"
-        tags: []
-      ) {
-        responseResult {
-          succeeded
-          slug
-          message
-          errorCode
-        }
-        page {
-          id
-          path
-          title
-        }
-      }
-    }
-  }`;
-
-  try {
-    const result = await graphqlQuery(url, token, query);
-    const response = result.pages.create;
-
-    if (response.responseResult.succeeded) {
-      console.log("✅ 页面创建成功！");
-      console.log(`   ID: ${response.page.id}`);
-      console.log(`   路径: ${response.page.path}`);
-      console.log(`   标题: ${response.page.title}`);
-    } else {
-      console.error(`❌ 创建失败: ${response.responseResult.message}`);
-      console.error(`   错误代码: ${response.responseResult.errorCode}`);
-      process.exit(1);
-    }
-  } catch (error) {
-    handleError(error, "创建页面失败");
-  }
-}
-
-// 更新页面命令
-async function cmdUpdate(url, token, pageId, content, options) {
-  const updateFields = [`id: ${pageId}`, `content: """${content.replace(/"/g, '\\"')}"""`];
-  if (options.title) updateFields.push(`title: "${options.title.replace(/"/g, '\\"')}"`);
-  if (options.path) updateFields.push(`path: "${options.path}"`);
-
-  const query = `mutation {
-    pages {
-      update (
-        ${updateFields.join("\n")}
-        description: "${options.description || ""}"
-        editor: "${options.editor || "markdown"}"
-        isPrivate: false
-        isPublished: true
-        locale: "${options.locale || "zh"}"
-        tags: []
-      ) {
-        responseResult {
-          succeeded
-          slug
-          message
-          errorCode
-        }
-        page {
-          id
-          path
-          title
-          updatedAt
-        }
-      }
-    }
-  }`;
-
-  try {
-    const result = await graphqlQuery(url, token, query);
-    const response = result.pages.update;
-
-    if (response.responseResult.succeeded) {
-      console.log("✅ 页面更新成功！");
-      console.log(`   ID: ${response.page.id}`);
-      console.log(`   路径: ${response.page.path}`);
-      console.log(`   标题: ${response.page.title}`);
-      console.log(`   更新时间: ${response.page.updatedAt}`);
-    } else {
-      console.error(`❌ 更新失败: ${response.responseResult.message}`);
-      console.error(`   错误代码: ${response.responseResult.errorCode}`);
-      process.exit(1);
-    }
-  } catch (error) {
-    handleError(error, "更新页面失败");
-  }
-}
-
-// 删除页面命令
-async function cmdDelete(url, token, pageId) {
-  const query = `mutation {
-    pages {
-      delete (id: ${pageId}) {
-        responseResult {
-          succeeded
-          slug
-          message
-          errorCode
-        }
-      }
-    }
-  }`;
-
-  try {
-    const result = await graphqlQuery(url, token, query);
-    const response = result.pages.delete;
-
-    if (response.responseResult.succeeded) {
-      console.log("✅ 页面删除成功！");
-    } else {
-      console.error(`❌ 删除失败: ${response.responseResult.message}`);
-      console.error(`   错误代码: ${response.responseResult.errorCode}`);
-      process.exit(1);
-    }
-  } catch (error) {
-    handleError(error, "删除页面失败");
-  }
-}
-
-// 搜索页面命令
-async function cmdSearch(url, token, queryStr, options) {
-  const query = `{
-    pages {
-      search(query: "${queryStr.replace(/"/g, '\\"')}"${options.path ? `, path: "${options.path}"` : ""}${options.locale ? `, locale: "${options.locale}"` : ""}) {
-        results {
-          id
-          title
-          path
-          description
-          locale
-        }
-        totalHits
-        suggestions
-      }
-    }
-  }`;
-
-  try {
-    const result = await graphqlQuery(url, token, query);
-    const searchResult = result.pages.search;
-
-    console.log(`\n搜索 "${queryStr}" 找到 ${searchResult.totalHits} 条结果:\n`);
-
-    if (options.limit) {
-      console.log(`显示前 ${options.limit} 条\n`);
-      formatOutput(searchResult.results.slice(0, parseInt(options.limit)), options.format);
-    } else {
-      formatOutput(searchResult.results, options.format);
-    }
-
-    if (searchResult.suggestions && searchResult.suggestions.length > 0) {
-      console.log(`\n建议搜索词: ${searchResult.suggestions.join(", ")}`);
-    }
-  } catch (error) {
-    handleError(error, "搜索页面失败");
-  }
-}
-
-// 主函数
+/**
+ * 主函数
+ */
 function main() {
   const { positional, options } = parseArgs(process.argv.slice(2));
 
