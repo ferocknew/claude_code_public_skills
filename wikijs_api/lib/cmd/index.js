@@ -8,6 +8,7 @@ const { cmdUpdate } = require("./update");
 const { cmdSearch } = require("./search_cmd");
 const { cmdHistory } = require("./history");
 const { cmdVersion } = require("./version");
+const { cmdCommentsList, cmdCommentsSingle, cmdCommentsCreate, cmdCommentsUpdate } = require("./comments");
 
 module.exports = {
   cmdQuery,
@@ -15,5 +16,9 @@ module.exports = {
   cmdUpdate,
   cmdSearch,
   cmdHistory,
-  cmdVersion
+  cmdVersion,
+  cmdCommentsList,
+  cmdCommentsSingle,
+  cmdCommentsCreate,
+  cmdCommentsUpdate
 };

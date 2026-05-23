@@ -21,7 +21,7 @@ const DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
 // 导入模块
 const { parseArgs } = require("./lib/parser");
 const { handleError } = require("./lib/errors");
-const { cmdQuery, cmdCreate, cmdUpdate, cmdSearch, cmdHistory, cmdVersion } = require("./lib/cmd");
+const { cmdQuery, cmdCreate, cmdUpdate, cmdSearch, cmdHistory, cmdVersion, cmdCommentsList, cmdCommentsSingle, cmdCommentsCreate, cmdCommentsUpdate } = require("./lib/cmd");
 
 /**
  * 显示帮助
@@ -40,6 +40,7 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   search <url> <token> <query>       搜索页面（默认带预览摘要）
   history <url> <token> <page-id>    页面历史记录
   version <url> <token> <page-id> <version-id>  获取特定版本内容
+  comments <url> <token> <subcommand> [args...]  评论操作
 
 查询资源类型:
   pages       查询所有页面
@@ -61,8 +62,8 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   --page <n>          分页页码（历史记录）
   --limit <n>         每页条数（历史记录）
   --fullContent       获取完整内容（version 命令）
-  --format <type>      输出格式（json/yaml/table/默认）
-  --format <type>      输出格式（json/table/默认）
+  --format <type>      输出格式（json/yaml/table/默认，默认yaml）
+  --fields <list>      指定返回字段（逗号分隔）
 
 示例:
   # 查询所有页面
@@ -233,6 +234,62 @@ function main() {
         process.exit(1);
       }
       cmdVersion(url, token, positional[3], positional[4], options);
+      break;
+
+    case "comments":
+      if (!positional[3]) {
+        console.error("错误: 评论命令需要子命令");
+        console.error("用法: node skill.js comments <url> <token> <subcommand> [args...]");
+        console.error("子命令: list, single, create, update");
+        process.exit(1);
+      }
+      const subCmd = positional[3];
+      // 评论命令默认使用 yaml 格式
+      if (!options.format) options.format = "yaml";
+
+      switch (subCmd) {
+        case "list":
+          if (!positional[4] || !positional[5]) {
+            console.error("错误: 查询评论列表需要 path 和 locale");
+            console.error("用法: node skill.js comments <url> <token> list <path> <locale>");
+            process.exit(1);
+          }
+          cmdCommentsList(url, token, positional[4], positional[5], options);
+          break;
+
+        case "single":
+          if (!positional[4]) {
+            console.error("错误: 查询单条评论需要评论 ID");
+            console.error("用法: node skill.js comments <url> <token> single <comment-id>");
+            process.exit(1);
+          }
+          cmdCommentsSingle(url, token, positional[4], options);
+          break;
+
+        case "create":
+          if (!positional[4] || !positional[5]) {
+            console.error("错误: 创建评论需要页面 ID 和内容");
+            console.error("用法: node skill.js comments <url> <token> create <page-id> <content>");
+            console.error("选项: --replyTo <id>, --guestName <name>, --guestEmail <email>");
+            process.exit(1);
+          }
+          cmdCommentsCreate(url, token, positional[4], positional[5], options);
+          break;
+
+        case "update":
+          if (!positional[4] || !positional[5]) {
+            console.error("错误: 更新评论需要评论 ID 和新内容");
+            console.error("用法: node skill.js comments <url> <token> update <comment-id> <content>");
+            process.exit(1);
+          }
+          cmdCommentsUpdate(url, token, positional[4], positional[5], options);
+          break;
+
+        default:
+          console.error(`错误: 未知评论子命令: ${subCmd}`);
+          console.error("可用子命令: list, single, create, update");
+          process.exit(1);
+      }
       break;
 
     default:
