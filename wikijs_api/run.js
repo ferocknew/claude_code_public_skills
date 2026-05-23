@@ -21,7 +21,7 @@ const DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
 // 导入模块
 const { parseArgs } = require("./lib/parser");
 const { handleError } = require("./lib/errors");
-const { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch } = require("./lib/commands");
+const { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch, cmdHistory } = require("./lib/commands");
 
 /**
  * 显示帮助
@@ -38,7 +38,8 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   create <url> <token> <path> <title> <content>  创建页面
   update <url> <token> <page-id> <content> [options]  更新页面
   delete <url> <token> <page-id>     删除页面
-  search <url> <token> <query>       搜索页面
+  search <url> <token> <query>       搜索页面（默认带预览摘要）
+  history <url> <token> <page-id>    页面历史记录
 
 查询资源类型:
   pages       查询所有页面
@@ -89,6 +90,12 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
 
   # 搜索并预览，按字符数提取（200字符）
   node skill.js search https://wiki.example.com TOKEN "关键词" --preview --contextLength 200
+
+  # 查看页面历史
+  node skill.js history https://wiki.example.com TOKEN 15
+
+  # 查看页面历史（第2页）
+  node skill.js history https://wiki.example.com TOKEN 15 --page 1 --limit 20
 
   # 使用环境变量简化命令
   export WIKI_URL="https://wiki.example.com"
