@@ -49,7 +49,7 @@ async function cmdCreate(url, token, path, title, content, options) {
         "标题": response.page.title
       });
     } else {
-      handleError(error, `创建失败: ${response.responseResult.message}`);
+      handleError(null, `创建失败: ${response.responseResult.message}`);
       process.exit(1);
     }
   } catch (error) {
