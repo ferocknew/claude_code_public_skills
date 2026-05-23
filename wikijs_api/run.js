@@ -21,7 +21,7 @@ const DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
 // 导入模块
 const { parseArgs } = require("./lib/parser");
 const { handleError } = require("./lib/errors");
-const { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch, cmdHistory, cmdVersion } = require("./lib/commands");
+const { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch, cmdHistory, cmdVersion } = require("./lib/cmd");
 
 /**
  * 显示帮助
@@ -40,6 +40,7 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   delete <url> <token> <page-id>     删除页面
   search <url> <token> <query>       搜索页面（默认带预览摘要）
   history <url> <token> <page-id>    页面历史记录
+  version <url> <token> <page-id> <version-id>  获取特定版本内容
 
 查询资源类型:
   pages       查询所有页面
@@ -60,6 +61,8 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   --contextLength <n>  摘要长度（默认 1=行模式）
   --page <n>          分页页码（历史记录）
   --limit <n>         每页条数（历史记录）
+  --fullContent       获取完整内容（version 命令）
+  --format <type>      输出格式（json/yaml/table/默认）
   --format <type>      输出格式（json/table/默认）
 
 示例:
@@ -98,6 +101,15 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
 
   # 查看页面历史（第2页）
   node skill.js history https://wiki.example.com TOKEN 15 --page 1 --limit 20
+
+  # 查看页面历史（YAML 格式，省 Token）
+  node skill.js history https://wiki.example.com TOKEN 15 --format yaml
+
+  # 获取特定版本内容（预览）
+  node skill.js version https://wiki.example.com TOKEN 15 5
+
+  # 获取特定版本完整内容
+  node skill.js version https://wiki.example.com TOKEN 15 5 --fullContent
 
   # 使用环境变量简化命令
   export WIKI_URL="https://wiki.example.com"
@@ -225,6 +237,15 @@ function main() {
         process.exit(1);
       }
       cmdHistory(url, token, positional[3], options);
+      break;
+
+    case "version":
+      if (!positional[3] || !positional[4]) {
+        console.error("错误: 获取版本需要提供页面 ID 和版本 ID");
+        console.error("用法: node skill.js version <url> <token> <page-id> <version-id>");
+        process.exit(1);
+      }
+      cmdVersion(url, token, positional[3], positional[4], options);
       break;
 
     default:
