@@ -179,7 +179,7 @@ function handleError(error, context = "") {
 }
 
 // 查询命令
-async function cmdQuery(url, token, resource, options) {
+async function cmdQuery(url, token, resource, options, pageId = null) {
   let query = "";
   let dataPath = "";
 
@@ -203,14 +203,13 @@ async function cmdQuery(url, token, resource, options) {
       break;
 
     case "page":
-      const pageId = options.positional?.[1];
       if (!pageId) {
         console.error("错误: 请指定页面 ID");
         process.exit(1);
       }
       query = `{
         pages {
-          single (id: "${pageId}") {
+          single (id: ${pageId}) {
             id
             path
             title
@@ -338,13 +337,13 @@ async function cmdCreate(url, token, path, title, content, options) {
       create (
         path: "${path}"
         title: "${title.replace(/"/g, '\\"')}"
+        description: "${options.description || ""}"
         content: """${content.replace(/"/g, '\\"')}"""
-        contentType: ${options.contentType || "markdown"}
-        editor: ${options.editor || "markdown"}
-        ${options.description ? `description: "${options.description.replace(/"/g, '\\"')}"` : ""}
+        editor: "${options.editor || "markdown"}"
+        isPrivate: false
         isPublished: true
-        locale: ${options.locale || "zh"}
-        ${options.parentId ? `parentId: ${options.parentId}` : ""}
+        locale: "${options.locale || "zh"}"
+        tags: []
       ) {
         responseResult {
           succeeded
@@ -388,7 +387,15 @@ async function cmdUpdate(url, token, pageId, content, options) {
 
   const query = `mutation {
     pages {
-      update (${updateFields.join("\n")}) {
+      update (
+        ${updateFields.join("\n")}
+        description: "${options.description || ""}"
+        editor: "${options.editor || "markdown"}"
+        isPrivate: false
+        isPublished: true
+        locale: "${options.locale || "zh"}"
+        tags: []
+      ) {
         responseResult {
           succeeded
           slug
@@ -551,7 +558,9 @@ function main() {
         console.error("支持的资源: pages, page, users, groups, assets");
         process.exit(1);
       }
-      cmdQuery(url, token, positional[3], options);
+      // page 查询需要额外的 ID 参数
+      const pageId = positional[3] === "page" ? positional[4] : null;
+      cmdQuery(url, token, positional[3], options, pageId);
       break;
 
     case "create":
