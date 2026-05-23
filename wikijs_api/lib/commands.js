@@ -328,6 +328,70 @@ function extractSnippet(content, keyword, contextLength = 100) {
 }
 
 /**
+ * 页面历史命令
+ */
+async function cmdHistory(url, token, pageId, options) {
+  const offsetPage = parseInt(options.page) || 0;
+  const offsetSize = parseInt(options.limit) || 10;
+
+  const query = `{
+    pages {
+      history (
+        id: ${pageId}
+        offsetPage: ${offsetPage}
+        offsetSize: ${offsetSize}
+      ) {
+        total
+        trail {
+          versionId
+          versionDate
+          authorId
+          authorName
+          actionType
+          valueBefore
+          valueAfter
+        }
+      }
+    }
+  }`;
+
+  try {
+    const result = await graphqlQuery(url, token, query);
+    const history = result.pages.history;
+
+    console.log(`\n页面历史 (共 ${history.total} 条记录):\n`);
+
+    history.trail.forEach((item, idx) => {
+      const actionMap = {
+        "INIT": "创建",
+        "UPDATE": "更新",
+        "DELETE": "删除",
+        "MOVE": "移动",
+        "RENAME": "重命名"
+      };
+      const action = actionMap[item.actionType] || item.actionType;
+      const versionNum = history.total - (offsetPage * offsetSize + idx);
+
+      console.log(`${versionNum}. ${action} - ${item.authorName || '未知'}`);
+      console.log(`   时间: ${item.versionDate}`);
+      if (item.valueBefore && item.valueAfter) {
+        console.log(`   变更: ${item.valueBefore} → ${item.valueAfter}`);
+      } else if (item.valueAfter) {
+        console.log(`   内容: ${item.valueAfter.substring(0, 50)}${item.valueAfter.length > 50 ? '...' : ''}`);
+      }
+      console.log(`   版本ID: ${item.versionId}`);
+      console.log();
+    });
+
+    if ((offsetPage + 1) * offsetSize < history.total) {
+      console.log(`更多记录: node skill.js history <url> <token> ${pageId} --page ${offsetPage + 1}`);
+    }
+  } catch (error) {
+    handleError(error, "获取页面历史失败");
+  }
+}
+
+/**
  * 搜索页面命令
  */
 async function cmdSearch(url, token, queryStr, options) {
@@ -358,10 +422,12 @@ async function cmdSearch(url, token, queryStr, options) {
       results = results.slice(0, parseInt(options.limit));
     }
 
-    // 如果需要预览摘要
-    if (options.preview || options.snippet) {
-      const contextLength = parseInt(options.contextLength) || 100;
-      const previewCount = parseInt(options.previewCount) || 3;
+    // 默认启用预览摘要（行模式）
+    const enablePreview = options.preview || options.snippet || (!options.format || options.format === "default");
+    const contextLength = parseInt(options.contextLength) || 1; // 默认行模式
+    const previewCount = parseInt(options.previewCount) || 3;
+
+    if (enablePreview) {
 
       for (let i = 0; i < Math.min(results.length, previewCount); i++) {
         const page = results[i];
@@ -405,5 +471,6 @@ module.exports = {
   cmdCreate,
   cmdUpdate,
   cmdDelete,
-  cmdSearch
+  cmdSearch,
+  cmdHistory
 };
