@@ -18,8 +18,8 @@ async function cmdCreate(url, token, path, title, content, options) {
         description: "${options.description || ""}"
         content: """${content.replace(/"/g, '\\"')}"""
         editor: "${options.editor || "markdown"}"
-        isPrivate: false
-        isPublished: true
+        isPrivate: ${options.isPrivate !== undefined ? options.isPrivate : false}
+        isPublished: ${options.isPublished !== undefined ? options.isPublished : true}
         locale: "${options.locale || "zh"}"
         tags: []
       ) {

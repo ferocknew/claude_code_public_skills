@@ -65,6 +65,8 @@ node skill.js comments create 78 "评论内容"
 | `--limit <number>` | 限制结果数量 |
 | `--path <path>` | 页面路径（创建/更新/搜索） |
 | `--title <title>` | 页面标题（更新） |
+| `--isPrivate <bool>` | 是否私有（创建页面，默认 false） |
+| `--isPublished <bool>` | 是否发布（创建页面，默认 true） |
 | `--replyTo <id>` | 回复评论 ID |
 | `--guestName <name>` | 访客名称 |
 | `--guestEmail <email>` | 访客邮箱 |
@@ -140,3 +142,6 @@ HTTP Headers:
 
 **Q: 评论路径不包含语言前缀？**
 是的，评论 API 使用 `path`（如 `test/history`）和 `locale`（如 `zh`）参数，不包含 `/zh` 前缀。
+
+**Q: 如何创建私有页面？**
+使用 `--isPrivate true`，如：`node skill.js create "private/page" "标题" "内容" --isPrivate true`。
