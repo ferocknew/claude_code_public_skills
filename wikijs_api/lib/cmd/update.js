@@ -53,7 +53,7 @@ async function cmdUpdate(url, token, pageId, content, options) {
         "更新时间": response.page.updatedAt
       });
     } else {
-      handleError(error, `更新失败: ${response.responseResult.message}`);
+      handleError(null, `更新失败: ${response.responseResult.message}`);
       process.exit(1);
     }
   } catch (error) {

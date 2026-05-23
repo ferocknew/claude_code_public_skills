@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wiki.js GraphQL API 工具 v260523.120718 - 包含所有依赖，无需安装
+// Wiki.js GraphQL API 工具 v260523.205121 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -276,21 +276,21 @@ var require_tr46 = __commonJS({
         label = punycode.toUnicode(label);
         processing_option = PROCESSING_OPTIONS.NONTRANSITIONAL;
       }
-      var error2 = false;
+      var error = false;
       if (normalize(label) !== label || label[3] === "-" && label[4] === "-" || label[0] === "-" || label[label.length - 1] === "-" || label.indexOf(".") !== -1 || label.search(combiningMarksRegex) === 0) {
-        error2 = true;
+        error = true;
       }
       var len = countSymbols(label);
       for (var i = 0; i < len; ++i) {
         var status = findStatus(label.codePointAt(i));
         if (processing === PROCESSING_OPTIONS.TRANSITIONAL && status[1] !== "valid" || processing === PROCESSING_OPTIONS.NONTRANSITIONAL && status[1] !== "valid" && status[1] !== "deviation") {
-          error2 = true;
+          error = true;
           break;
         }
       }
       return {
         label,
-        error: error2
+        error
       };
     }
     function processing(domain_name, useSTD3, processing_option) {
@@ -1937,8 +1937,8 @@ var require_lib2 = __commonJS({
       this.timeout = timeout;
       if (body instanceof Stream) {
         body.on("error", function(err) {
-          const error2 = err.name === "AbortError" ? err : new FetchError(`Invalid response body while trying to fetch ${_this.url}: ${err.message}`, "system", err);
-          _this[INTERNALS].error = error2;
+          const error = err.name === "AbortError" ? err : new FetchError(`Invalid response body while trying to fetch ${_this.url}: ${err.message}`, "system", err);
+          _this[INTERNALS].error = error;
         });
       }
     }
@@ -2781,13 +2781,13 @@ var require_lib2 = __commonJS({
         const signal = request.signal;
         let response = null;
         const abort = function abort2() {
-          let error2 = new AbortError("The user aborted a request.");
-          reject(error2);
+          let error = new AbortError("The user aborted a request.");
+          reject(error);
           if (request.body && request.body instanceof Stream.Readable) {
-            destroyStream(request.body, error2);
+            destroyStream(request.body, error);
           }
           if (!response || !response.body) return;
-          response.body.emit("error", error2);
+          response.body.emit("error", error);
         };
         if (signal && signal.aborted) {
           abort();
@@ -3047,14 +3047,17 @@ var require_parser = __commonJS({
 // lib/errors.js
 var require_errors = __commonJS({
   "lib/errors.js"(exports2, module2) {
-    function handleError2(error2, context = "") {
+    function handleError2(error, context = "") {
       console.error(`\u274C \u9519\u8BEF: ${context}`);
-      console.error(error2.message);
-      if (error2.message.includes("401") || error2.message.includes("403")) {
+      if (error) {
+        console.error(error.message);
+      }
+      const msg = error ? error.message : "";
+      if (msg.includes("401") || msg.includes("403")) {
         console.error("\n\u{1F4A1} \u63D0\u793A: \u8BF7\u68C0\u67E5 API Token \u662F\u5426\u6B63\u786E\u4E14\u6709\u8DB3\u591F\u7684\u6743\u9650");
-      } else if (error2.message.includes("404")) {
+      } else if (msg.includes("404")) {
         console.error("\n\u{1F4A1} \u63D0\u793A: \u8BF7\u68C0\u67E5 Wiki.js URL \u662F\u5426\u6B63\u786E");
-      } else if (error2.message.includes("ECONNREFUSED")) {
+      } else if (msg.includes("ECONNREFUSED")) {
         console.error("\n\u{1F4A1} \u63D0\u793A: \u65E0\u6CD5\u8FDE\u63A5\u5230 Wiki.js \u670D\u52A1\u5668");
       }
       process.exit(1);
@@ -3083,8 +3086,8 @@ var require_api = __commonJS({
         })
       });
       if (!response.ok) {
-        const error2 = await response.text();
-        throw new Error(`HTTP ${response.status}: ${error2}`);
+        const error = await response.text();
+        throw new Error(`HTTP ${response.status}: ${error}`);
       }
       const result = await response.json();
       if (result.errors) {
@@ -6036,8 +6039,8 @@ var require_query = __commonJS({
           console.log(`\u67E5\u8BE2\u7ED3\u679C: ${count} \u6761\u8BB0\u5F55`);
           formatOutput(data, options.format);
         }
-      } catch (error2) {
-        handleError2(error2, `\u67E5\u8BE2 ${resource} \u5931\u8D25`);
+      } catch (error) {
+        handleError2(error, `\u67E5\u8BE2 ${resource} \u5931\u8D25`);
       }
     }
     module2.exports = { cmdQuery: cmdQuery2 };
@@ -6059,8 +6062,8 @@ var require_create = __commonJS({
         description: "${options.description || ""}"
         content: """${content.replace(/"/g, '\\"')}"""
         editor: "${options.editor || "markdown"}"
-        isPrivate: false
-        isPublished: true
+        isPrivate: ${options.isPrivate !== void 0 ? options.isPrivate : false}
+        isPublished: ${options.isPublished !== void 0 ? options.isPublished : true}
         locale: "${options.locale || "zh"}"
         tags: []
       ) {
@@ -6088,11 +6091,11 @@ var require_create = __commonJS({
             "\u6807\u9898": response.page.title
           });
         } else {
-          handleError2(error, `\u521B\u5EFA\u5931\u8D25: ${response.responseResult.message}`);
+          handleError2(null, `\u521B\u5EFA\u5931\u8D25: ${response.responseResult.message}`);
           process.exit(1);
         }
-      } catch (error2) {
-        handleError2(error2, "\u521B\u5EFA\u9875\u9762\u5931\u8D25");
+      } catch (error) {
+        handleError2(error, "\u521B\u5EFA\u9875\u9762\u5931\u8D25");
       }
     }
     module2.exports = { cmdCreate: cmdCreate2 };
@@ -6146,50 +6149,14 @@ var require_update = __commonJS({
             "\u66F4\u65B0\u65F6\u95F4": response.page.updatedAt
           });
         } else {
-          handleError2(error, `\u66F4\u65B0\u5931\u8D25: ${response.responseResult.message}`);
+          handleError2(null, `\u66F4\u65B0\u5931\u8D25: ${response.responseResult.message}`);
           process.exit(1);
         }
-      } catch (error2) {
-        handleError2(error2, "\u66F4\u65B0\u9875\u9762\u5931\u8D25");
+      } catch (error) {
+        handleError2(error, "\u66F4\u65B0\u9875\u9762\u5931\u8D25");
       }
     }
     module2.exports = { cmdUpdate: cmdUpdate2 };
-  }
-});
-
-// lib/cmd/delete.js
-var require_delete = __commonJS({
-  "lib/cmd/delete.js"(exports2, module2) {
-    var { graphqlQuery } = require_api();
-    var { showSuccess } = require_output();
-    var { handleError: handleError2 } = require_errors();
-    async function cmdDelete2(url, token, pageId) {
-      const query = `mutation {
-    pages {
-      delete (id: ${pageId}) {
-        responseResult {
-          succeeded
-          slug
-          message
-          errorCode
-        }
-      }
-    }
-  }`;
-      try {
-        const result = await graphqlQuery(url, token, query);
-        const response = result.pages.delete;
-        if (response.responseResult.succeeded) {
-          showSuccess("\u9875\u9762\u5220\u9664\u6210\u529F\uFF01");
-        } else {
-          handleError2(error, `\u5220\u9664\u5931\u8D25: ${response.responseResult.message}`);
-          process.exit(1);
-        }
-      } catch (error2) {
-        handleError2(error2, "\u5220\u9664\u9875\u9762\u5931\u8D25");
-      }
-    }
-    module2.exports = { cmdDelete: cmdDelete2 };
   }
 });
 
@@ -6297,8 +6264,8 @@ var require_search_cmd = __commonJS({
           console.log(`
 \u5EFA\u8BAE\u641C\u7D22\u8BCD: ${searchResult.suggestions.join(", ")}`);
         }
-      } catch (error2) {
-        handleError2(error2, "\u641C\u7D22\u9875\u9762\u5931\u8D25");
+      } catch (error) {
+        handleError2(error, "\u641C\u7D22\u9875\u9762\u5931\u8D25");
       }
     }
     module2.exports = { cmdSearch: cmdSearch2, extractSnippet };
@@ -6376,8 +6343,8 @@ var require_history = __commonJS({
         if ((offsetPage + 1) * offsetSize < history.total) {
           console.log(`\u66F4\u591A\u8BB0\u5F55: node skill.js history <url> <token> ${pageId} --page ${offsetPage + 1}`);
         }
-      } catch (error2) {
-        handleError2(error2, "\u83B7\u53D6\u9875\u9762\u5386\u53F2\u5931\u8D25");
+      } catch (error) {
+        handleError2(error, "\u83B7\u53D6\u9875\u9762\u5386\u53F2\u5931\u8D25");
       }
     }
     module2.exports = { cmdHistory: cmdHistory2 };
@@ -6427,11 +6394,191 @@ var require_version = __commonJS({
 ${preview}`);
           }
         }
-      } catch (error2) {
-        handleError2(error2, "\u83B7\u53D6\u7248\u672C\u5185\u5BB9\u5931\u8D25");
+      } catch (error) {
+        handleError2(error, "\u83B7\u53D6\u7248\u672C\u5185\u5BB9\u5931\u8D25");
       }
     }
     module2.exports = { cmdVersion: cmdVersion2 };
+  }
+});
+
+// lib/cmd/comments.js
+var require_comments = __commonJS({
+  "lib/cmd/comments.js"(exports2, module2) {
+    var { graphqlQuery } = require_api();
+    var { formatOutput } = require_output();
+    var { handleError: handleError2 } = require_errors();
+    async function cmdCommentsList2(url, token, path, locale, options) {
+      const fields = options.fields ? options.fields.split(",") : [
+        "id",
+        "content",
+        "authorName",
+        "authorId",
+        "createdAt",
+        "updatedAt"
+      ];
+      const query = `{
+    comments {
+      list (
+        path: "${path}"
+        locale: "${locale}"
+      ) {
+        ${fields.join("\n")}
+      }
+    }
+  }`;
+      try {
+        const result = await graphqlQuery(url, token, query);
+        const comments = result.comments.list;
+        const output = {
+          path,
+          locale,
+          count: comments.length,
+          comments
+        };
+        if (options.format === "yaml") {
+          formatOutput(output, "yaml");
+        } else if (options.format === "json") {
+          formatOutput(output, "json");
+        } else {
+          console.log(`
+\u9875\u9762: ${path} (${locale})`);
+          console.log(`\u8BC4\u8BBA\u6570: ${comments.length}
+`);
+          comments.forEach((c) => {
+            console.log(`[${c.id}] ${c.authorName} @ ${c.createdAt}`);
+            console.log(`  ${c.content}
+`);
+          });
+        }
+      } catch (error) {
+        handleError2(error, "\u67E5\u8BE2\u8BC4\u8BBA\u5931\u8D25");
+      }
+    }
+    async function cmdCommentsSingle2(url, token, commentId, options) {
+      const fields = options.fields ? options.fields.split(",") : [
+        "id",
+        "content",
+        "render",
+        "authorName",
+        "authorId",
+        "authorEmail",
+        "authorIP",
+        "createdAt",
+        "updatedAt"
+      ];
+      const query = `{
+    comments {
+      single (
+        id: ${commentId}
+      ) {
+        ${fields.join("\n")}
+      }
+    }
+  }`;
+      try {
+        const result = await graphqlQuery(url, token, query);
+        const comment = result.comments.single;
+        if (options.format === "yaml") {
+          formatOutput(comment, "yaml");
+        } else if (options.format === "json") {
+          formatOutput(comment, "json");
+        } else {
+          console.log(`
+\u8BC4\u8BBA ID: ${comment.id}`);
+          console.log(`\u4F5C\u8005: ${comment.authorName} (${comment.authorId})`);
+          console.log(`\u65F6\u95F4: ${comment.createdAt}`);
+          if (comment.updatedAt !== comment.createdAt) {
+            console.log(`\u66F4\u65B0: ${comment.updatedAt}`);
+          }
+          console.log(`
+\u5185\u5BB9:
+${comment.content}`);
+        }
+      } catch (error) {
+        handleError2(error, "\u67E5\u8BE2\u8BC4\u8BBA\u5931\u8D25");
+      }
+    }
+    async function cmdCommentsCreate2(url, token, pageId, content, options) {
+      const guestName = options.guestName || "";
+      const guestEmail = options.guestEmail || "";
+      const replyTo = options.replyTo || 0;
+      let mutationArgs = `pageId: ${pageId}, content: """${content.replace(/"/g, '\\"')}"""`;
+      if (guestName) mutationArgs += `, guestName: "${guestName}"`;
+      if (guestEmail) mutationArgs += `, guestEmail: "${guestEmail}"`;
+      if (replyTo) mutationArgs += `, replyTo: ${replyTo}`;
+      const query = `mutation {
+    comments {
+      create (
+        ${mutationArgs}
+      ) {
+        responseResult {
+          succeeded
+          message
+          errorCode
+        }
+      }
+    }
+  }`;
+      try {
+        const result = await graphqlQuery(url, token, query);
+        const response = result.comments.create;
+        if (response.responseResult.succeeded) {
+          if (options.format === "yaml") {
+            formatOutput({ succeeded: true, message: response.responseResult.message }, "yaml");
+          } else if (options.format === "json") {
+            formatOutput({ succeeded: true, message: response.responseResult.message }, "json");
+          } else {
+            console.log(`\u2713 ${response.responseResult.message}`);
+          }
+        } else {
+          handleError2(null, `\u521B\u5EFA\u5931\u8D25: ${response.responseResult.message}`);
+          process.exit(1);
+        }
+      } catch (error) {
+        handleError2(error, "\u521B\u5EFA\u8BC4\u8BBA\u5931\u8D25");
+      }
+    }
+    async function cmdCommentsUpdate2(url, token, commentId, content, options) {
+      const query = `mutation {
+    comments {
+      update (
+        id: ${commentId}
+        content: """${content.replace(/"/g, '\\"')}"""
+      ) {
+        responseResult {
+          succeeded
+          message
+          errorCode
+        }
+      }
+    }
+  }`;
+      try {
+        const result = await graphqlQuery(url, token, query);
+        const response = result.comments.update;
+        if (response.responseResult.succeeded) {
+          if (options.format === "yaml") {
+            formatOutput({ succeeded: true, message: response.responseResult.message }, "yaml");
+          } else if (options.format === "json") {
+            formatOutput({ succeeded: true, message: response.responseResult.message }, "json");
+          } else {
+            console.log(`\u2713 ${response.responseResult.message}`);
+          }
+        } else {
+          handleError2(null, `\u66F4\u65B0\u5931\u8D25: ${response.responseResult.message}`);
+          process.exit(1);
+        }
+      } catch (error) {
+        handleError2(error, "\u66F4\u65B0\u8BC4\u8BBA\u5931\u8D25");
+      }
+    }
+    module2.exports = {
+      cmdCommentsList: cmdCommentsList2,
+      cmdCommentsSingle: cmdCommentsSingle2,
+      cmdCommentsCreate: cmdCommentsCreate2,
+      cmdCommentsUpdate: cmdCommentsUpdate2
+    };
   }
 });
 
@@ -6441,30 +6588,33 @@ var require_cmd = __commonJS({
     var { cmdQuery: cmdQuery2 } = require_query();
     var { cmdCreate: cmdCreate2 } = require_create();
     var { cmdUpdate: cmdUpdate2 } = require_update();
-    var { cmdDelete: cmdDelete2 } = require_delete();
     var { cmdSearch: cmdSearch2 } = require_search_cmd();
     var { cmdHistory: cmdHistory2 } = require_history();
     var { cmdVersion: cmdVersion2 } = require_version();
+    var { cmdCommentsList: cmdCommentsList2, cmdCommentsSingle: cmdCommentsSingle2, cmdCommentsCreate: cmdCommentsCreate2, cmdCommentsUpdate: cmdCommentsUpdate2 } = require_comments();
     module2.exports = {
       cmdQuery: cmdQuery2,
       cmdCreate: cmdCreate2,
       cmdUpdate: cmdUpdate2,
-      cmdDelete: cmdDelete2,
       cmdSearch: cmdSearch2,
       cmdHistory: cmdHistory2,
-      cmdVersion: cmdVersion2
+      cmdVersion: cmdVersion2,
+      cmdCommentsList: cmdCommentsList2,
+      cmdCommentsSingle: cmdCommentsSingle2,
+      cmdCommentsCreate: cmdCommentsCreate2,
+      cmdCommentsUpdate: cmdCommentsUpdate2
     };
   }
 });
 
 // run.js
 var fetch2 = require_lib2();
-var SKILL_VERSION = true ? "260523.120718" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260523.205121" : "1.0.0-dev";
 var DEFAULT_URL = process.env.WIKI_URL || "";
 var DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
-var { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch, cmdHistory, cmdVersion } = require_cmd();
+var { cmdQuery, cmdCreate, cmdUpdate, cmdSearch, cmdHistory, cmdVersion, cmdCommentsList, cmdCommentsSingle, cmdCommentsCreate, cmdCommentsUpdate } = require_cmd();
 function showHelp() {
   console.log(`
 Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
@@ -6476,10 +6626,10 @@ Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
   query <url> <token> <resource>     \u67E5\u8BE2\u8D44\u6E90
   create <url> <token> <path> <title> <content>  \u521B\u5EFA\u9875\u9762
   update <url> <token> <page-id> <content> [options]  \u66F4\u65B0\u9875\u9762
-  delete <url> <token> <page-id>     \u5220\u9664\u9875\u9762
   search <url> <token> <query>       \u641C\u7D22\u9875\u9762\uFF08\u9ED8\u8BA4\u5E26\u9884\u89C8\u6458\u8981\uFF09
   history <url> <token> <page-id>    \u9875\u9762\u5386\u53F2\u8BB0\u5F55
   version <url> <token> <page-id> <version-id>  \u83B7\u53D6\u7279\u5B9A\u7248\u672C\u5185\u5BB9
+  comments <url> <token> <subcommand> [args...]  \u8BC4\u8BBA\u64CD\u4F5C
 
 \u67E5\u8BE2\u8D44\u6E90\u7C7B\u578B:
   pages       \u67E5\u8BE2\u6240\u6709\u9875\u9762
@@ -6501,8 +6651,8 @@ Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
   --page <n>          \u5206\u9875\u9875\u7801\uFF08\u5386\u53F2\u8BB0\u5F55\uFF09
   --limit <n>         \u6BCF\u9875\u6761\u6570\uFF08\u5386\u53F2\u8BB0\u5F55\uFF09
   --fullContent       \u83B7\u53D6\u5B8C\u6574\u5185\u5BB9\uFF08version \u547D\u4EE4\uFF09
-  --format <type>      \u8F93\u51FA\u683C\u5F0F\uFF08json/yaml/table/\u9ED8\u8BA4\uFF09
-  --format <type>      \u8F93\u51FA\u683C\u5F0F\uFF08json/table/\u9ED8\u8BA4\uFF09
+  --format <type>      \u8F93\u51FA\u683C\u5F0F\uFF08json/yaml/table/\u9ED8\u8BA4\uFF0C\u9ED8\u8BA4yaml\uFF09
+  --fields <list>      \u6307\u5B9A\u8FD4\u56DE\u5B57\u6BB5\uFF08\u9017\u53F7\u5206\u9694\uFF09
 
 \u793A\u4F8B:
   # \u67E5\u8BE2\u6240\u6709\u9875\u9762
@@ -6519,9 +6669,6 @@ Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
 
   # \u66F4\u65B0\u9875\u9762
   node skill.js update https://wiki.example.com TOKEN 15 "\u65B0\u5185\u5BB9"
-
-  # \u5220\u9664\u9875\u9762
-  node skill.js delete https://wiki.example.com TOKEN 15
 
   # \u641C\u7D22\u9875\u9762
   node skill.js search https://wiki.example.com TOKEN "\u5173\u952E\u8BCD"
@@ -6625,14 +6772,6 @@ function main() {
       }
       cmdUpdate(url, token, positional[3], positional[4], options);
       break;
-    case "delete":
-      if (!positional[3]) {
-        console.error("\u9519\u8BEF: \u5220\u9664\u9875\u9762\u9700\u8981\u63D0\u4F9B\u9875\u9762 ID");
-        console.error("\u7528\u6CD5: node skill.js delete <url> <token> <page-id>");
-        process.exit(1);
-      }
-      cmdDelete(url, token, positional[3]);
-      break;
     case "search":
       if (!positional[3]) {
         console.error("\u9519\u8BEF: \u641C\u7D22\u9700\u8981\u63D0\u4F9B\u67E5\u8BE2\u5173\u952E\u8BCD");
@@ -6656,6 +6795,55 @@ function main() {
         process.exit(1);
       }
       cmdVersion(url, token, positional[3], positional[4], options);
+      break;
+    case "comments":
+      if (!positional[3]) {
+        console.error("\u9519\u8BEF: \u8BC4\u8BBA\u547D\u4EE4\u9700\u8981\u5B50\u547D\u4EE4");
+        console.error("\u7528\u6CD5: node skill.js comments <url> <token> <subcommand> [args...]");
+        console.error("\u5B50\u547D\u4EE4: list, single, create, update");
+        process.exit(1);
+      }
+      const subCmd = positional[3];
+      if (!options.format) options.format = "yaml";
+      switch (subCmd) {
+        case "list":
+          if (!positional[4] || !positional[5]) {
+            console.error("\u9519\u8BEF: \u67E5\u8BE2\u8BC4\u8BBA\u5217\u8868\u9700\u8981 path \u548C locale");
+            console.error("\u7528\u6CD5: node skill.js comments <url> <token> list <path> <locale>");
+            process.exit(1);
+          }
+          cmdCommentsList(url, token, positional[4], positional[5], options);
+          break;
+        case "single":
+          if (!positional[4]) {
+            console.error("\u9519\u8BEF: \u67E5\u8BE2\u5355\u6761\u8BC4\u8BBA\u9700\u8981\u8BC4\u8BBA ID");
+            console.error("\u7528\u6CD5: node skill.js comments <url> <token> single <comment-id>");
+            process.exit(1);
+          }
+          cmdCommentsSingle(url, token, positional[4], options);
+          break;
+        case "create":
+          if (!positional[4] || !positional[5]) {
+            console.error("\u9519\u8BEF: \u521B\u5EFA\u8BC4\u8BBA\u9700\u8981\u9875\u9762 ID \u548C\u5185\u5BB9");
+            console.error("\u7528\u6CD5: node skill.js comments <url> <token> create <page-id> <content>");
+            console.error("\u9009\u9879: --replyTo <id>, --guestName <name>, --guestEmail <email>");
+            process.exit(1);
+          }
+          cmdCommentsCreate(url, token, positional[4], positional[5], options);
+          break;
+        case "update":
+          if (!positional[4] || !positional[5]) {
+            console.error("\u9519\u8BEF: \u66F4\u65B0\u8BC4\u8BBA\u9700\u8981\u8BC4\u8BBA ID \u548C\u65B0\u5185\u5BB9");
+            console.error("\u7528\u6CD5: node skill.js comments <url> <token> update <comment-id> <content>");
+            process.exit(1);
+          }
+          cmdCommentsUpdate(url, token, positional[4], positional[5], options);
+          break;
+        default:
+          console.error(`\u9519\u8BEF: \u672A\u77E5\u8BC4\u8BBA\u5B50\u547D\u4EE4: ${subCmd}`);
+          console.error("\u53EF\u7528\u5B50\u547D\u4EE4: list, single, create, update");
+          process.exit(1);
+      }
       break;
     default:
       console.error(`\u9519\u8BEF: \u672A\u77E5\u547D\u4EE4: ${command}`);
