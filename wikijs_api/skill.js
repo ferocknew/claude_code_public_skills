@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wiki.js GraphQL API 工具 v260523.115336 - 包含所有依赖，无需安装
+// Wiki.js GraphQL API 工具 v260523.115856 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -3392,6 +3392,62 @@ var require_commands = __commonJS({
       if (end < plainText.length) snippet = snippet + "...";
       return snippet;
     }
+    async function cmdHistory2(url, token, pageId, options) {
+      const offsetPage = parseInt(options.page) || 0;
+      const offsetSize = parseInt(options.limit) || 10;
+      const query = `{
+    pages {
+      history (
+        id: ${pageId}
+        offsetPage: ${offsetPage}
+        offsetSize: ${offsetSize}
+      ) {
+        total
+        trail {
+          versionId
+          versionDate
+          authorId
+          authorName
+          actionType
+          valueBefore
+          valueAfter
+        }
+      }
+    }
+  }`;
+      try {
+        const result = await graphqlQuery(url, token, query);
+        const history = result.pages.history;
+        console.log(`
+\u9875\u9762\u5386\u53F2 (\u5171 ${history.total} \u6761\u8BB0\u5F55):
+`);
+        history.trail.forEach((item, idx) => {
+          const actionMap = {
+            "INIT": "\u521B\u5EFA",
+            "UPDATE": "\u66F4\u65B0",
+            "DELETE": "\u5220\u9664",
+            "MOVE": "\u79FB\u52A8",
+            "RENAME": "\u91CD\u547D\u540D"
+          };
+          const action = actionMap[item.actionType] || item.actionType;
+          const versionNum = history.total - (offsetPage * offsetSize + idx);
+          console.log(`${versionNum}. ${action} - ${item.authorName || "\u672A\u77E5"}`);
+          console.log(`   \u65F6\u95F4: ${item.versionDate}`);
+          if (item.valueBefore && item.valueAfter) {
+            console.log(`   \u53D8\u66F4: ${item.valueBefore} \u2192 ${item.valueAfter}`);
+          } else if (item.valueAfter) {
+            console.log(`   \u5185\u5BB9: ${item.valueAfter.substring(0, 50)}${item.valueAfter.length > 50 ? "..." : ""}`);
+          }
+          console.log(`   \u7248\u672CID: ${item.versionId}`);
+          console.log();
+        });
+        if ((offsetPage + 1) * offsetSize < history.total) {
+          console.log(`\u66F4\u591A\u8BB0\u5F55: node skill.js history <url> <token> ${pageId} --page ${offsetPage + 1}`);
+        }
+      } catch (error2) {
+        handleError2(error2, "\u83B7\u53D6\u9875\u9762\u5386\u53F2\u5931\u8D25");
+      }
+    }
     async function cmdSearch2(url, token, queryStr, options) {
       const query = `{
     pages {
@@ -3418,9 +3474,10 @@ var require_commands = __commonJS({
         if (options.limit) {
           results = results.slice(0, parseInt(options.limit));
         }
-        if (options.preview || options.snippet) {
-          const contextLength = parseInt(options.contextLength) || 100;
-          const previewCount = parseInt(options.previewCount) || 3;
+        const enablePreview = options.preview || options.snippet || (!options.format || options.format === "default");
+        const contextLength = parseInt(options.contextLength) || 1;
+        const previewCount = parseInt(options.previewCount) || 3;
+        if (enablePreview) {
           for (let i = 0; i < Math.min(results.length, previewCount); i++) {
             const page = results[i];
             const pageQuery = `{
@@ -3459,19 +3516,20 @@ var require_commands = __commonJS({
       cmdCreate: cmdCreate2,
       cmdUpdate: cmdUpdate2,
       cmdDelete: cmdDelete2,
-      cmdSearch: cmdSearch2
+      cmdSearch: cmdSearch2,
+      cmdHistory: cmdHistory2
     };
   }
 });
 
 // run.js
 var fetch2 = require_lib2();
-var SKILL_VERSION = true ? "260523.115336" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260523.115856" : "1.0.0-dev";
 var DEFAULT_URL = process.env.WIKI_URL || "";
 var DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
-var { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch } = require_commands();
+var { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch, cmdHistory } = require_commands();
 function showHelp() {
   console.log(`
 Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
@@ -3484,7 +3542,8 @@ Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
   create <url> <token> <path> <title> <content>  \u521B\u5EFA\u9875\u9762
   update <url> <token> <page-id> <content> [options]  \u66F4\u65B0\u9875\u9762
   delete <url> <token> <page-id>     \u5220\u9664\u9875\u9762
-  search <url> <token> <query>       \u641C\u7D22\u9875\u9762
+  search <url> <token> <query>       \u641C\u7D22\u9875\u9762\uFF08\u9ED8\u8BA4\u5E26\u9884\u89C8\u6458\u8981\uFF09
+  history <url> <token> <page-id>    \u9875\u9762\u5386\u53F2\u8BB0\u5F55
 
 \u67E5\u8BE2\u8D44\u6E90\u7C7B\u578B:
   pages       \u67E5\u8BE2\u6240\u6709\u9875\u9762
@@ -3502,7 +3561,9 @@ Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
   --parentId <id>      \u7236\u9875\u9762 ID\uFF08\u521B\u5EFA\uFF09
   --preview            \u663E\u793A\u5185\u5BB9\u9884\u89C8\u6458\u8981\uFF08\u8282\u7701 Token\uFF09
   --previewCount <n>   \u9884\u89C8\u6761\u6570\uFF08\u9ED8\u8BA4 3\uFF09
-  --contextLength <n>  \u6458\u8981\u957F\u5EA6\uFF08\u5C0F\u6570\u5B57=\u884C\u6570\uFF0C\u5982 1=\u4E0A\u4E0B\u54041\u884C\uFF1B\u5927\u6570\u5B57=\u5B57\u7B26\u6570\uFF0C\u9ED8\u8BA4 100\uFF09
+  --contextLength <n>  \u6458\u8981\u957F\u5EA6\uFF08\u9ED8\u8BA4 1=\u884C\u6A21\u5F0F\uFF09
+  --page <n>          \u5206\u9875\u9875\u7801\uFF08\u5386\u53F2\u8BB0\u5F55\uFF09
+  --limit <n>         \u6BCF\u9875\u6761\u6570\uFF08\u5386\u53F2\u8BB0\u5F55\uFF09
   --format <type>      \u8F93\u51FA\u683C\u5F0F\uFF08json/table/\u9ED8\u8BA4\uFF09
 
 \u793A\u4F8B:
@@ -3535,6 +3596,12 @@ Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
 
   # \u641C\u7D22\u5E76\u9884\u89C8\uFF0C\u6309\u5B57\u7B26\u6570\u63D0\u53D6\uFF08200\u5B57\u7B26\uFF09
   node skill.js search https://wiki.example.com TOKEN "\u5173\u952E\u8BCD" --preview --contextLength 200
+
+  # \u67E5\u770B\u9875\u9762\u5386\u53F2
+  node skill.js history https://wiki.example.com TOKEN 15
+
+  # \u67E5\u770B\u9875\u9762\u5386\u53F2\uFF08\u7B2C2\u9875\uFF09
+  node skill.js history https://wiki.example.com TOKEN 15 --page 1 --limit 20
 
   # \u4F7F\u7528\u73AF\u5883\u53D8\u91CF\u7B80\u5316\u547D\u4EE4
   export WIKI_URL="https://wiki.example.com"
@@ -3626,6 +3693,14 @@ function main() {
         process.exit(1);
       }
       cmdSearch(url, token, positional[3], options);
+      break;
+    case "history":
+      if (!positional[3]) {
+        console.error("\u9519\u8BEF: \u67E5\u770B\u5386\u53F2\u9700\u8981\u63D0\u4F9B\u9875\u9762 ID");
+        console.error("\u7528\u6CD5: node skill.js history <url> <token> <page-id>");
+        process.exit(1);
+      }
+      cmdHistory(url, token, positional[3], options);
       break;
     default:
       console.error(`\u9519\u8BEF: \u672A\u77E5\u547D\u4EE4: ${command}`);

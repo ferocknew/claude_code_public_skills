@@ -21,7 +21,7 @@ const DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
 // 导入模块
 const { parseArgs } = require("./lib/parser");
 const { handleError } = require("./lib/errors");
-const { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch, cmdHistory } = require("./lib/commands");
+const { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch, cmdHistory, cmdVersion } = require("./lib/commands");
 
 /**
  * 显示帮助
@@ -57,7 +57,9 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   --parentId <id>      父页面 ID（创建）
   --preview            显示内容预览摘要（节省 Token）
   --previewCount <n>   预览条数（默认 3）
-  --contextLength <n>  摘要长度（小数字=行数，如 1=上下各1行；大数字=字符数，默认 100）
+  --contextLength <n>  摘要长度（默认 1=行模式）
+  --page <n>          分页页码（历史记录）
+  --limit <n>         每页条数（历史记录）
   --format <type>      输出格式（json/table/默认）
 
 示例:
@@ -214,6 +216,15 @@ function main() {
         process.exit(1);
       }
       cmdSearch(url, token, positional[3], options);
+      break;
+
+    case "history":
+      if (!positional[3]) {
+        console.error("错误: 查看历史需要提供页面 ID");
+        console.error("用法: node skill.js history <url> <token> <page-id>");
+        process.exit(1);
+      }
+      cmdHistory(url, token, positional[3], options);
       break;
 
     default:
