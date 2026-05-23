@@ -2,14 +2,18 @@
  * 输出格式化
  */
 
+const yaml = require("js-yaml");
+
 /**
  * 格式化输出
  * @param {*} data - 要输出的数据
- * @param {string} format - 输出格式 (json/table/default)
+ * @param {string} format - 输出格式 (json/yaml/table/default)
  */
 function formatOutput(data, format = "json") {
   if (format === "json") {
     console.log(JSON.stringify(data, null, 2));
+  } else if (format === "yaml") {
+    console.log(yaml.dump(data, { lineWidth: -1, noRefs: true }));
   } else if (format === "table") {
     console.table(data);
   } else {

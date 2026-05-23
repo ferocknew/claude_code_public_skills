@@ -328,6 +328,54 @@ function extractSnippet(content, keyword, contextLength = 100) {
 }
 
 /**
+ * 获取特定版本命令
+ */
+async function cmdVersion(url, token, pageId, versionId, options) {
+  const fields = ["action", "authorId", "authorName", "content", "contentType", "versionDate", "description", "title", "path", "tags"];
+
+  // 如果不需要完整内容，可以排除 content 字段以节省 Token
+  if (!options.fullContent && !options.content) {
+    const contentIdx = fields.indexOf("content");
+    if (contentIdx !== -1) fields.splice(contentIdx, 1);
+  }
+
+  const query = `{
+    pages {
+      version (
+        pageId: ${pageId}
+        versionId: ${versionId}
+      ) {
+        ${fields.join("\n")}
+      }
+    }
+  }`;
+
+  try {
+    const result = await graphqlQuery(url, token, query);
+    const version = result.pages.version;
+
+    if (options.format === "yaml") {
+      formatOutput(version, "yaml");
+    } else if (options.format === "json") {
+      formatOutput(version, "json");
+    } else {
+      console.log(`\n版本 ${versionId} - ${version.title}\n`);
+      console.log(`路径: ${version.path}`);
+      console.log(`操作: ${version.action}`);
+      console.log(`作者: ${version.authorName} (${version.authorId})`);
+      console.log(`时间: ${version.versionDate}`);
+      if (version.content) {
+        const preview = options.fullContent ? version.content :
+          version.content.substring(0, 200) + (version.content.length > 200 ? "\n...（省略）" : "");
+        console.log(`\n${preview}`);
+      }
+    }
+  } catch (error) {
+    handleError(error, "获取版本内容失败");
+  }
+}
+
+/**
  * 页面历史命令
  */
 async function cmdHistory(url, token, pageId, options) {
@@ -359,16 +407,33 @@ async function cmdHistory(url, token, pageId, options) {
     const result = await graphqlQuery(url, token, query);
     const history = result.pages.history;
 
+    // YAML 或 JSON 格式直接输出
+    if (options.format === "yaml") {
+      console.log(yaml.dump({
+        total: history.total,
+        page: pageId,
+        trail: history.trail
+      }, { lineWidth: -1, noRefs: true }));
+      return;
+    }
+
+    if (options.format === "json") {
+      console.log(JSON.stringify(history, null, 2));
+      return;
+    }
+
+    // 默认格式
     console.log(`\n页面历史 (共 ${history.total} 条记录):\n`);
 
+    const actionMap = {
+      "INIT": "创建",
+      "UPDATE": "更新",
+      "DELETE": "删除",
+      "MOVE": "移动",
+      "RENAME": "重命名"
+    };
+
     history.trail.forEach((item, idx) => {
-      const actionMap = {
-        "INIT": "创建",
-        "UPDATE": "更新",
-        "DELETE": "删除",
-        "MOVE": "移动",
-        "RENAME": "重命名"
-      };
       const action = actionMap[item.actionType] || item.actionType;
       const versionNum = history.total - (offsetPage * offsetSize + idx);
 
@@ -472,5 +537,6 @@ module.exports = {
   cmdUpdate,
   cmdDelete,
   cmdSearch,
-  cmdHistory
+  cmdHistory,
+  cmdVersion
 };
