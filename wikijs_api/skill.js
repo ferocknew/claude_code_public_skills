@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wiki.js GraphQL API 工具 v260523.115201 - 包含所有依赖，无需安装
+// Wiki.js GraphQL API 工具 v260523.115336 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -3371,6 +3371,20 @@ var require_commands = __commonJS({
       if (index === -1) {
         return plainText.slice(0, contextLength) + "...";
       }
+      const isLineMode = typeof contextLength === "number" && contextLength < 10;
+      if (isLineMode) {
+        const lines = plainText.split(/[。！？.!?\n]/).filter((l) => l.trim());
+        const keywordLineIndex = lines.findIndex((l) => l.toLowerCase().includes(keywordLower));
+        if (keywordLineIndex !== -1) {
+          const startLine = Math.max(0, keywordLineIndex - contextLength);
+          const endLine = Math.min(lines.length, keywordLineIndex + contextLength + 1);
+          const snippetLines = lines.slice(startLine, endLine);
+          let snippet2 = snippetLines.join("\u3002");
+          if (startLine > 0) snippet2 = "..." + snippet2;
+          if (endLine < lines.length) snippet2 = snippet2 + "...";
+          return snippet2;
+        }
+      }
       const start = Math.max(0, index - contextLength / 2);
       const end = Math.min(plainText.length, index + keyword.length + contextLength / 2);
       let snippet = plainText.slice(start, end);
@@ -3452,7 +3466,7 @@ var require_commands = __commonJS({
 
 // run.js
 var fetch2 = require_lib2();
-var SKILL_VERSION = true ? "260523.115201" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260523.115336" : "1.0.0-dev";
 var DEFAULT_URL = process.env.WIKI_URL || "";
 var DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
 var { parseArgs } = require_parser();
@@ -3488,7 +3502,7 @@ Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
   --parentId <id>      \u7236\u9875\u9762 ID\uFF08\u521B\u5EFA\uFF09
   --preview            \u663E\u793A\u5185\u5BB9\u9884\u89C8\u6458\u8981\uFF08\u8282\u7701 Token\uFF09
   --previewCount <n>   \u9884\u89C8\u6761\u6570\uFF08\u9ED8\u8BA4 3\uFF09
-  --contextLength <n>  \u6458\u8981\u4E0A\u4E0B\u6587\u957F\u5EA6\uFF08\u9ED8\u8BA4 100 \u5B57\u7B26\uFF09
+  --contextLength <n>  \u6458\u8981\u957F\u5EA6\uFF08\u5C0F\u6570\u5B57=\u884C\u6570\uFF0C\u5982 1=\u4E0A\u4E0B\u54041\u884C\uFF1B\u5927\u6570\u5B57=\u5B57\u7B26\u6570\uFF0C\u9ED8\u8BA4 100\uFF09
   --format <type>      \u8F93\u51FA\u683C\u5F0F\uFF08json/table/\u9ED8\u8BA4\uFF09
 
 \u793A\u4F8B:
@@ -3516,8 +3530,11 @@ Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
   # \u641C\u7D22\u5E76\u663E\u793A\u5185\u5BB9\u9884\u89C8\uFF08\u8282\u7701 Token\uFF09
   node skill.js search https://wiki.example.com TOKEN "\u5173\u952E\u8BCD" --preview
 
-  # \u641C\u7D22\u5E76\u9884\u89C8\u524D 5 \u6761\uFF0C\u6BCF\u6761 150 \u5B57\u7B26\u4E0A\u4E0B\u6587
-  node skill.js search https://wiki.example.com TOKEN "\u5173\u952E\u8BCD" --preview --previewCount 5 --contextLength 150
+  # \u641C\u7D22\u5E76\u9884\u89C8\u524D 5 \u6761\uFF0C\u6309\u884C\u63D0\u53D6\uFF081=\u4E0A\u4E0B\u54041\u884C\uFF0C\u51713\u884C\uFF09
+  node skill.js search https://wiki.example.com TOKEN "\u5173\u952E\u8BCD" --preview --previewCount 5 --contextLength 1
+
+  # \u641C\u7D22\u5E76\u9884\u89C8\uFF0C\u6309\u5B57\u7B26\u6570\u63D0\u53D6\uFF08200\u5B57\u7B26\uFF09
+  node skill.js search https://wiki.example.com TOKEN "\u5173\u952E\u8BCD" --preview --contextLength 200
 
   # \u4F7F\u7528\u73AF\u5883\u53D8\u91CF\u7B80\u5316\u547D\u4EE4
   export WIKI_URL="https://wiki.example.com"

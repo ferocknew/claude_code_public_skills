@@ -56,7 +56,7 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   --parentId <id>      父页面 ID（创建）
   --preview            显示内容预览摘要（节省 Token）
   --previewCount <n>   预览条数（默认 3）
-  --contextLength <n>  摘要上下文长度（默认 100 字符）
+  --contextLength <n>  摘要长度（小数字=行数，如 1=上下各1行；大数字=字符数，默认 100）
   --format <type>      输出格式（json/table/默认）
 
 示例:
@@ -84,8 +84,11 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   # 搜索并显示内容预览（节省 Token）
   node skill.js search https://wiki.example.com TOKEN "关键词" --preview
 
-  # 搜索并预览前 5 条，每条 150 字符上下文
-  node skill.js search https://wiki.example.com TOKEN "关键词" --preview --previewCount 5 --contextLength 150
+  # 搜索并预览前 5 条，按行提取（1=上下各1行，共3行）
+  node skill.js search https://wiki.example.com TOKEN "关键词" --preview --previewCount 5 --contextLength 1
+
+  # 搜索并预览，按字符数提取（200字符）
+  node skill.js search https://wiki.example.com TOKEN "关键词" --preview --contextLength 200
 
   # 使用环境变量简化命令
   export WIKI_URL="https://wiki.example.com"
