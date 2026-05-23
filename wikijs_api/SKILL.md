@@ -6,9 +6,9 @@ version: 260523.120718
 
 # Wiki.js GraphQL API 工具
 
-本 skill 提供通过 GraphQL API 与 Wiki.js 实例交互的完整功能，包括页面查询、创建、更新，以及用户和资产管理。
+本 skill 提供通过 GraphQL API 与 Wiki.js 实例交互的完整功能，包括页面查询、创建、更新，以及用户、资产和评论管理。
 
-> ⚠️ **安全警告：本技能绝对不允许通过 API 删除页面。删除操作必须由人工在 Wiki.js 管理后台进行，以防误删造成数据丢失。**
+> ⚠️ **安全警告：本技能绝对不允许通过 API 删除页面或评论。删除操作必须由人工在 Wiki.js 管理后台进行，以防误删造成数据丢失。**
 
 ## 概述
 
@@ -33,6 +33,15 @@ node skill.js update <base-url> <token> <page-id> <content>
 
 # 搜索页面
 node skill.js search <base-url> <token> <query>
+
+# 查询评论
+node skill.js comments <base-url> <token> list <path> <locale>
+
+# 创建评论
+node skill.js comments <base-url> <token> create <page-id> <content>
+
+# 更新评论
+node skill.js comments <base-url> <token> update <comment-id> <content>
 
 # 查询用户
 node skill.js query <base-url> <token> users
@@ -120,7 +129,56 @@ node skill.js search https://wiki.example.com <token> "关键词" --path "docs"
 node skill.js search https://wiki.example.com <token> "关键词" --limit 20
 ```
 
-### 5. 查询用户
+**默认输出格式：** YAML（节省 Token）
+
+### 5. 评论管理
+
+> ⚠️ **评论删除需人工在管理后台处理，不支持 API 删除**
+
+```bash
+# 查询评论列表（默认 YAML 格式）
+node skill.js comments <base-url> <token> list <path> <locale>
+
+# 查询单条评论
+node skill.js comments <base-url> <token> single <comment-id>
+
+# 创建评论
+node skill.js comments <base-url> <token> create <page-id> <content>
+
+# 创建评论（回复他人）
+node skill.js comments <base-url> <token> create <page-id> <content> --replyTo <comment-id>
+
+# 创建评论（访客模式）
+node skill.js comments <base-url> <token> create <page-id> <content> --guestName "访客" --guestEmail "guest@example.com"
+
+# 更新评论
+node skill.js comments <base-url> <token> update <comment-id> <content>
+
+# 指定返回字段
+node skill.js comments <base-url> <token> list <path> <locale> --fields "id,content,authorName,createdAt"
+
+# 输出 JSON 格式
+node skill.js comments <base-url> <token> list <path> <locale> --format json
+```
+
+**评论查询返回字段：**
+- id, content, render（渲染后内容）
+- authorName, authorId, authorEmail, authorIP
+- createdAt, updatedAt
+
+### 6. 查询用户
+
+```bash
+node skill.js search https://wiki.example.com <token> "关键词"
+
+# 指定搜索路径
+node skill.js search https://wiki.example.com <token> "关键词" --path "docs"
+
+# 限制结果
+node skill.js search https://wiki.example.com <token> "关键词" --limit 20
+```
+
+### 7. 查询用户
 
 ```bash
 # 列出所有用户
@@ -130,13 +188,13 @@ node skill.js query https://wiki.example.com <token> users
 node skill.js query https://wiki.example.com <token> users --search "john"
 ```
 
-### 6. 查询用户组
+### 8. 查询用户组
 
 ```bash
 node skill.js query https://wiki.example.com <token> groups
 ```
 
-### 7. 查询资产
+### 9. 查询资产
 
 ```bash
 # 列出所有资产
