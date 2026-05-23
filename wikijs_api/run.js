@@ -21,7 +21,7 @@ const DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
 // 导入模块
 const { parseArgs } = require("./lib/parser");
 const { handleError } = require("./lib/errors");
-const { cmdQuery, cmdCreate, cmdUpdate, cmdDelete, cmdSearch, cmdHistory, cmdVersion } = require("./lib/cmd");
+const { cmdQuery, cmdCreate, cmdUpdate, cmdSearch, cmdHistory, cmdVersion } = require("./lib/cmd");
 
 /**
  * 显示帮助
@@ -37,7 +37,6 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   query <url> <token> <resource>     查询资源
   create <url> <token> <path> <title> <content>  创建页面
   update <url> <token> <page-id> <content> [options]  更新页面
-  delete <url> <token> <page-id>     删除页面
   search <url> <token> <query>       搜索页面（默认带预览摘要）
   history <url> <token> <page-id>    页面历史记录
   version <url> <token> <page-id> <version-id>  获取特定版本内容
@@ -80,9 +79,6 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
 
   # 更新页面
   node skill.js update https://wiki.example.com TOKEN 15 "新内容"
-
-  # 删除页面
-  node skill.js delete https://wiki.example.com TOKEN 15
 
   # 搜索页面
   node skill.js search https://wiki.example.com TOKEN "关键词"
@@ -210,15 +206,6 @@ function main() {
         process.exit(1);
       }
       cmdUpdate(url, token, positional[3], positional[4], options);
-      break;
-
-    case "delete":
-      if (!positional[3]) {
-        console.error("错误: 删除页面需要提供页面 ID");
-        console.error("用法: node skill.js delete <url> <token> <page-id>");
-        process.exit(1);
-      }
-      cmdDelete(url, token, positional[3]);
       break;
 
     case "search":
