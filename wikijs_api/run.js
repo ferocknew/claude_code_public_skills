@@ -210,7 +210,7 @@ async function cmdQuery(url, token, resource, options) {
       }
       query = `{
         pages {
-          single (id: ${pageId}) {
+          single (id: "${pageId}") {
             id
             path
             title
@@ -459,8 +459,8 @@ async function cmdDelete(url, token, pageId) {
 // 搜索页面命令
 async function cmdSearch(url, token, queryStr, options) {
   const query = `{
-    pageSearch {
-      query (query: "${queryStr.replace(/"/g, '\\"')}"${options.path ? `, path: "${options.path}"` : ""}) {
+    pages {
+      search(query: "${queryStr.replace(/"/g, '\\"')}"${options.path ? `, path: "${options.path}"` : ""}${options.locale ? `, locale: "${options.locale}"` : ""}) {
         results {
           id
           title
@@ -469,21 +469,26 @@ async function cmdSearch(url, token, queryStr, options) {
           locale
         }
         totalHits
+        suggestions
       }
     }
   }`;
 
   try {
     const result = await graphqlQuery(url, token, query);
-    const searchResult = result.pageSearch.query;
+    const searchResult = result.pages.search;
 
-    console.log(`搜索 "${queryStr}" 找到 ${searchResult.totalHits} 条结果:`);
+    console.log(`\n搜索 "${queryStr}" 找到 ${searchResult.totalHits} 条结果:\n`);
 
     if (options.limit) {
-      console.log(`显示前 ${options.limit} 条`);
+      console.log(`显示前 ${options.limit} 条\n`);
       formatOutput(searchResult.results.slice(0, parseInt(options.limit)), options.format);
     } else {
       formatOutput(searchResult.results, options.format);
+    }
+
+    if (searchResult.suggestions && searchResult.suggestions.length > 0) {
+      console.log(`\n建议搜索词: ${searchResult.suggestions.join(", ")}`);
     }
   } catch (error) {
     handleError(error, "搜索页面失败");
