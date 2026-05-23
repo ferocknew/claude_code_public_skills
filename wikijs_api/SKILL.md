@@ -6,7 +6,9 @@ version: 260523.120718
 
 # Wiki.js GraphQL API 工具
 
-本 skill 提供通过 GraphQL API 与 Wiki.js 实例交互的完整功能，包括页面查询、创建、更新、删除，以及用户和资产管理。
+本 skill 提供通过 GraphQL API 与 Wiki.js 实例交互的完整功能，包括页面查询、创建、更新，以及用户和资产管理。
+
+> ⚠️ **安全警告：本技能绝对不允许通过 API 删除页面。删除操作必须由人工在 Wiki.js 管理后台进行，以防误删造成数据丢失。**
 
 ## 概述
 
@@ -28,9 +30,6 @@ node skill.js create <base-url> <token> <path> <title> <content>
 
 # 更新页面
 node skill.js update <base-url> <token> <page-id> <content>
-
-# 删除页面
-node skill.js delete <base-url> <token> <page-id>
 
 # 搜索页面
 node skill.js search <base-url> <token> <query>
@@ -109,13 +108,7 @@ node skill.js update https://wiki.example.com <token> 15 "新内容" --title "�
 node skill.js update https://wiki.example.com <token> 15 "新内容" --path "new/path"
 ```
 
-### 4. 删除页面
-
-```bash
-node skill.js delete https://wiki.example.com <token> 15
-```
-
-### 5. 搜索页面
+### 4. 搜索页面
 
 ```bash
 node skill.js search https://wiki.example.com <token> "关键词"
@@ -127,7 +120,7 @@ node skill.js search https://wiki.example.com <token> "关键词" --path "docs"
 node skill.js search https://wiki.example.com <token> "关键词" --limit 20
 ```
 
-### 6. 查询用户
+### 5. 查询用户
 
 ```bash
 # 列出所有用户
@@ -137,13 +130,13 @@ node skill.js query https://wiki.example.com <token> users
 node skill.js query https://wiki.example.com <token> users --search "john"
 ```
 
-### 7. 查询用户组
+### 6. 查询用户组
 
 ```bash
 node skill.js query https://wiki.example.com <token> groups
 ```
 
-### 8. 查询资产
+### 7. 查询资产
 
 ```bash
 # 列出所有资产
@@ -246,25 +239,6 @@ mutation {
         path
         title
         updatedAt
-      }
-    }
-  }
-}
-```
-
-### 删除页面（Mutation）
-
-```graphql
-mutation {
-  pages {
-    delete (
-      id: 15
-    ) {
-      responseResult {
-        succeeded
-        slug
-        message
-        errorCode
       }
     }
   }
