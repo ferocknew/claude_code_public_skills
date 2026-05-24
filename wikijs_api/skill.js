@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wiki.js GraphQL API 工具 v260524.095345 - 包含所有依赖，无需安装
+// Wiki.js GraphQL API 工具 v260524.101348 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -6049,6 +6049,7 @@ var require_query = __commonJS({
         }
       }`;
           dataPath = "pages.tree";
+          options._treeFallback = modeUpper === "PAGES" ? { pathVal, locale } : null;
           break;
         }
         case "users":
@@ -6102,39 +6103,69 @@ var require_query = __commonJS({
       try {
         const result = await graphqlQuery(url, token, query);
         const data = dataPath.split(".").reduce((obj, key) => obj?.[key], result);
-        if (resource === "tree") {
-          const format = options.format || "yaml";
-          if (format === "yaml") {
-            console.log(yaml.dump(data, { lineWidth: -1, noRefs: true }));
+        outputTree(data, resource, options);
+      } catch (error) {
+        if (options._treeFallback) {
+          const { pathVal, locale } = options._treeFallback;
+          const fallbackQuery = `{
+        pages {
+          tree (path: "${pathVal}", locale: "${locale}", mode: ALL) {
+            id
+            path
+            depth
+            title
+            isPrivate
+            isFolder
+            parent
+            pageId
+            locale
+          }
+        }
+      }`;
+          try {
+            const result = await graphqlQuery(url, token, fallbackQuery);
+            const data = result.pages.tree.filter((item) => !item.isFolder);
+            outputTree(data, resource, options);
+            return;
+          } catch (fallbackError) {
+            handleError2(fallbackError, `\u67E5\u8BE2 tree \u5931\u8D25`);
             return;
           }
-          if (format === "json") {
-            console.log(JSON.stringify(data, null, 2));
-            return;
-          }
-          const items = Array.isArray(data) ? data : [];
-          console.log(`
-\u76EE\u5F55\u6811 (\u5171 ${items.length} \u9879):
-`);
-          items.forEach((item) => {
-            const indent = "  ".repeat(item.depth || 0);
-            const icon = item.isFolder ? "\u{1F4C1}" : "\u{1F4C4}";
-            const privateMark = item.isPrivate ? " [\u79C1\u6709]" : "";
-            console.log(`${indent}${icon} ${item.title}${privateMark}`);
-            console.log(`${indent}   \u8DEF\u5F84: ${item.path} | ID: ${item.pageId || item.id}`);
-          });
+        }
+        handleError2(error, `\u67E5\u8BE2 ${resource} \u5931\u8D25`);
+      }
+    }
+    function outputTree(data, resource, options) {
+      if (resource === "tree") {
+        const format = options.format || "yaml";
+        if (format === "yaml") {
+          console.log(yaml.dump(data, { lineWidth: -1, noRefs: true }));
           return;
         }
-        if (options.limit && Array.isArray(data)) {
-          console.log(`\u663E\u793A\u524D ${options.limit} \u6761\u8BB0\u5F55 (\u5171 ${data.length} \u6761)`);
-          formatOutput(data.slice(0, parseInt(options.limit)), options.format);
-        } else {
-          const count = Array.isArray(data) ? data.length : 1;
-          console.log(`\u67E5\u8BE2\u7ED3\u679C: ${count} \u6761\u8BB0\u5F55`);
-          formatOutput(data, options.format);
+        if (format === "json") {
+          console.log(JSON.stringify(data, null, 2));
+          return;
         }
-      } catch (error) {
-        handleError2(error, `\u67E5\u8BE2 ${resource} \u5931\u8D25`);
+        const items = Array.isArray(data) ? data : [];
+        console.log(`
+\u76EE\u5F55\u6811 (\u5171 ${items.length} \u9879):
+`);
+        items.forEach((item) => {
+          const indent = "  ".repeat(item.depth || 0);
+          const icon = item.isFolder ? "\u{1F4C1}" : "\u{1F4C4}";
+          const privateMark = item.isPrivate ? " [\u79C1\u6709]" : "";
+          console.log(`${indent}${icon} ${item.title}${privateMark}`);
+          console.log(`${indent}   \u8DEF\u5F84: ${item.path} | ID: ${item.pageId || item.id}`);
+        });
+        return;
+      }
+      if (options.limit && Array.isArray(data)) {
+        console.log(`\u663E\u793A\u524D ${options.limit} \u6761\u8BB0\u5F55 (\u5171 ${data.length} \u6761)`);
+        formatOutput(data.slice(0, parseInt(options.limit)), options.format);
+      } else {
+        const count = Array.isArray(data) ? data.length : 1;
+        console.log(`\u67E5\u8BE2\u7ED3\u679C: ${count} \u6761\u8BB0\u5F55`);
+        formatOutput(data, options.format);
       }
     }
     module2.exports = { cmdQuery: cmdQuery2 };
@@ -6703,7 +6734,7 @@ var require_cmd = __commonJS({
 
 // run.js
 var fetch2 = require_lib2();
-var SKILL_VERSION = true ? "260524.095345" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260524.101348" : "1.0.0-dev";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
 var { resolve: resolveEnv } = require_env();
