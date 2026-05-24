@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 
 /**
- * 加载 .env 文件（不覆盖已有的环境变量）
+ * 加载 .env 文件，覆盖已有环境变量
  * @param {string} envPath - .env 文件路径
  */
 function loadEnvFile(envPath) {
@@ -24,21 +24,21 @@ function loadEnvFile(envPath) {
   });
 }
 
+// 定位 .env 文件
+// - 打包后 skill.js: __dirname 就是 skill 根目录，直接 .env
+// - 源码 run.js: __dirname 是 lib/，需要 ../.env
+const envPath = fs.existsSync(path.join(__dirname, ".env"))
+  ? path.join(__dirname, ".env")
+  : path.join(__dirname, "..", ".env");
+loadEnvFile(envPath);
+
 /**
  * 解析命令行参数中的 URL/Token，返回剥离后的参数
- *
- * 优先级：
- *   1. 同目录 .env 文件（启动时自动加载）
- *   2. 命令行参数中的 URL（http 开头）/ Token（eyJ 开头）
- *   3. 已有的环境变量（最高优先级，不被覆盖）
  *
  * @param {string[]} positional - 解析后的位置参数
  * @returns {{ url: string, token: string, args: string[] }}
  */
 function resolve(positional) {
-  // 加载 skill.js 同目录下的 .env（打包后 __dirname 即为 skill.js 所在目录）
-  loadEnvFile(path.join(__dirname, ".env"));
-
   let url = process.env.WIKI_URL || "";
   let token = process.env.WIKI_TOKEN || "";
   const args = [...positional];

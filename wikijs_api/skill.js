@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wiki.js GraphQL API 工具 v260524.094519 - 包含所有依赖，无需安装
+// Wiki.js GraphQL API 工具 v260524.095345 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -3073,9 +3073,9 @@ var require_env = __commonJS({
   "lib/env.js"(exports2, module2) {
     var fs = require("fs");
     var path = require("path");
-    function loadEnvFile(envPath) {
-      if (!fs.existsSync(envPath)) return;
-      const envContent = fs.readFileSync(envPath, "utf-8");
+    function loadEnvFile(envPath2) {
+      if (!fs.existsSync(envPath2)) return;
+      const envContent = fs.readFileSync(envPath2, "utf-8");
       envContent.split("\n").forEach((line) => {
         const trimmed = line.trim();
         if (!trimmed || trimmed.startsWith("#")) return;
@@ -3086,8 +3086,9 @@ var require_env = __commonJS({
         process.env[key] = val;
       });
     }
+    var envPath = fs.existsSync(path.join(__dirname, ".env")) ? path.join(__dirname, ".env") : path.join(__dirname, "..", ".env");
+    loadEnvFile(envPath);
     function resolve(positional) {
-      loadEnvFile(path.join(__dirname, ".env"));
       let url = process.env.WIKI_URL || "";
       let token = process.env.WIKI_TOKEN || "";
       const args = [...positional];
@@ -6702,7 +6703,7 @@ var require_cmd = __commonJS({
 
 // run.js
 var fetch2 = require_lib2();
-var SKILL_VERSION = true ? "260524.094519" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260524.095345" : "1.0.0-dev";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
 var { resolve: resolveEnv } = require_env();
