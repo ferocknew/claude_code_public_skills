@@ -1,7 +1,7 @@
 ---
 name: wikijs-api
 description: 当用户要求"查询 Wiki.js"、"操作 Wiki.js"、"获取 Wiki.js 页面"、"创建 Wiki.js 页面"、"Wiki.js GraphQL API"时，或者需要通过 GraphQL API 与 Wiki.js 实例交互时使用此 skill。
-version: 260523.205121
+version: 260524.094519
 ---
 
 # Wiki.js GraphQL API 工具
@@ -21,6 +21,12 @@ export WIKI_TOKEN="your-api-token"
 
 # 查询所有页面
 node skill.js query pages
+
+# 查询目录树（默认 yaml 格式）
+node skill.js query tree --path "some/directory"
+node skill.js query tree --path "some/directory" --mode PAGES
+node skill.js query tree --path "some/directory" --mode FOLDERS --locale zh
+node skill.js query tree --path "some/directory" --format json
 
 # 创建页面
 node skill.js create "new/page" "标题" "内容"
@@ -44,7 +50,7 @@ node skill.js comments create 78 "评论内容"
 
 | 命令 | 说明 |
 |------|------|
-| `query <resource>` | 查询资源（pages, users, groups, assets） |
+| `query <resource>` | 查询资源（pages, page, tree, users, groups, assets） |
 | `create <path> <title> <content>` | 创建页面 |
 | `update <page-id> <content>` | 更新页面 |
 | `search <query>` | 搜索页面（默认带预览摘要） |
@@ -63,8 +69,10 @@ node skill.js comments create 78 "评论内容"
 | `--fields <list>` | 指定返回字段（逗号分隔） |
 | `--orderBy <field>` | 排序字段（查询页面） |
 | `--limit <number>` | 限制结果数量 |
-| `--path <path>` | 页面路径（创建/更新/搜索） |
+| `--path <path>` | 页面路径（创建/更新/搜索/目录树） |
 | `--title <title>` | 页面标题（更新） |
+| `--locale <locale>` | 语言（目录树） |
+| `--mode <mode>` | 目录树模式：FOLDERS/PAGES/ALL（默认 ALL） |
 | `--isPrivate <bool>` | 是否私有（创建页面，默认 false） |
 | `--isPublished <bool>` | 是否发布（创建页面，默认 true） |
 | `--replyTo <id>` | 回复评论 ID |

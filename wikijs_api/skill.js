@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wiki.js GraphQL API 工具 v260523.205121 - 包含所有依赖，无需安装
+// Wiki.js GraphQL API 工具 v260524.094519 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -3068,6 +3068,41 @@ var require_errors = __commonJS({
   }
 });
 
+// lib/env.js
+var require_env = __commonJS({
+  "lib/env.js"(exports2, module2) {
+    var fs = require("fs");
+    var path = require("path");
+    function loadEnvFile(envPath) {
+      if (!fs.existsSync(envPath)) return;
+      const envContent = fs.readFileSync(envPath, "utf-8");
+      envContent.split("\n").forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) return;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx < 1) return;
+        const key = trimmed.slice(0, eqIdx).trim();
+        const val = trimmed.slice(eqIdx + 1).trim();
+        process.env[key] = val;
+      });
+    }
+    function resolve(positional) {
+      loadEnvFile(path.join(__dirname, ".env"));
+      let url = process.env.WIKI_URL || "";
+      let token = process.env.WIKI_TOKEN || "";
+      const args = [...positional];
+      if (args.length > 0 && /^https?:\/\//i.test(args[0])) {
+        url = args.shift();
+      }
+      if (args.length > 0 && /^eyJ[A-Za-z0-9_-]/.test(args[0])) {
+        token = args.shift();
+      }
+      return { url, token, args };
+    }
+    module2.exports = { resolve };
+  }
+});
+
 // lib/api.js
 var require_api = __commonJS({
   "lib/api.js"(exports2, module2) {
@@ -5937,6 +5972,7 @@ var require_query = __commonJS({
     var { graphqlQuery } = require_api();
     var { formatOutput } = require_output();
     var { handleError: handleError2 } = require_errors();
+    var yaml = require_js_yaml();
     async function cmdQuery2(url, token, resource, options, pageId = null) {
       let query = "";
       let dataPath = "";
@@ -5980,6 +6016,40 @@ var require_query = __commonJS({
       }`;
           dataPath = "pages.single";
           break;
+        case "tree": {
+          const pathVal = options.path || "";
+          const locale = options.locale || "en";
+          const mode = options.mode || "ALL";
+          if (!pathVal) {
+            console.error("\u9519\u8BEF: \u67E5\u8BE2\u76EE\u5F55\u6811\u9700\u8981\u63D0\u4F9B --path \u53C2\u6570");
+            console.error("\u7528\u6CD5: node skill.js query tree --path <directory-path>");
+            process.exit(1);
+          }
+          const validModes = ["FOLDERS", "PAGES", "ALL"];
+          const modeUpper = mode.toUpperCase();
+          if (!validModes.includes(modeUpper)) {
+            console.error(`\u9519\u8BEF: \u65E0\u6548\u7684 mode \u53C2\u6570: ${mode}`);
+            console.error(`\u53EF\u9009\u503C: ${validModes.join(", ")}`);
+            process.exit(1);
+          }
+          query = `{
+        pages {
+          tree (path: "${pathVal}", locale: "${locale}", mode: ${modeUpper}) {
+            id
+            path
+            depth
+            title
+            isPrivate
+            isFolder
+            parent
+            pageId
+            locale
+          }
+        }
+      }`;
+          dataPath = "pages.tree";
+          break;
+        }
         case "users":
           if (options.search) {
             query = `{
@@ -6025,12 +6095,35 @@ var require_query = __commonJS({
           break;
         default:
           console.error(`\u9519\u8BEF: \u4E0D\u652F\u6301\u7684\u8D44\u6E90\u7C7B\u578B: ${resource}`);
-          console.error("\u652F\u6301\u7684\u8D44\u6E90: pages, page, users, groups");
+          console.error("\u652F\u6301\u7684\u8D44\u6E90: pages, page, tree, users, groups");
           process.exit(1);
       }
       try {
         const result = await graphqlQuery(url, token, query);
         const data = dataPath.split(".").reduce((obj, key) => obj?.[key], result);
+        if (resource === "tree") {
+          const format = options.format || "yaml";
+          if (format === "yaml") {
+            console.log(yaml.dump(data, { lineWidth: -1, noRefs: true }));
+            return;
+          }
+          if (format === "json") {
+            console.log(JSON.stringify(data, null, 2));
+            return;
+          }
+          const items = Array.isArray(data) ? data : [];
+          console.log(`
+\u76EE\u5F55\u6811 (\u5171 ${items.length} \u9879):
+`);
+          items.forEach((item) => {
+            const indent = "  ".repeat(item.depth || 0);
+            const icon = item.isFolder ? "\u{1F4C1}" : "\u{1F4C4}";
+            const privateMark = item.isPrivate ? " [\u79C1\u6709]" : "";
+            console.log(`${indent}${icon} ${item.title}${privateMark}`);
+            console.log(`${indent}   \u8DEF\u5F84: ${item.path} | ID: ${item.pageId || item.id}`);
+          });
+          return;
+        }
         if (options.limit && Array.isArray(data)) {
           console.log(`\u663E\u793A\u524D ${options.limit} \u6761\u8BB0\u5F55 (\u5171 ${data.length} \u6761)`);
           formatOutput(data.slice(0, parseInt(options.limit)), options.format);
@@ -6609,11 +6702,10 @@ var require_cmd = __commonJS({
 
 // run.js
 var fetch2 = require_lib2();
-var SKILL_VERSION = true ? "260523.205121" : "1.0.0-dev";
-var DEFAULT_URL = process.env.WIKI_URL || "";
-var DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
+var SKILL_VERSION = true ? "260524.094519" : "1.0.0-dev";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
+var { resolve: resolveEnv } = require_env();
 var { cmdQuery, cmdCreate, cmdUpdate, cmdSearch, cmdHistory, cmdVersion, cmdCommentsList, cmdCommentsSingle, cmdCommentsCreate, cmdCommentsUpdate } = require_cmd();
 function showHelp() {
   console.log(`
@@ -6634,6 +6726,7 @@ Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
 \u67E5\u8BE2\u8D44\u6E90\u7C7B\u578B:
   pages       \u67E5\u8BE2\u6240\u6709\u9875\u9762
   page <id>   \u67E5\u8BE2\u5355\u4E2A\u9875\u9762
+  tree        \u67E5\u8BE2\u76EE\u5F55\u6811\uFF08\u9700\u914D\u5408 --path \u53C2\u6570\uFF09
   users       \u67E5\u8BE2\u6240\u6709\u7528\u6237
   groups      \u67E5\u8BE2\u6240\u6709\u7528\u6237\u7EC4
   assets      \u67E5\u8BE2\u6240\u6709\u8D44\u4EA7
@@ -6641,10 +6734,12 @@ Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
 \u9009\u9879:
   --orderBy <field>    \u6392\u5E8F\u5B57\u6BB5\uFF08\u67E5\u8BE2\u9875\u9762\uFF09
   --limit <number>     \u9650\u5236\u7ED3\u679C\u6570\u91CF
-  --path <path>        \u9875\u9762\u8DEF\u5F84\uFF08\u521B\u5EFA/\u66F4\u65B0/\u641C\u7D22\uFF09
+  --path <path>        \u9875\u9762\u8DEF\u5F84\uFF08\u521B\u5EFA/\u66F4\u65B0/\u641C\u7D22/\u76EE\u5F55\u6811\uFF09
   --title <title>      \u9875\u9762\u6807\u9898\uFF08\u66F4\u65B0\uFF09
   --editor <editor>    \u7F16\u8F91\u5668\u7C7B\u578B\uFF08markdown/ckeditor/api/code\uFF09
   --parentId <id>      \u7236\u9875\u9762 ID\uFF08\u521B\u5EFA\uFF09
+  --locale <locale>    \u8BED\u8A00\uFF08\u76EE\u5F55\u6811\uFF09
+  --mode <mode>        \u76EE\u5F55\u6811\u6A21\u5F0F\uFF1AFOLDERS/PAGES/ALL\uFF08\u9ED8\u8BA4 ALL\uFF09
   --preview            \u663E\u793A\u5185\u5BB9\u9884\u89C8\u6458\u8981\uFF08\u8282\u7701 Token\uFF09
   --previewCount <n>   \u9884\u89C8\u6761\u6570\uFF08\u9ED8\u8BA4 3\uFF09
   --contextLength <n>  \u6458\u8981\u957F\u5EA6\uFF08\u9ED8\u8BA4 1=\u884C\u6A21\u5F0F\uFF09
@@ -6703,6 +6798,12 @@ Wiki.js GraphQL API \u5BA2\u6237\u7AEF v${SKILL_VERSION}
   node skill.js query pages
   node skill.js create "new/page" "\u6807\u9898" "\u5185\u5BB9"
 
+  # \u67E5\u8BE2\u76EE\u5F55\u6811\uFF08\u9ED8\u8BA4 yaml \u683C\u5F0F\uFF09
+  node skill.js query tree --path "some/directory"
+  node skill.js query tree --path "some/directory" --mode PAGES
+  node skill.js query tree --path "some/directory" --mode FOLDERS --locale zh
+  node skill.js query tree --path "some/directory" --format json
+
 \u5FEB\u6377\u9009\u9879:
   -h, --help     \u663E\u793A\u6B64\u5E2E\u52A9\u4FE1\u606F
   -v, --version  \u663E\u793A\u7248\u672C\u4FE1\u606F
@@ -6723,19 +6824,13 @@ function main() {
     return;
   }
   const command = positional[0];
-  let url = DEFAULT_URL;
-  let token = DEFAULT_TOKEN;
-  if (!url && positional[1]) {
-    url = positional[1];
-  }
-  if (!token && positional[2]) {
-    token = positional[2];
-  }
+  const { url, token, args } = resolveEnv(positional.slice(1));
   if (!url) {
     console.error("\u9519\u8BEF: \u8BF7\u63D0\u4F9B Wiki.js URL");
     console.error("\u53EF\u4EE5\u901A\u8FC7\u4EE5\u4E0B\u65B9\u5F0F\u63D0\u4F9B:");
     console.error("  1. \u547D\u4EE4\u53C2\u6570: node skill.js query <url> <token> <resource>");
     console.error("  2. \u73AF\u5883\u53D8\u91CF: export WIKI_URL=https://wiki.example.com");
+    console.error("  3. \u540C\u76EE\u5F55 .env \u6587\u4EF6: WIKI_URL=https://wiki.example.com");
     process.exit(1);
   }
   if (!token) {
@@ -6743,101 +6838,102 @@ function main() {
     console.error("\u53EF\u4EE5\u901A\u8FC7\u4EE5\u4E0B\u65B9\u5F0F\u63D0\u4F9B:");
     console.error("  1. \u547D\u4EE4\u53C2\u6570: node skill.js query <url> <token> <resource>");
     console.error("  2. \u73AF\u5883\u53D8\u91CF: export WIKI_TOKEN=your-api-token");
+    console.error("  3. \u540C\u76EE\u5F55 .env \u6587\u4EF6: WIKI_TOKEN=your-api-token");
     process.exit(1);
   }
   options.positional = positional;
   switch (command) {
     case "query":
-      if (!positional[3]) {
+      if (!args[0]) {
         console.error("\u9519\u8BEF: \u8BF7\u6307\u5B9A\u8981\u67E5\u8BE2\u7684\u8D44\u6E90\u7C7B\u578B");
-        console.error("\u652F\u6301\u7684\u8D44\u6E90: pages, page, users, groups, assets");
+        console.error("\u652F\u6301\u7684\u8D44\u6E90: pages, page, tree, users, groups");
         process.exit(1);
       }
-      const pageId = positional[3] === "page" ? positional[4] : null;
-      cmdQuery(url, token, positional[3], options, pageId);
+      const pageId = args[0] === "page" ? args[1] : null;
+      cmdQuery(url, token, args[0], options, pageId);
       break;
     case "create":
-      if (!positional[3] || !positional[4] || !positional[5]) {
+      if (!args[0] || !args[1] || !args[2]) {
         console.error("\u9519\u8BEF: \u521B\u5EFA\u9875\u9762\u9700\u8981\u63D0\u4F9B\u8DEF\u5F84\u3001\u6807\u9898\u548C\u5185\u5BB9");
-        console.error("\u7528\u6CD5: node skill.js create <url> <token> <path> <title> <content>");
+        console.error("\u7528\u6CD5: node skill.js create [url] [token] <path> <title> <content>");
         process.exit(1);
       }
-      cmdCreate(url, token, positional[3], positional[4], positional[5], options);
+      cmdCreate(url, token, args[0], args[1], args[2], options);
       break;
     case "update":
-      if (!positional[3] || !positional[4]) {
+      if (!args[0] || !args[1]) {
         console.error("\u9519\u8BEF: \u66F4\u65B0\u9875\u9762\u9700\u8981\u63D0\u4F9B\u9875\u9762 ID \u548C\u65B0\u5185\u5BB9");
-        console.error("\u7528\u6CD5: node skill.js update <url> <token> <page-id> <content>");
+        console.error("\u7528\u6CD5: node skill.js update [url] [token] <page-id> <content>");
         process.exit(1);
       }
-      cmdUpdate(url, token, positional[3], positional[4], options);
+      cmdUpdate(url, token, args[0], args[1], options);
       break;
     case "search":
-      if (!positional[3]) {
+      if (!args[0]) {
         console.error("\u9519\u8BEF: \u641C\u7D22\u9700\u8981\u63D0\u4F9B\u67E5\u8BE2\u5173\u952E\u8BCD");
-        console.error("\u7528\u6CD5: node skill.js search <url> <token> <query>");
+        console.error("\u7528\u6CD5: node skill.js search [url] [token] <query>");
         process.exit(1);
       }
-      cmdSearch(url, token, positional[3], options);
+      cmdSearch(url, token, args[0], options);
       break;
     case "history":
-      if (!positional[3]) {
+      if (!args[0]) {
         console.error("\u9519\u8BEF: \u67E5\u770B\u5386\u53F2\u9700\u8981\u63D0\u4F9B\u9875\u9762 ID");
-        console.error("\u7528\u6CD5: node skill.js history <url> <token> <page-id>");
+        console.error("\u7528\u6CD5: node skill.js history [url] [token] <page-id>");
         process.exit(1);
       }
-      cmdHistory(url, token, positional[3], options);
+      cmdHistory(url, token, args[0], options);
       break;
     case "version":
-      if (!positional[3] || !positional[4]) {
+      if (!args[0] || !args[1]) {
         console.error("\u9519\u8BEF: \u83B7\u53D6\u7248\u672C\u9700\u8981\u63D0\u4F9B\u9875\u9762 ID \u548C\u7248\u672C ID");
-        console.error("\u7528\u6CD5: node skill.js version <url> <token> <page-id> <version-id>");
+        console.error("\u7528\u6CD5: node skill.js version [url] [token] <page-id> <version-id>");
         process.exit(1);
       }
-      cmdVersion(url, token, positional[3], positional[4], options);
+      cmdVersion(url, token, args[0], args[1], options);
       break;
     case "comments":
-      if (!positional[3]) {
+      if (!args[0]) {
         console.error("\u9519\u8BEF: \u8BC4\u8BBA\u547D\u4EE4\u9700\u8981\u5B50\u547D\u4EE4");
-        console.error("\u7528\u6CD5: node skill.js comments <url> <token> <subcommand> [args...]");
+        console.error("\u7528\u6CD5: node skill.js comments [url] [token] <subcommand> [args...]");
         console.error("\u5B50\u547D\u4EE4: list, single, create, update");
         process.exit(1);
       }
-      const subCmd = positional[3];
+      const subCmd = args[0];
       if (!options.format) options.format = "yaml";
       switch (subCmd) {
         case "list":
-          if (!positional[4] || !positional[5]) {
+          if (!args[1] || !args[2]) {
             console.error("\u9519\u8BEF: \u67E5\u8BE2\u8BC4\u8BBA\u5217\u8868\u9700\u8981 path \u548C locale");
-            console.error("\u7528\u6CD5: node skill.js comments <url> <token> list <path> <locale>");
+            console.error("\u7528\u6CD5: node skill.js comments [url] [token] list <path> <locale>");
             process.exit(1);
           }
-          cmdCommentsList(url, token, positional[4], positional[5], options);
+          cmdCommentsList(url, token, args[1], args[2], options);
           break;
         case "single":
-          if (!positional[4]) {
+          if (!args[1]) {
             console.error("\u9519\u8BEF: \u67E5\u8BE2\u5355\u6761\u8BC4\u8BBA\u9700\u8981\u8BC4\u8BBA ID");
-            console.error("\u7528\u6CD5: node skill.js comments <url> <token> single <comment-id>");
+            console.error("\u7528\u6CD5: node skill.js comments [url] [token] single <comment-id>");
             process.exit(1);
           }
-          cmdCommentsSingle(url, token, positional[4], options);
+          cmdCommentsSingle(url, token, args[1], options);
           break;
         case "create":
-          if (!positional[4] || !positional[5]) {
+          if (!args[1] || !args[2]) {
             console.error("\u9519\u8BEF: \u521B\u5EFA\u8BC4\u8BBA\u9700\u8981\u9875\u9762 ID \u548C\u5185\u5BB9");
-            console.error("\u7528\u6CD5: node skill.js comments <url> <token> create <page-id> <content>");
+            console.error("\u7528\u6CD5: node skill.js comments [url] [token] create <page-id> <content>");
             console.error("\u9009\u9879: --replyTo <id>, --guestName <name>, --guestEmail <email>");
             process.exit(1);
           }
-          cmdCommentsCreate(url, token, positional[4], positional[5], options);
+          cmdCommentsCreate(url, token, args[1], args[2], options);
           break;
         case "update":
-          if (!positional[4] || !positional[5]) {
+          if (!args[1] || !args[2]) {
             console.error("\u9519\u8BEF: \u66F4\u65B0\u8BC4\u8BBA\u9700\u8981\u8BC4\u8BBA ID \u548C\u65B0\u5185\u5BB9");
-            console.error("\u7528\u6CD5: node skill.js comments <url> <token> update <comment-id> <content>");
+            console.error("\u7528\u6CD5: node skill.js comments [url] [token] update <comment-id> <content>");
             process.exit(1);
           }
-          cmdCommentsUpdate(url, token, positional[4], positional[5], options);
+          cmdCommentsUpdate(url, token, args[1], args[2], options);
           break;
         default:
           console.error(`\u9519\u8BEF: \u672A\u77E5\u8BC4\u8BBA\u5B50\u547D\u4EE4: ${subCmd}`);
