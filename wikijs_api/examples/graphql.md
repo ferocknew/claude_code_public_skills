@@ -41,6 +41,36 @@ Wiki.js GraphQL API 原始查询参考。
 }
 ```
 
+### 查询目录树
+
+查询指定路径下的页面树结构，支持 `--path`（必填）、`--mode`（FOLDERS/PAGES/ALL）、`--locale` 参数。
+
+```graphql
+{
+  pages {
+    tree (path: "some/directory", mode: ALL) {
+      id
+      path
+      depth
+      title
+      isPrivate
+      isFolder
+      parent
+      pageId
+      locale
+    }
+  }
+}
+```
+
+**mode 参数说明**：
+
+| 值 | 说明 |
+|----|------|
+| `ALL` | 返回目录和页面（默认） |
+| `FOLDERS` | 仅返回目录 |
+| `PAGES` | 仅返回页面 |
+
 ### 搜索页面
 
 ```graphql

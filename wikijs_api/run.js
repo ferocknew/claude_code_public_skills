@@ -14,13 +14,10 @@ const fetch = require("node-fetch");
 // 版本号（打包时会通过 __VERSION 注入）
 const SKILL_VERSION = typeof __VERSION !== "undefined" ? __VERSION : "1.0.0-dev";
 
-// 从环境变量获取默认值
-const DEFAULT_URL = process.env.WIKI_URL || "";
-const DEFAULT_TOKEN = process.env.WIKI_TOKEN || "";
-
 // 导入模块
 const { parseArgs } = require("./lib/parser");
 const { handleError } = require("./lib/errors");
+const { resolve: resolveEnv } = require("./lib/env");
 const { cmdQuery, cmdCreate, cmdUpdate, cmdSearch, cmdHistory, cmdVersion, cmdCommentsList, cmdCommentsSingle, cmdCommentsCreate, cmdCommentsUpdate } = require("./lib/cmd");
 
 /**
@@ -45,6 +42,7 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
 查询资源类型:
   pages       查询所有页面
   page <id>   查询单个页面
+  tree        查询目录树（需配合 --path 参数）
   users       查询所有用户
   groups      查询所有用户组
   assets      查询所有资产
@@ -52,10 +50,12 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
 选项:
   --orderBy <field>    排序字段（查询页面）
   --limit <number>     限制结果数量
-  --path <path>        页面路径（创建/更新/搜索）
+  --path <path>        页面路径（创建/更新/搜索/目录树）
   --title <title>      页面标题（更新）
   --editor <editor>    编辑器类型（markdown/ckeditor/api/code）
   --parentId <id>      父页面 ID（创建）
+  --locale <locale>    语言（目录树）
+  --mode <mode>        目录树模式：FOLDERS/PAGES/ALL（默认 ALL）
   --preview            显示内容预览摘要（节省 Token）
   --previewCount <n>   预览条数（默认 3）
   --contextLength <n>  摘要长度（默认 1=行模式）
@@ -114,6 +114,12 @@ Wiki.js GraphQL API 客户端 v${SKILL_VERSION}
   node skill.js query pages
   node skill.js create "new/page" "标题" "内容"
 
+  # 查询目录树（默认 yaml 格式）
+  node skill.js query tree --path "some/directory"
+  node skill.js query tree --path "some/directory" --mode PAGES
+  node skill.js query tree --path "some/directory" --mode FOLDERS --locale zh
+  node skill.js query tree --path "some/directory" --format json
+
 快捷选项:
   -h, --help     显示此帮助信息
   -v, --version  显示版本信息
@@ -146,17 +152,8 @@ function main() {
 
   const command = positional[0];
 
-  // 确定 URL 和 Token
-  let url = DEFAULT_URL;
-  let token = DEFAULT_TOKEN;
-
-  // 如果没有环境变量，从参数获取
-  if (!url && positional[1]) {
-    url = positional[1];
-  }
-  if (!token && positional[2]) {
-    token = positional[2];
-  }
+  // 解析环境配置：加载 .env + 从 positional 中剥离 URL/Token
+  const { url, token, args } = resolveEnv(positional.slice(1));
 
   // 检查必需参数
   if (!url) {
@@ -164,6 +161,7 @@ function main() {
     console.error("可以通过以下方式提供:");
     console.error("  1. 命令参数: node skill.js query <url> <token> <resource>");
     console.error("  2. 环境变量: export WIKI_URL=https://wiki.example.com");
+    console.error("  3. 同目录 .env 文件: WIKI_URL=https://wiki.example.com");
     process.exit(1);
   }
 
@@ -172,117 +170,117 @@ function main() {
     console.error("可以通过以下方式提供:");
     console.error("  1. 命令参数: node skill.js query <url> <token> <resource>");
     console.error("  2. 环境变量: export WIKI_TOKEN=your-api-token");
+    console.error("  3. 同目录 .env 文件: WIKI_TOKEN=your-api-token");
     process.exit(1);
   }
 
   // 保存原始参数供子命令使用
   options.positional = positional;
 
-  // 执行命令
+  // 执行命令（args 已剥离 URL/Token，索引从 0 开始）
   switch (command) {
     case "query":
-      if (!positional[3]) {
+      if (!args[0]) {
         console.error("错误: 请指定要查询的资源类型");
-        console.error("支持的资源: pages, page, users, groups, assets");
+        console.error("支持的资源: pages, page, tree, users, groups");
         process.exit(1);
       }
-      // page 查询需要额外的 ID 参数
-      const pageId = positional[3] === "page" ? positional[4] : null;
-      cmdQuery(url, token, positional[3], options, pageId);
+      const pageId = args[0] === "page" ? args[1] : null;
+      cmdQuery(url, token, args[0], options, pageId);
       break;
 
     case "create":
-      if (!positional[3] || !positional[4] || !positional[5]) {
+      if (!args[0] || !args[1] || !args[2]) {
         console.error("错误: 创建页面需要提供路径、标题和内容");
-        console.error("用法: node skill.js create <url> <token> <path> <title> <content>");
+        console.error("用法: node skill.js create [url] [token] <path> <title> <content>");
         process.exit(1);
       }
-      cmdCreate(url, token, positional[3], positional[4], positional[5], options);
+      cmdCreate(url, token, args[0], args[1], args[2], options);
       break;
 
     case "update":
-      if (!positional[3] || !positional[4]) {
+      if (!args[0] || !args[1]) {
         console.error("错误: 更新页面需要提供页面 ID 和新内容");
-        console.error("用法: node skill.js update <url> <token> <page-id> <content>");
+        console.error("用法: node skill.js update [url] [token] <page-id> <content>");
         process.exit(1);
       }
-      cmdUpdate(url, token, positional[3], positional[4], options);
+      cmdUpdate(url, token, args[0], args[1], options);
       break;
 
     case "search":
-      if (!positional[3]) {
+      if (!args[0]) {
         console.error("错误: 搜索需要提供查询关键词");
-        console.error("用法: node skill.js search <url> <token> <query>");
+        console.error("用法: node skill.js search [url] [token] <query>");
         process.exit(1);
       }
-      cmdSearch(url, token, positional[3], options);
+      cmdSearch(url, token, args[0], options);
       break;
 
     case "history":
-      if (!positional[3]) {
+      if (!args[0]) {
         console.error("错误: 查看历史需要提供页面 ID");
-        console.error("用法: node skill.js history <url> <token> <page-id>");
+        console.error("用法: node skill.js history [url] [token] <page-id>");
         process.exit(1);
       }
-      cmdHistory(url, token, positional[3], options);
+      cmdHistory(url, token, args[0], options);
       break;
 
     case "version":
-      if (!positional[3] || !positional[4]) {
+      if (!args[0] || !args[1]) {
         console.error("错误: 获取版本需要提供页面 ID 和版本 ID");
-        console.error("用法: node skill.js version <url> <token> <page-id> <version-id>");
+        console.error("用法: node skill.js version [url] [token] <page-id> <version-id>");
         process.exit(1);
       }
-      cmdVersion(url, token, positional[3], positional[4], options);
+      cmdVersion(url, token, args[0], args[1], options);
       break;
 
     case "comments":
-      if (!positional[3]) {
+      if (!args[0]) {
         console.error("错误: 评论命令需要子命令");
-        console.error("用法: node skill.js comments <url> <token> <subcommand> [args...]");
+        console.error("用法: node skill.js comments [url] [token] <subcommand> [args...]");
         console.error("子命令: list, single, create, update");
         process.exit(1);
       }
-      const subCmd = positional[3];
+      const subCmd = args[0];
       // 评论命令默认使用 yaml 格式
       if (!options.format) options.format = "yaml";
 
       switch (subCmd) {
         case "list":
-          if (!positional[4] || !positional[5]) {
+          if (!args[1] || !args[2]) {
             console.error("错误: 查询评论列表需要 path 和 locale");
-            console.error("用法: node skill.js comments <url> <token> list <path> <locale>");
+            console.error("用法: node skill.js comments [url] [token] list <path> <locale>");
             process.exit(1);
           }
-          cmdCommentsList(url, token, positional[4], positional[5], options);
+          cmdCommentsList(url, token, args[1], args[2], options);
           break;
 
         case "single":
-          if (!positional[4]) {
+          if (!args[1]) {
             console.error("错误: 查询单条评论需要评论 ID");
-            console.error("用法: node skill.js comments <url> <token> single <comment-id>");
+            console.error("用法: node skill.js comments [url] [token] single <comment-id>");
             process.exit(1);
           }
-          cmdCommentsSingle(url, token, positional[4], options);
+          cmdCommentsSingle(url, token, args[1], options);
           break;
 
         case "create":
-          if (!positional[4] || !positional[5]) {
+          if (!args[1] || !args[2]) {
             console.error("错误: 创建评论需要页面 ID 和内容");
-            console.error("用法: node skill.js comments <url> <token> create <page-id> <content>");
+            console.error("用法: node skill.js comments [url] [token] create <page-id> <content>");
             console.error("选项: --replyTo <id>, --guestName <name>, --guestEmail <email>");
             process.exit(1);
           }
-          cmdCommentsCreate(url, token, positional[4], positional[5], options);
+          cmdCommentsCreate(url, token, args[1], args[2], options);
           break;
 
         case "update":
-          if (!positional[4] || !positional[5]) {
+          if (!args[1] || !args[2]) {
             console.error("错误: 更新评论需要评论 ID 和新内容");
-            console.error("用法: node skill.js comments <url> <token> update <comment-id> <content>");
+            console.error("用法: node skill.js comments [url] [token] update <comment-id> <content>");
             process.exit(1);
           }
-          cmdCommentsUpdate(url, token, positional[4], positional[5], options);
+          cmdCommentsUpdate(url, token, args[1], args[2], options);
           break;
 
         default:
