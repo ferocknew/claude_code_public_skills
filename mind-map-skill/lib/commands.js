@@ -346,6 +346,7 @@ function cmdConfig() {
   return {
     url: config.url,
     token: config.token ? "***" + config.token.slice(-4) : "(未设置)",
+    userId: config.userId || "(未授权)",
     rejectUnauthorized: config.rejectUnauthorized,
   };
 }
