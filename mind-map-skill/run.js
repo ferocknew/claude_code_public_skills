@@ -6,6 +6,7 @@
  *   node skill.js <command> [args] [options]
  *
  * 命令:
+ *   auth                        授权绑定浏览器
  *   status                       检查浏览器连接状态
  *   read                         读取思维导图
  *   add <text>                   添加子节点
@@ -39,6 +40,7 @@ const {
   cmdNote, cmdLink, cmdUndo, cmdRedo, cmdExpand, cmdCollapse, cmdSearch,
   cmdGeneralization, cmdAssociativeLine, cmdFormula, cmdOuterFrame,
 } = require("./lib/commands");
+const { cmdAuth } = require("./lib/auth");
 
 loadDotEnv(__dirname);
 initTls();
@@ -75,6 +77,7 @@ function showHelp() {
   node skill.js <command> [args] [options]
 
 基础命令:
+  auth                         授权绑定浏览器
   status                       检查浏览器连接状态
   read                         读取思维导图
   add <text>                   添加子节点
@@ -152,6 +155,7 @@ function showHelp() {
 环境变量:
   MIND_MAP_URL                  API 服务器地址（默认 http://localhost:8086）
   MIND_MAP_API_TOKEN            API Token（可选）
+  MIND_MAP_USER_ID              授权绑定的用户 ID（通过 auth 命令获取）
   MIND_MAP_REJECT_UNAUTHORIZED  HTTPS 证书验证（默认 false）
 `);
 }
@@ -159,6 +163,7 @@ function showHelp() {
 // ===================== 命令分发 =====================
 
 const COMMANDS = {
+  auth:          { handler: (opts) => cmdAuth(opts, __dirname), args: [], req: [] },
   status:        { handler: (opts) => cmdStatus(opts), args: [], req: [] },
   read:          { handler: (opts) => cmdRead(opts), args: [], req: [] },
   add:           { handler: (opts, pos) => cmdAdd(pos[0], opts), args: ["text"], req: ["节点文本"] },

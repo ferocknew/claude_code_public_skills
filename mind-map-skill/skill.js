@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 思维导图远程控制工具 v260518.155635 - 无需安装依赖
+// 思维导图远程控制工具 v260525.153123 - 无需安装依赖
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -9,10 +9,10 @@ var __commonJS = (cb, mod) => function __require() {
 // lib/api.js
 var require_api = __commonJS({
   "lib/api.js"(exports2, module2) {
-    var SKILL_VERSION2 = true ? "260518.155635" : "dev";
+    var SKILL_VERSION2 = true ? "260525.153123" : "dev";
+    var fs = require("fs");
+    var path = require("path");
     function loadDotEnv2(baseDir) {
-      const fs = require("fs");
-      const path = require("path");
       const envPath = path.join(baseDir, ".env");
       if (!fs.existsSync(envPath)) return;
       const content = fs.readFileSync(envPath, "utf8");
@@ -30,6 +30,7 @@ var require_api = __commonJS({
       return {
         url: process.env.MIND_MAP_URL || "http://localhost:8086",
         token: process.env.MIND_MAP_API_TOKEN || "",
+        userId: process.env.MIND_MAP_USER_ID || "",
         rejectUnauthorized: process.env.MIND_MAP_REJECT_UNAUTHORIZED !== "false"
       };
     }
@@ -39,14 +40,44 @@ var require_api = __commonJS({
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
       }
     }
-    async function apiRequest(method, path, body, overrides) {
+    function saveUserIdToEnv(baseDir, userId) {
+      const envPath = path.join(baseDir, ".env");
+      let content = "";
+      if (fs.existsSync(envPath)) {
+        content = fs.readFileSync(envPath, "utf8");
+      }
+      const lines = content.split("\n");
+      let found = false;
+      const newLines = lines.map((line) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("MIND_MAP_USER_ID=")) {
+          found = true;
+          return `MIND_MAP_USER_ID=${userId}`;
+        }
+        return line;
+      });
+      if (!found) {
+        const last = newLines[newLines.length - 1];
+        if (last && last.trim() !== "") {
+          newLines.push("");
+        }
+        newLines.push(`MIND_MAP_USER_ID=${userId}`);
+      }
+      fs.writeFileSync(envPath, newLines.join("\n"), "utf8");
+      process.env.MIND_MAP_USER_ID = userId;
+    }
+    async function apiRequest(method, path2, body, overrides) {
       const config = getConfig();
       const baseUrl = overrides && overrides.url || config.url;
       const token = overrides && overrides.token !== void 0 ? overrides.token : config.token;
-      const url = `${baseUrl}${path}`;
+      const userId = config.userId;
+      const url = `${baseUrl}${path2}`;
       const headers = { "Content-Type": "application/json" };
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
+      }
+      if (userId) {
+        headers["X-User-Id"] = userId;
       }
       const options = {
         method,
@@ -74,7 +105,7 @@ var require_api = __commonJS({
         return { success: false, error: "\u8BF7\u6C42\u5931\u8D25", message: e.message };
       }
     }
-    module2.exports = { SKILL_VERSION: SKILL_VERSION2, loadDotEnv: loadDotEnv2, getConfig, initTls: initTls2, apiRequest };
+    module2.exports = { SKILL_VERSION: SKILL_VERSION2, loadDotEnv: loadDotEnv2, getConfig, initTls: initTls2, apiRequest, saveUserIdToEnv };
   }
 });
 
@@ -392,6 +423,7 @@ var require_commands = __commonJS({
       return {
         url: config.url,
         token: config.token ? "***" + config.token.slice(-4) : "(\u672A\u8BBE\u7F6E)",
+        userId: config.userId || "(\u672A\u6388\u6743)",
         rejectUnauthorized: config.rejectUnauthorized
       };
     }
@@ -424,6 +456,78 @@ var require_commands = __commonJS({
   }
 });
 
+// lib/auth.js
+var require_auth = __commonJS({
+  "lib/auth.js"(exports2, module2) {
+    var { apiRequest, getConfig, saveUserIdToEnv } = require_api();
+    var { execSync } = require("child_process");
+    async function cmdAuth2(opts, baseDir) {
+      const config = getConfig();
+      const baseUrl = opts && opts.url || config.url;
+      if (config.userId) {
+        console.log(JSON.stringify({
+          status: "already_authorized",
+          userId: config.userId,
+          message: `\u5DF2\u7ED1\u5B9A userId: ${config.userId}\uFF0C\u5982\u9700\u91CD\u65B0\u6388\u6743\u8BF7\u5148\u5220\u9664 .env \u4E2D\u7684 MIND_MAP_USER_ID`
+        }, null, 2));
+        return { success: true, alreadyAuthorized: true, userId: config.userId };
+      }
+      console.error("[Auth] \u6B63\u5728\u751F\u6210\u6388\u6743\u7801...");
+      const codeResult = await apiRequest("POST", "/api/mind-map/auth/code", null, { url: baseUrl });
+      if (!codeResult.code) {
+        return {
+          success: false,
+          error: "\u751F\u6210\u6388\u6743\u7801\u5931\u8D25",
+          message: codeResult.error || codeResult.message || "\u670D\u52A1\u5668\u672A\u8FD4\u56DE\u6388\u6743\u7801"
+        };
+      }
+      const code = codeResult.code;
+      const authUrl = `${baseUrl}/#/auth?code=${code}`;
+      console.error(`[Auth] \u6388\u6743\u7801: ${code}`);
+      console.error(`[Auth] \u8BF7\u5728\u6D4F\u89C8\u5668\u4E2D\u786E\u8BA4\u6388\u6743: ${authUrl}`);
+      try {
+        const openCmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+        execSync(`${openCmd} "${authUrl}"`, { stdio: "ignore" });
+        console.error("[Auth] \u5DF2\u6253\u5F00\u6D4F\u89C8\u5668\u6388\u6743\u9875\u9762");
+      } catch (e) {
+        console.error(`[Auth] \u65E0\u6CD5\u81EA\u52A8\u6253\u5F00\u6D4F\u89C8\u5668\uFF0C\u8BF7\u624B\u52A8\u8BBF\u95EE: ${authUrl}`);
+      }
+      const POLL_INTERVAL_MS = 2e3;
+      const MAX_POLL_MS = 5 * 60 * 1e3;
+      const startTime = Date.now();
+      while (Date.now() - startTime < MAX_POLL_MS) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        const pollResult = await apiRequest("GET", `/api/mind-map/auth/poll?code=${code}`, null, { url: baseUrl });
+        if (pollResult.ready && pollResult.userId) {
+          saveUserIdToEnv(baseDir, pollResult.userId);
+          console.error(`[Auth] \u6388\u6743\u6210\u529F! userId: ${pollResult.userId}`);
+          return {
+            success: true,
+            userId: pollResult.userId,
+            message: `\u5DF2\u7ED1\u5B9A userId: ${pollResult.userId}\uFF0C\u5DF2\u5199\u5165 .env`
+          };
+        }
+        if (pollResult.error && !pollResult.error.includes("\u8FC7\u671F")) {
+          continue;
+        }
+        if (pollResult.error && pollResult.error.includes("\u8FC7\u671F")) {
+          return {
+            success: false,
+            error: "\u6388\u6743\u7801\u5DF2\u8FC7\u671F",
+            message: "\u8BF7\u5728 5 \u5206\u949F\u5185\u5B8C\u6210\u6388\u6743\u786E\u8BA4"
+          };
+        }
+      }
+      return {
+        success: false,
+        error: "\u6388\u6743\u8D85\u65F6",
+        message: "5 \u5206\u949F\u5185\u672A\u5B8C\u6210\u6388\u6743\u786E\u8BA4"
+      };
+    }
+    module2.exports = { cmdAuth: cmdAuth2 };
+  }
+});
+
 // run.js
 var { SKILL_VERSION, loadDotEnv, initTls } = require_api();
 var {
@@ -452,6 +556,7 @@ var {
   cmdFormula,
   cmdOuterFrame
 } = require_commands();
+var { cmdAuth } = require_auth();
 loadDotEnv(__dirname);
 initTls();
 function parseOptions(args, startIndex) {
@@ -483,6 +588,7 @@ function showHelp() {
   node skill.js <command> [args] [options]
 
 \u57FA\u7840\u547D\u4EE4:
+  auth                         \u6388\u6743\u7ED1\u5B9A\u6D4F\u89C8\u5668
   status                       \u68C0\u67E5\u6D4F\u89C8\u5668\u8FDE\u63A5\u72B6\u6001
   read                         \u8BFB\u53D6\u601D\u7EF4\u5BFC\u56FE
   add <text>                   \u6DFB\u52A0\u5B50\u8282\u70B9
@@ -560,10 +666,12 @@ function showHelp() {
 \u73AF\u5883\u53D8\u91CF:
   MIND_MAP_URL                  API \u670D\u52A1\u5668\u5730\u5740\uFF08\u9ED8\u8BA4 http://localhost:8086\uFF09
   MIND_MAP_API_TOKEN            API Token\uFF08\u53EF\u9009\uFF09
+  MIND_MAP_USER_ID              \u6388\u6743\u7ED1\u5B9A\u7684\u7528\u6237 ID\uFF08\u901A\u8FC7 auth \u547D\u4EE4\u83B7\u53D6\uFF09
   MIND_MAP_REJECT_UNAUTHORIZED  HTTPS \u8BC1\u4E66\u9A8C\u8BC1\uFF08\u9ED8\u8BA4 false\uFF09
 `);
 }
 var COMMANDS = {
+  auth: { handler: (opts) => cmdAuth(opts, __dirname), args: [], req: [] },
   status: { handler: (opts) => cmdStatus(opts), args: [], req: [] },
   read: { handler: (opts) => cmdRead(opts), args: [], req: [] },
   add: { handler: (opts, pos) => cmdAdd(pos[0], opts), args: ["text"], req: ["\u8282\u70B9\u6587\u672C"] },

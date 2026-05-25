@@ -1,11 +1,11 @@
 const SKILL_VERSION = typeof __VERSION !== "undefined" ? __VERSION : "dev";
+const fs = require("fs");
+const path = require("path");
 
 /**
  * 手写 .env 解析器（无外部依赖）
  */
 function loadDotEnv(baseDir) {
-  const fs = require("fs");
-  const path = require("path");
   const envPath = path.join(baseDir, ".env");
   if (!fs.existsSync(envPath)) return;
   const content = fs.readFileSync(envPath, "utf8");
@@ -27,6 +27,7 @@ function getConfig() {
   return {
     url: process.env.MIND_MAP_URL || "http://localhost:8086",
     token: process.env.MIND_MAP_API_TOKEN || "",
+    userId: process.env.MIND_MAP_USER_ID || "",
     rejectUnauthorized: process.env.MIND_MAP_REJECT_UNAUTHORIZED !== "false",
   };
 }
@@ -42,6 +43,43 @@ function initTls() {
 }
 
 /**
+ * 将 userId 保存到 .env 文件
+ * @param {string} baseDir - .env 所在目录
+ * @param {string} userId - 要保存的 userId
+ */
+function saveUserIdToEnv(baseDir, userId) {
+  const envPath = path.join(baseDir, ".env");
+  let content = "";
+  if (fs.existsSync(envPath)) {
+    content = fs.readFileSync(envPath, "utf8");
+  }
+
+  const lines = content.split("\n");
+  let found = false;
+  const newLines = lines.map((line) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("MIND_MAP_USER_ID=")) {
+      found = true;
+      return `MIND_MAP_USER_ID=${userId}`;
+    }
+    return line;
+  });
+
+  if (!found) {
+    // 确保 .env 文件不以空行结尾后追加
+    const last = newLines[newLines.length - 1];
+    if (last && last.trim() !== "") {
+      newLines.push("");
+    }
+    newLines.push(`MIND_MAP_USER_ID=${userId}`);
+  }
+
+  fs.writeFileSync(envPath, newLines.join("\n"), "utf8");
+  // 同步到当前进程环境变量
+  process.env.MIND_MAP_USER_ID = userId;
+}
+
+/**
  * 通用 API 请求
  * @param {string} method - HTTP 方法 (GET/POST)
  * @param {string} path - API 路径 (如 /api/mind-map/status)
@@ -53,11 +91,15 @@ async function apiRequest(method, path, body, overrides) {
   const config = getConfig();
   const baseUrl = (overrides && overrides.url) || config.url;
   const token = (overrides && overrides.token !== undefined) ? overrides.token : config.token;
+  const userId = config.userId;
 
   const url = `${baseUrl}${path}`;
   const headers = { "Content-Type": "application/json" };
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  }
+  if (userId) {
+    headers["X-User-Id"] = userId;
   }
 
   const options = {
@@ -90,4 +132,4 @@ async function apiRequest(method, path, body, overrides) {
   }
 }
 
-module.exports = { SKILL_VERSION, loadDotEnv, getConfig, initTls, apiRequest };
+module.exports = { SKILL_VERSION, loadDotEnv, getConfig, initTls, apiRequest, saveUserIdToEnv };
