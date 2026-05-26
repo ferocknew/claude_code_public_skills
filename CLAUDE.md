@@ -45,6 +45,7 @@ Skills fall into two categories:
 | `where-is-this` | Bundled | Reverse geocoding — coordinates to detailed address |
 | `x_release_by_agent_browser` | Agent-only | Publish tweets on X/Twitter via agent-browser automation |
 | `wikijs_api` | Bundled | Wiki.js GraphQL API client — pages CRUD, search, history, version recovery, YAML output |
+| `file_code_box` | Agent-only | FileCodeBox file express cabinet — anonymous passcode sharing text and files |
 
 ## Skill File Structure
 
