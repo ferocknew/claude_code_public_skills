@@ -2,7 +2,7 @@
 name: cmo-weather-query
 description: 当用户需要"查询天气"、"天气预报"、"中央气象台"、"天气实况"、"气象信息"时使用此 skill。支持查询全国各城市的实时天气、天气预报、气象预警等信息。
 version: 1.0.0
-skill_version: 260401
+skill_version: 260526
 ---
 
 # CMO Weather Query
