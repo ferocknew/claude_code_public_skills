@@ -36,6 +36,7 @@
 | `where-is-this` | Where Is This | 输入经纬度坐标，逆地理编码为详细地址信息 |
 | `x_release_by_agent_browser` | X/Twitter Publish | 通过 agent-browser 自动化在 X/Twitter 上发布推文 |
 | `wikijs_api` | Wiki.js API Client | Wiki.js GraphQL API 客户端，支持页面 CRUD、搜索、历史查看，支持 YAML 输出节省 Token |
+| `file_code_box` | FileCodeBox | 文件快递柜 - 匿名口令分享文本和文件，上传后返回提取码和分享链接 |
 
 ## 技能文件结构
 
