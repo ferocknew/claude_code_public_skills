@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// CMO Weather Query Skill v260401
+// CMO Weather Query Skill v260526
 // 中央气象台天气信息查询工具
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -47360,6 +47360,9 @@ function displayReal(real) {
     console.log(`\u{1F305} \u65E5\u51FA: ${sr}  \u{1F307} \u65E5\u843D: ${ss}`);
   }
 }
+function clean9999(val) {
+  return val == null || val === 9999 || val === "9999" ? "-" : val;
+}
 function displayForecast(predict) {
   const details = predict.detail;
   console.log(`
@@ -47369,8 +47372,20 @@ function displayForecast(predict) {
   console.log("\u2500".repeat(70));
   for (const d of details) {
     const date = d.date.slice(5);
+    const dayInfo = clean9999(d.day.weather.info);
+    const dayTemp = clean9999(d.day.weather.temperature);
+    const dayWindDir = clean9999(d.day.wind.direct);
+    const dayWindPow = clean9999(d.day.wind.power);
+    const isDayPassed = dayInfo === "-";
+    const dayWeather = dayInfo.padEnd(6);
+    const dayTempStr = (dayTemp === "-" ? "-" : `${dayTemp}\u2103`).padStart(4);
+    const dayWindStr = (isDayPassed ? "-" : `${dayWindDir} ${dayWindPow}`).padEnd(10);
+    const nightInfo = clean9999(d.night.weather.info);
+    const nightTemp = clean9999(d.night.weather.temperature);
+    const nightWindDir = clean9999(d.night.wind.direct);
+    const nightWindPow = clean9999(d.night.wind.power);
     console.log(
-      `  ${date}    ${d.day.weather.info.padEnd(6)}  ${String(d.day.weather.temperature).padStart(3)}\u2103  ${(d.day.wind.direct + " " + d.day.wind.power).padEnd(10)}  ${d.night.weather.info.padEnd(6)}  ${String(d.night.weather.temperature).padStart(3)}\u2103  ${d.night.wind.direct} ${d.night.wind.power}`
+      `  ${date}    ${dayWeather}  ${dayTempStr}  ${dayWindStr}  ${nightInfo.padEnd(6)}  ${String(nightTemp === "-" ? "-" : nightTemp + "\u2103").padStart(4)}  ${nightWindDir} ${nightWindPow}`
     );
   }
   console.log("");
