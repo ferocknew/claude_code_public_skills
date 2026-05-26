@@ -14,11 +14,29 @@ description: 文件快递柜 FileCodeBox 文件分享工具。当用户要求上
 1. **FileCodeBox 服务地址**（必填）— 用户部署的 FileCodeBox URL，例如 `https://file.example.com`
 2. **管理员密码**（按需）— 仅当游客上传失败（返回 403 "未开启游客上传"）时才需要用户提供密码，默认密码为 `FileCodeBox2023`
 
+## API 路径说明
+
+FileCodeBox 存在版本差异，API 路径前缀可能不同：
+
+- **2.x 版本（常见）**：无 `/api` 前缀，路径为 `{baseUrl}/share/...`
+- **master/最新版本**：有 `/api` 前缀，路径为 `{baseUrl}/api/share/...`
+
+**探测方式**：先尝试无 `/api` 前缀的路径，若返回 HTML 页面（404 被前端拦截），则尝试带 `/api` 前缀的路径。
+
 ## API 调用方式
 
-所有请求通过 `curl` 命令执行，基础路径为 `{baseUrl}/api`。
+所有请求通过 `curl` 命令执行。
 
 ### 1. 上传文件
+
+```bash
+curl -s -X POST "{baseUrl}/share/file/" \
+  -F "file=@/path/to/file" \
+  -F "expire_value=1" \
+  -F "expire_style=day"
+```
+
+若上述返回 HTML 页面，则改用：
 
 ```bash
 curl -s -X POST "{baseUrl}/api/share/file/" \
@@ -35,17 +53,19 @@ curl -s -X POST "{baseUrl}/api/share/file/" \
 
 **成功响应：**
 ```json
-{"code": 200, "detail": {"code": "A1B2C3", "name": "文件名.pdf"}}
+{"code": 200, "message": "ok", "detail": {"code": "A1B2C3", "name": "文件名.pdf"}}
 ```
 
 ### 2. 分享文本
 
 ```bash
-curl -s -X POST "{baseUrl}/api/share/text/" \
+curl -s -X POST "{baseUrl}/share/text/" \
   -d "text=要分享的文本内容" \
   -d "expire_value=1" \
   -d "expire_style=day"
 ```
+
+若返回 HTML 页面，则改用 `{baseUrl}/api/share/text/`。
 
 **参数说明：**
 - `text`: 文本内容（必填，最大 222KB）
@@ -54,21 +74,24 @@ curl -s -X POST "{baseUrl}/api/share/text/" \
 
 **成功响应：**
 ```json
-{"code": 200, "detail": {"code": "X9Y8Z7"}}
+{"code": 200, "message": "ok", "detail": {"code": "X9Y8Z7"}}
 ```
 
 ### 3. 获取文件信息（取件）
 
 ```bash
-curl -s -X POST "{baseUrl}/api/share/select/" \
+curl -s -X POST "{baseUrl}/share/select/" \
   -H "Content-Type: application/json" \
   -d '{"code": "提取码"}'
 ```
+
+若返回 HTML 页面，则改用 `{baseUrl}/api/share/select/`。
 
 **成功响应：**
 ```json
 {
   "code": 200,
+  "message": "ok",
   "detail": {
     "code": "A1B2C3",
     "name": "文件名.pdf",
@@ -81,20 +104,22 @@ curl -s -X POST "{baseUrl}/api/share/select/" \
 ### 4. 管理员登录（仅在游客上传失败时使用）
 
 ```bash
-curl -s -X POST "{baseUrl}/api/admin/login" \
+curl -s -X POST "{baseUrl}/admin/login" \
   -H "Content-Type: application/json" \
   -d '{"password": "用户提供的密码"}'
 ```
 
+若返回 HTML 页面，则改用 `{baseUrl}/api/admin/login`。
+
 **成功响应：**
 ```json
-{"code": 200, "detail": {"token": "xxx.yyy.zzz", "token_type": "Bearer"}}
+{"code": 200, "message": "ok", "detail": {"token": "xxx.yyy.zzz", "token_type": "Bearer"}}
 ```
 
 登录后，后续上传请求需添加 `-H "Authorization: Bearer {token}"`：
 
 ```bash
-curl -s -X POST "{baseUrl}/api/share/file/" \
+curl -s -X POST "{baseUrl}/share/file/" \
   -H "Authorization: Bearer {token}" \
   -F "file=@/path/to/file" \
   -F "expire_value=1" \
@@ -163,3 +188,4 @@ curl -s -X POST "{baseUrl}/api/share/file/" \
 - 提取码由服务端自动生成，不需要用户指定
 - `expire_style` 为 `"forever"` 时 `expire_value` 填 1 即可
 - `expire_style` 为 `"count"` 时 `expire_value` 表示可取次数
+- 响应中 `code` 字段是 HTTP 状态码（200 表示成功），`detail.code` 才是文件提取码
