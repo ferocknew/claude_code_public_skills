@@ -6,7 +6,7 @@
 
 | 技能目录 | 名称 | 描述 |
 |---------|------|------|
-| `88cha` | 88查企业搜索 | 通过 88cha.com 搜索企业工商信息，支持普通搜索和深度搜索，返回企业名称、法人、注册资本、经营范围等 |
+| `88cha` | 88查企业搜索 | 通过 88cha.com 搜索企业工商信息，支持普通搜索、深度搜索、按人名查关联企业、专利搜索 |
 | `agent-browser` | Browser Automation | 浏览器自动化，用于网页测试、表单填充、截图和数据提取 |
 | `cmo-weather-query` | Weather Query | 中央气象台天气信息查询，支持实时天气、天气预报、气象预警 |
 | `db_client` | Database Client | 数据库客户端，支持 MySQL、PostgreSQL、SQLite，以及 SSH 隧道连接远程数据库 |

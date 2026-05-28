@@ -15,7 +15,7 @@ Skills fall into two categories:
 
 | Skill | Type | Purpose |
 |-------|------|---------|
-| `88cha` | Bundled | Enterprise search via 88cha.com — company info, legal rep, registration details |
+| `88cha` | Bundled | Enterprise search via 88cha.com — company info, person-to-company relations, patent search, deep search |
 | `agent-browser` | Agent-only | Browser automation, form filling, screenshots, web testing |
 | `cmo-weather-query` | Bundled | Weather query from China Meteorological Administration |
 | `db_client` | Bundled | Database client (MySQL, PostgreSQL, SQLite) with SSH tunnel |
@@ -79,6 +79,15 @@ node skill.js ...  # Run the standalone bundled version
 ```
 
 ### Skill-specific usage
+
+#### 88cha
+```bash
+node skill.js "腾讯"                          # 企业搜索
+node skill.js "马化腾" --person                # 按人名查关联企业
+node skill.js "华为" --patent                  # 专利搜索
+node skill.js "字节跳动" --stream              # 深度搜索（SSE）
+node skill.js "腾讯" --cookie "YOUR_COOKIE"   # 首次手动提供 Cookie
+```
 
 #### Use-HTTP-MCP
 ```bash
