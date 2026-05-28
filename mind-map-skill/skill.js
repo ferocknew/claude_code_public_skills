@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 思维导图远程控制工具 v260525.153123 - 无需安装依赖
+// 思维导图远程控制工具 v260528.092109 - 无需安装依赖
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -9,7 +9,7 @@ var __commonJS = (cb, mod) => function __require() {
 // lib/api.js
 var require_api = __commonJS({
   "lib/api.js"(exports2, module2) {
-    var SKILL_VERSION2 = true ? "260525.153123" : "dev";
+    var SKILL_VERSION2 = true ? "260528.092109" : "dev";
     var fs = require("fs");
     var path = require("path");
     function loadDotEnv2(baseDir) {
