@@ -191,4 +191,49 @@ function formatPatentResults(result, keyword, raw) {
   return output;
 }
 
-module.exports = { formatResults, formatStreamResults, formatPersonResults, formatPatentResults };
+function formatReportResults(events, keyword, raw) {
+  if (raw) return JSON.stringify(events, null, 2);
+  if (events.length === 0) return `企业背调"${keyword}"未返回任何数据。`;
+
+  let reportText = "";
+  let sections = [];
+
+  for (const evt of events) {
+    if (!evt.data) continue;
+    let inner;
+    try {
+      const payload = typeof evt.data === "string" ? JSON.parse(evt.data) : evt.data;
+      inner = typeof payload.data === "string" ? JSON.parse(payload.data) : payload.data;
+    } catch { continue; }
+
+    if (typeof inner === "string") {
+      reportText += inner;
+    } else if (inner.text || inner.content || inner.chunk) {
+      reportText += inner.text || inner.content || inner.chunk;
+    } else if (inner.phase === "text" && inner.summary) {
+      reportText += inner.summary;
+    } else if (inner.section || inner.title) {
+      sections.push(inner);
+    }
+  }
+
+  let output = `企业背调报告: "${keyword}"\n\n`;
+
+  if (reportText) {
+    output += reportText + "\n";
+  } else if (sections.length > 0) {
+    sections.forEach((s) => {
+      if (s.title) output += `## ${s.title}\n`;
+      if (s.content || s.text) output += `${s.content || s.text}\n`;
+      output += "\n";
+    });
+  }
+
+  if (!reportText && sections.length === 0) {
+    output += `未提取到有效内容。使用 --raw 查看原始数据。\n`;
+  }
+
+  return output;
+}
+
+module.exports = { formatResults, formatStreamResults, formatPersonResults, formatPatentResults, formatReportResults };
