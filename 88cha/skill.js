@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 88查企业搜索工具 v260528.085358
+// 88查企业搜索工具 v260528.090417
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -65,10 +65,15 @@ var require_http = __commonJS({
             res.resume();
             return reject(new Error(`HTTP ${res.statusCode}`));
           }
+          const contentType = res.headers["content-type"] || "";
           let buffer = "";
           const events = [];
           res.setEncoding("utf-8");
           res.on("data", (chunk) => {
+            if (contentType.includes("application/json")) {
+              buffer += chunk;
+              return;
+            }
             buffer += chunk;
             const parts = buffer.split(/\n\n/);
             buffer = parts.pop();
@@ -84,6 +89,13 @@ var require_http = __commonJS({
             }
           });
           res.on("end", () => {
+            if (contentType.includes("application/json")) {
+              try {
+                events.push(JSON.parse(buffer));
+              } catch {
+              }
+              return resolve(events);
+            }
             if (buffer.trim()) {
               for (const line of buffer.split("\n")) {
                 if (line.startsWith("data:")) {
@@ -158,10 +170,10 @@ var require_auth = __commonJS({
 var require_cli = __commonJS({
   "lib/cli.js"(exports2, module2) {
     var { loadCookie, saveCookie } = require_auth();
-    var SKILL_VERSION = true ? "260528.085358" : "1.0.0-dev";
+    var SKILL_VERSION = true ? "260528.090417" : "1.0.0-dev";
     function parseArgs2() {
       const args = process.argv.slice(2);
-      const params = { keyword: "", cookie: "", page: 1, pageSize: 10, raw: false, stream: false, person: false, patent: false, report: false };
+      const params = { keyword: "", cookie: "", page: 1, pageSize: 10, raw: false, stream: false, person: false, patent: false };
       for (let i = 0; i < args.length; i++) {
         if ((args[i] === "--cookie" || args[i] === "-k") && args[i + 1]) {
           params.cookie = args[++i];
@@ -177,8 +189,6 @@ var require_cli = __commonJS({
           params.person = true;
         } else if (args[i] === "--patent" || args[i] === "-T") {
           params.patent = true;
-        } else if (args[i] === "--report" || args[i] === "-R") {
-          params.report = true;
         } else if (args[i] === "--help" || args[i] === "-h") {
           printHelp();
           process.exit(0);
@@ -205,7 +215,6 @@ var require_cli = __commonJS({
   --stream, -S           \u6DF1\u5EA6\u641C\u7D22\u6A21\u5F0F\uFF08SSE \u6D41\u5F0F\u8FD4\u56DE\uFF09
   --person, -P           \u6309\u4EBA\u540D\u67E5\u5173\u8054\u4F01\u4E1A\uFF08\u6CD5\u4EBA\u3001\u80A1\u4E1C\u7B49\uFF09
   --patent, -T           \u641C\u7D22\u4F01\u4E1A\u4E13\u5229\u4FE1\u606F
-  --report, -R           \u4F01\u4E1A\u80CC\u8C03\u62A5\u544A\uFF08SSE \u6D41\u5F0F\u8FD4\u56DE\uFF09
   --raw                  \u8F93\u51FA\u539F\u59CB JSON
   --help,  -h            \u663E\u793A\u5E2E\u52A9
 
@@ -216,7 +225,6 @@ var require_cli = __commonJS({
   node skill.js "\u534E\u4E3A" --stream                    # \u6DF1\u5EA6\u641C\u7D22
   node skill.js "\u9A6C\u5316\u817E" --person                  # \u6309\u4EBA\u540D\u67E5\u5173\u8054\u4F01\u4E1A
   node skill.js "\u534E\u4E3A" --patent                    # \u641C\u7D22\u4F01\u4E1A\u4E13\u5229
-  node skill.js "\u817E\u8BAF" --report                    # \u4F01\u4E1A\u80CC\u8C03\u62A5\u544A
   node skill.js "\u5C0F\u7C73" --raw                       # \u539F\u59CB JSON \u8F93\u51FA
 `);
     }
@@ -364,39 +372,7 @@ var require_search = __commonJS({
       const { body } = await httpGet(url, buildHeaders(cookie, "application/json"));
       return JSON.parse(body);
     }
-    async function companyReport2(keyword, cookie) {
-      if (!cookie) {
-        const auth = await fetchToken();
-        cookie = auth.cookie;
-      }
-      const token = extractToken(cookie);
-      if (!token) throw new Error("Cookie \u4E2D\u672A\u627E\u5230 _m_h5_tk");
-      const t = Date.now().toString();
-      const logicId = generateSpid();
-      const data = JSON.stringify({
-        logicId,
-        extParams: { query: keyword, isWxWeb: false }
-      });
-      const sign = generateSign(token, t, APP_KEY, data);
-      const qs = new URLSearchParams({
-        dataType: "stream",
-        method: "get",
-        experimental: "[object Object]",
-        api: "mtop.com.alibaba.business.query.getcompanyreportstream",
-        v: "2.0",
-        prefix: "acs-m",
-        mainDomain: "88cha.com",
-        jsv: "0.0.1",
-        appKey: APP_KEY,
-        t,
-        sign,
-        xAcceptStream: "true",
-        data
-      });
-      const url = `${BASE_URL}/mtop.com.alibaba.business.query.getcompanyreportstream/2.0/?${qs}`;
-      return httpGetStream(url, buildHeaders(cookie, "text/event-stream, text/event-stream"));
-    }
-    module2.exports = { searchCompanies: searchCompanies2, deepSearch: deepSearch2, searchByPerson: searchByPerson2, searchPatent: searchPatent2, companyReport: companyReport2 };
+    module2.exports = { searchCompanies: searchCompanies2, deepSearch: deepSearch2, searchByPerson: searchByPerson2, searchPatent: searchPatent2 };
   }
 });
 
@@ -525,16 +501,40 @@ ${summary}
         return `\u641C\u7D22"${keyword}"\u672A\u8FD4\u56DE\u6570\u636E\u3002`;
       }
       const data = result.data;
-      const companies = extractCompanies(data);
-      if (companies.length === 0) {
+      const persons = Array.isArray(data.data) ? data.data : [];
+      if (persons.length === 0) {
         return `\u672A\u627E\u5230"${keyword}"\u7684\u5173\u8054\u4F01\u4E1A\u3002`;
       }
-      const total = data.total || data.totalCount || companies.length;
-      let output = `"${keyword}"\u5173\u8054\u4F01\u4E1A: ${total} \u6761\u7ED3\u679C
+      const total = data.total || persons.length;
+      let output = `"${keyword}"\u4EBA\u7269\u5173\u7CFB: ${total} \u6761\u7ED3\u679C
 
 `;
-      companies.forEach((c, i) => {
-        output += formatCompany(c, i + 1) + "\n\n";
+      persons.forEach((p, i) => {
+        const name = p.name || "\u672A\u77E5";
+        output += `${i + 1}. ${name}`;
+        if (p.relationCount) output += ` (\u5173\u8054\u5173\u7CFB ${p.relationCount} \u4E2A)`;
+        output += "\n";
+        const companies = p.coreCompanyList || [];
+        if (companies.length > 0) {
+          output += "   \u6838\u5FC3\u4F01\u4E1A:\n";
+          companies.forEach((c) => {
+            output += `   - ${c.companyname || "\u672A\u77E5"}`;
+            if (c.province) output += ` (${c.province})`;
+            if (c.num) output += ` | \u5173\u8054 ${c.num} \u5BB6`;
+            output += "\n";
+          });
+        }
+        const relations = p.personPersonRelationData?.data || [];
+        if (relations.length > 0) {
+          output += "   \u5173\u8054\u4EBA\u7269:\n";
+          relations.forEach((r) => {
+            output += `   - ${r.name}`;
+            if (r.markCompany?.name) output += ` \u2192 ${r.markCompany.name}`;
+            if (r.relationCount) output += ` (${r.relationCount} \u4E2A\u5171\u540C\u5173\u8054)`;
+            output += "\n";
+          });
+        }
+        output += "\n";
       });
       return output;
     }
@@ -579,58 +579,14 @@ ${summary}
       });
       return output;
     }
-    function formatReportResults2(events, keyword, raw) {
-      if (raw) return JSON.stringify(events, null, 2);
-      if (events.length === 0) return `\u4F01\u4E1A\u80CC\u8C03"${keyword}"\u672A\u8FD4\u56DE\u4EFB\u4F55\u6570\u636E\u3002`;
-      let reportText = "";
-      let sections = [];
-      for (const evt of events) {
-        if (!evt.data) continue;
-        let inner;
-        try {
-          const payload = typeof evt.data === "string" ? JSON.parse(evt.data) : evt.data;
-          inner = typeof payload.data === "string" ? JSON.parse(payload.data) : payload.data;
-        } catch {
-          continue;
-        }
-        if (typeof inner === "string") {
-          reportText += inner;
-        } else if (inner.text || inner.content || inner.chunk) {
-          reportText += inner.text || inner.content || inner.chunk;
-        } else if (inner.phase === "text" && inner.summary) {
-          reportText += inner.summary;
-        } else if (inner.section || inner.title) {
-          sections.push(inner);
-        }
-      }
-      let output = `\u4F01\u4E1A\u80CC\u8C03\u62A5\u544A: "${keyword}"
-
-`;
-      if (reportText) {
-        output += reportText + "\n";
-      } else if (sections.length > 0) {
-        sections.forEach((s) => {
-          if (s.title) output += `## ${s.title}
-`;
-          if (s.content || s.text) output += `${s.content || s.text}
-`;
-          output += "\n";
-        });
-      }
-      if (!reportText && sections.length === 0) {
-        output += `\u672A\u63D0\u53D6\u5230\u6709\u6548\u5185\u5BB9\u3002\u4F7F\u7528 --raw \u67E5\u770B\u539F\u59CB\u6570\u636E\u3002
-`;
-      }
-      return output;
-    }
-    module2.exports = { formatResults: formatResults2, formatStreamResults: formatStreamResults2, formatPersonResults: formatPersonResults2, formatPatentResults: formatPatentResults2, formatReportResults: formatReportResults2 };
+    module2.exports = { formatResults: formatResults2, formatStreamResults: formatStreamResults2, formatPersonResults: formatPersonResults2, formatPatentResults: formatPatentResults2 };
   }
 });
 
 // run.js
 var { parseArgs } = require_cli();
-var { searchCompanies, deepSearch, searchByPerson, searchPatent, companyReport } = require_search();
-var { formatResults, formatStreamResults, formatPersonResults, formatPatentResults, formatReportResults } = require_format();
+var { searchCompanies, deepSearch, searchByPerson, searchPatent } = require_search();
+var { formatResults, formatStreamResults, formatPersonResults, formatPatentResults } = require_format();
 async function main() {
   const params = parseArgs();
   if (!params.keyword) {
@@ -657,11 +613,6 @@ ${"=".repeat(60)}`);
 `);
       const result = await searchPatent(params.keyword, params.cookie, params.page, params.pageSize);
       console.log(formatPatentResults(result, params.keyword, params.raw));
-    } else if (params.report) {
-      console.log(`\u4F01\u4E1A\u80CC\u8C03: "${params.keyword}"
-`);
-      const events = await companyReport(params.keyword, params.cookie);
-      console.log(formatReportResults(events, params.keyword, params.raw));
     } else if (params.stream) {
       console.log(`\u6DF1\u5EA6\u641C\u7D22: "${params.keyword}"
 `);

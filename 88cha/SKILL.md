@@ -1,7 +1,7 @@
 ---
 name: 88cha
-description: 当用户需要"搜索企业信息"、"查公司"、"查企业"、"企业工商信息"、"88查"、"查老板"、"查股东"、"查专利"、"专利搜索"、"企业背调"、"背调报告"时使用此 skill。支持通过 88cha.com 搜索企业工商信息、按人名查关联企业、搜索专利信息、获取企业背调报告。支持普通搜索、深度搜索、人名查企业、专利搜索、企业背调五种模式。
-version: 260528.085358
+description: 当用户需要"搜索企业信息"、"查公司"、"查企业"、"企业工商信息"、"88查"、"查老板"、"查股东"、"查专利"、"专利搜索"时使用此 skill。支持通过 88cha.com 搜索企业工商信息、按人名查关联企业、搜索专利信息。支持普通搜索、深度搜索、人名查企业、专利搜索四种模式。
+version: 260528.090417
 ---
 
 # 88查企业搜索
@@ -82,20 +82,6 @@ node skill.js "华为" --patent --page 2
 node skill.js "小米" --patent --raw
 ```
 
-### report - 企业背调报告
-
-通过 SSE 流式接口获取企业背调报告，包含企业综合分析信息。
-
-**参数：**
-- `keyword` (必需): 企业名称（如"腾讯"、"上海雅黑文化传播有限公司"等）
-- `cookie` (首次必需): 同上
-
-**使用示例：**
-```bash
-node skill.js "腾讯" --report
-node skill.js "华为" --report --raw
-```
-
 ### stream - 深度搜索
 
 使用 SSE 流式接口，返回更丰富的搜索推理结果。
@@ -118,7 +104,6 @@ node skill.js "字节跳动" --page 2
 node skill.js "华为" --stream
 node skill.js "马化腾" --person
 node skill.js "华为" --patent
-node skill.js "腾讯" --report
 node skill.js "小米" --raw
 ```
 
