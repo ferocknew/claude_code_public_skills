@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 const { parseArgs } = require("./lib/cli");
-const { searchCompanies, deepSearch, searchByPerson, searchPatent } = require("./lib/search");
-const { formatResults, formatStreamResults, formatPersonResults, formatPatentResults } = require("./lib/format");
+const { searchCompanies, deepSearch, searchByPerson, searchPatent, companyReport } = require("./lib/search");
+const { formatResults, formatStreamResults, formatPersonResults, formatPatentResults, formatReportResults } = require("./lib/format");
 
 async function main() {
   const params = parseArgs();
@@ -30,6 +30,10 @@ async function main() {
       console.log(`专利搜索: "${params.keyword}" (第${params.page}页)\n`);
       const result = await searchPatent(params.keyword, params.cookie, params.page, params.pageSize);
       console.log(formatPatentResults(result, params.keyword, params.raw));
+    } else if (params.report) {
+      console.log(`企业背调: "${params.keyword}"\n`);
+      const events = await companyReport(params.keyword, params.cookie);
+      console.log(formatReportResults(events, params.keyword, params.raw));
     } else if (params.stream) {
       console.log(`深度搜索: "${params.keyword}"\n`);
       const events = await deepSearch(params.keyword, params.cookie);

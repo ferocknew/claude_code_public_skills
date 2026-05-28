@@ -156,4 +156,41 @@ async function searchPatent(keyword, cookie, pageNo, pageSize) {
   return JSON.parse(body);
 }
 
-module.exports = { searchCompanies, deepSearch, searchByPerson, searchPatent };
+// ─── 企业背调报告（SSE 流式）───
+async function companyReport(keyword, cookie) {
+  if (!cookie) {
+    const auth = await fetchToken();
+    cookie = auth.cookie;
+  }
+  const token = extractToken(cookie);
+  if (!token) throw new Error("Cookie 中未找到 _m_h5_tk");
+
+  const t = Date.now().toString();
+  const logicId = generateSpid();
+  const data = JSON.stringify({
+    logicId,
+    extParams: { query: keyword, isWxWeb: false },
+  });
+  const sign = generateSign(token, t, APP_KEY, data);
+
+  const qs = new URLSearchParams({
+    dataType: "stream",
+    method: "get",
+    experimental: "[object Object]",
+    api: "mtop.com.alibaba.business.query.getcompanyreportstream",
+    v: "2.0",
+    prefix: "acs-m",
+    mainDomain: "88cha.com",
+    jsv: "0.0.1",
+    appKey: APP_KEY,
+    t,
+    sign,
+    xAcceptStream: "true",
+    data,
+  });
+
+  const url = `${BASE_URL}/mtop.com.alibaba.business.query.getcompanyreportstream/2.0/?${qs}`;
+  return httpGetStream(url, buildHeaders(cookie, "text/event-stream, text/event-stream"));
+}
+
+module.exports = { searchCompanies, deepSearch, searchByPerson, searchPatent, companyReport };
