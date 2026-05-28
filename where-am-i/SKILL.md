@@ -51,10 +51,10 @@ node skill.js --raw
 
 ```
 IP      : 203.0.113.1
-地址    : 中国 Shanghai Shanghai
+地址    : 中国 Beijing Beijing
 运营商  : China Telecom (Group)
 国家    : China
-城市    : Shanghai
+城市    : Beijing
 时区    : Asia/Shanghai
 坐标    : 39.9042, 116.4074
 ASN     : AS4812
@@ -67,11 +67,11 @@ URL     : https://api.ipquery.io/203.0.113.1
 ```json
 {
   "ip": "203.0.113.1",
-  "address": "中国 Shanghai Shanghai",
+  "address": "中国 Beijing Beijing",
   "isp": "China Telecom (Group)",
   "country": "China",
-  "region": "Shanghai",
-  "city": "Shanghai",
+  "region": "Beijing",
+  "city": "Beijing",
   "timezone": "Asia/Shanghai",
   "latitude": 39.9042,
   "longitude": 116.4074,
