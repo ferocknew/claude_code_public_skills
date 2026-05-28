@@ -44,11 +44,19 @@ function httpGetStream(url, headers) {
         res.resume();
         return reject(new Error(`HTTP ${res.statusCode}`));
       }
+
+      const contentType = res.headers["content-type"] || "";
       let buffer = "";
       const events = [];
 
       res.setEncoding("utf-8");
       res.on("data", chunk => {
+        // JSON 响应（非 SSE）直接收集
+        if (contentType.includes("application/json")) {
+          buffer += chunk;
+          return;
+        }
+
         buffer += chunk;
         const parts = buffer.split(/\n\n/);
         buffer = parts.pop();
@@ -65,6 +73,14 @@ function httpGetStream(url, headers) {
       });
 
       res.on("end", () => {
+        // JSON 响应解析
+        if (contentType.includes("application/json")) {
+          try {
+            events.push(JSON.parse(buffer));
+          } catch { /* skip */ }
+          return resolve(events);
+        }
+
         if (buffer.trim()) {
           for (const line of buffer.split("\n")) {
             if (line.startsWith("data:")) {

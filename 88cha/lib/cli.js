@@ -4,7 +4,7 @@ const SKILL_VERSION = typeof __VERSION !== "undefined" ? __VERSION : "1.0.0-dev"
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const params = { keyword: "", cookie: "", page: 1, pageSize: 10, raw: false, stream: false, person: false, patent: false, report: false };
+  const params = { keyword: "", cookie: "", page: 1, pageSize: 10, raw: false, stream: false, person: false, patent: false };
 
   for (let i = 0; i < args.length; i++) {
     if ((args[i] === "--cookie" || args[i] === "-k") && args[i + 1]) {
@@ -21,8 +21,6 @@ function parseArgs() {
       params.person = true;
     } else if (args[i] === "--patent" || args[i] === "-T") {
       params.patent = true;
-    } else if (args[i] === "--report" || args[i] === "-R") {
-      params.report = true;
     } else if (args[i] === "--help" || args[i] === "-h") {
       printHelp();
       process.exit(0);
@@ -51,7 +49,6 @@ function printHelp() {
   --stream, -S           深度搜索模式（SSE 流式返回）
   --person, -P           按人名查关联企业（法人、股东等）
   --patent, -T           搜索企业专利信息
-  --report, -R           企业背调报告（SSE 流式返回）
   --raw                  输出原始 JSON
   --help,  -h            显示帮助
 
@@ -62,7 +59,6 @@ function printHelp() {
   node skill.js "华为" --stream                    # 深度搜索
   node skill.js "马化腾" --person                  # 按人名查关联企业
   node skill.js "华为" --patent                    # 搜索企业专利
-  node skill.js "腾讯" --report                    # 企业背调报告
   node skill.js "小米" --raw                       # 原始 JSON 输出
 `);
 }
