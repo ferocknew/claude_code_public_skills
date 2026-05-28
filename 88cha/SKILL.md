@@ -1,7 +1,7 @@
 ---
 name: 88cha
-description: 当用户需要"搜索企业信息"、"查公司"、"查企业"、"企业工商信息"、"88查"、"查老板"、"查股东"时使用此 skill。支持通过 88cha.com 搜索企业工商信息，返回企业名称、法人、注册资本、经营范围、注册地址等信息。支持普通搜索和深度搜索两种模式。
-version: 260512.234820
+description: 当用户需要"搜索企业信息"、"查公司"、"查企业"、"企业工商信息"、"88查"、"查老板"、"查股东"、"查专利"、"专利搜索"时使用此 skill。支持通过 88cha.com 搜索企业工商信息、按人名查关联企业、搜索专利信息。支持普通搜索、深度搜索、人名查企业、专利搜索四种模式。
+version: 260528.085124
 ---
 
 # 88查企业搜索
@@ -48,6 +48,40 @@ node skill.js "关键词" --cookie "YOUR_COOKIE"
 - `page` (可选): 页码，默认 1
 - `pageSize` (可选): 每页数量，默认 10
 
+### person - 按人名查关联企业
+
+通过人名查询其关联的企业（如担任法人、股东等）。
+
+**参数：**
+- `keyword` (必需): 人名（如"马化腾"、"马云"等）
+- `cookie` (首次必需): 同上
+- `page` (可选): 页码，默认 1
+- `pageSize` (可选): 每页数量，默认 10
+
+**使用示例：**
+```bash
+node skill.js "马化腾" --person
+node skill.js "马云" --person --page 2
+node skill.js "雷军" --person --raw
+```
+
+### patent - 专利搜索
+
+搜索企业或关键词相关的专利信息。
+
+**参数：**
+- `keyword` (必需): 企业名称或关键词（如"深圳腾讯"、"华为"等）
+- `cookie` (首次必需): 同上
+- `page` (可选): 页码，默认 1
+- `pageSize` (可选): 每页数量，默认 10
+
+**使用示例：**
+```bash
+node skill.js "深圳腾讯" --patent
+node skill.js "华为" --patent --page 2
+node skill.js "小米" --patent --raw
+```
+
 ### stream - 深度搜索
 
 使用 SSE 流式接口，返回更丰富的搜索推理结果。
@@ -68,6 +102,8 @@ node skill.js "腾讯" --cookie "YOUR_COOKIE"
 node skill.js "阿里巴巴"
 node skill.js "字节跳动" --page 2
 node skill.js "华为" --stream
+node skill.js "马化腾" --person
+node skill.js "华为" --patent
 node skill.js "小米" --raw
 ```
 
