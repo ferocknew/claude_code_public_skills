@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// DOCX Editor Skill v260522.162750
+// DOCX Editor Skill v260529.162419
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -11279,12 +11279,588 @@ var require_ops = __commonJS({
   }
 });
 
+// lib/diff_ops.js
+var require_diff_ops = __commonJS({
+  "lib/diff_ops.js"(exports2, module2) {
+    var crypto = require("crypto");
+    var { extractAllXmlBlocks, extractParagraphText } = require_xml_utils();
+    var { XmlTableOps, ImageOps, HeaderFooterOps, MetaOps } = require_ops();
+    function lcsAlign(oldLines, newLines) {
+      const m = oldLines.length;
+      const n = newLines.length;
+      const dp = new Array(m + 1);
+      for (let i2 = 0; i2 <= m; i2++) dp[i2] = new Uint16Array(n + 1);
+      for (let i2 = 1; i2 <= m; i2++) {
+        for (let j2 = 1; j2 <= n; j2++) {
+          if (oldLines[i2 - 1] === newLines[j2 - 1]) {
+            dp[i2][j2] = dp[i2 - 1][j2 - 1] + 1;
+          } else {
+            dp[i2][j2] = Math.max(dp[i2 - 1][j2], dp[i2][j2 - 1]);
+          }
+        }
+      }
+      const ops = [];
+      let i = m, j = n;
+      while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+          ops.push({ type: "equal", oldIdx: i - 1, newIdx: j - 1 });
+          i--;
+          j--;
+        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+          ops.push({ type: "insert", newIdx: j - 1 });
+          j--;
+        } else {
+          ops.push({ type: "delete", oldIdx: i - 1 });
+          i--;
+        }
+      }
+      ops.reverse();
+      return ops;
+    }
+    function charSimilarity(a, b) {
+      if (!a || !b) return 0;
+      if (a === b) return 1;
+      const setA = /* @__PURE__ */ new Set();
+      const setB = /* @__PURE__ */ new Set();
+      for (let i = 0; i < a.length - 1; i++) setA.add(a.substring(i, i + 2));
+      for (let i = 0; i < b.length - 1; i++) setB.add(b.substring(i, i + 2));
+      let inter = 0;
+      for (const g of setA) {
+        if (setB.has(g)) inter++;
+      }
+      const union = setA.size + setB.size - inter;
+      if (union === 0) return 0;
+      const jaccard = inter / union;
+      const lenRatio = Math.min(a.length, b.length) / Math.max(a.length, b.length);
+      return jaccard * lenRatio;
+    }
+    function pairModified(ops, oldTexts, newTexts) {
+      const deletes = [];
+      const inserts = [];
+      const paired = /* @__PURE__ */ new Set();
+      for (const op of ops) {
+        if (op.type === "delete") deletes.push(op);
+        if (op.type === "insert") inserts.push(op);
+      }
+      const pairs = [];
+      for (const d of deletes) {
+        let bestIdx = -1;
+        let bestSim = 0.3;
+        for (let k = 0; k < inserts.length; k++) {
+          if (paired.has(k)) continue;
+          const sim = charSimilarity(oldTexts[d.oldIdx], newTexts[inserts[k].newIdx]);
+          if (sim > bestSim) {
+            bestSim = sim;
+            bestIdx = k;
+          }
+        }
+        if (bestIdx >= 0) {
+          pairs.push({ deleteOp: d, insertOp: inserts[bestIdx], similarity: bestSim });
+          paired.add(bestIdx);
+          d.type = "modified";
+          d.newIdx = inserts[bestIdx].newIdx;
+        }
+      }
+      const pairedInserts = new Set(pairs.map((p) => p.insertOp));
+      for (let i = ops.length - 1; i >= 0; i--) {
+        if (pairedInserts.has(ops[i])) ops.splice(i, 1);
+      }
+      return ops;
+    }
+    function tokenize(text) {
+      const tokens = [];
+      let i = 0;
+      while (i < text.length) {
+        const ch = text.charCodeAt(i);
+        if (ch >= 19968 && ch <= 40959 || ch >= 13312 && ch <= 19903 || ch >= 12288 && ch <= 12351 || ch >= 65280 && ch <= 65519) {
+          tokens.push(text[i]);
+          i++;
+        } else if (ch >= 65 && ch <= 90 || ch >= 97 && ch <= 122 || ch >= 48 && ch <= 57 || ch === 95) {
+          let word = "";
+          while (i < text.length) {
+            const c2 = text.charCodeAt(i);
+            if (c2 >= 65 && c2 <= 90 || c2 >= 97 && c2 <= 122 || c2 >= 48 && c2 <= 57 || c2 === 95) {
+              word += text[i];
+              i++;
+            } else break;
+          }
+          tokens.push(word);
+        } else if (ch === 32 || ch === 9 || ch === 10 || ch === 13) {
+          let ws = "";
+          while (i < text.length) {
+            const c2 = text.charCodeAt(i);
+            if (c2 === 32 || c2 === 9 || c2 === 10 || c2 === 13) {
+              ws += text[i];
+              i++;
+            } else break;
+          }
+          tokens.push(ws);
+        } else {
+          tokens.push(text[i]);
+          i++;
+        }
+      }
+      return tokens;
+    }
+    function wordDiff(oldText, newText) {
+      const oldTokens = tokenize(oldText);
+      const newTokens = tokenize(newText);
+      const ops = lcsAlignWords(oldTokens, newTokens);
+      const segments = [];
+      for (const op of ops) {
+        const last = segments[segments.length - 1];
+        if (last && last.type === op.type) {
+          last.value += op.value;
+        } else {
+          segments.push({ type: op.type, value: op.value });
+        }
+      }
+      return segments;
+    }
+    function lcsAlignWords(oldTokens, newTokens) {
+      const m = oldTokens.length;
+      const n = newTokens.length;
+      const dp = new Array(m + 1);
+      for (let i2 = 0; i2 <= m; i2++) dp[i2] = new Uint16Array(n + 1);
+      for (let i2 = 1; i2 <= m; i2++) {
+        for (let j2 = 1; j2 <= n; j2++) {
+          if (oldTokens[i2 - 1] === newTokens[j2 - 1]) {
+            dp[i2][j2] = dp[i2 - 1][j2 - 1] + 1;
+          } else {
+            dp[i2][j2] = Math.max(dp[i2 - 1][j2], dp[i2][j2 - 1]);
+          }
+        }
+      }
+      const ops = [];
+      let i = m, j = n;
+      while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && oldTokens[i - 1] === newTokens[j - 1]) {
+          ops.push({ type: "equal", value: oldTokens[i - 1] });
+          i--;
+          j--;
+        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+          ops.push({ type: "inserted", value: newTokens[j - 1] });
+          j--;
+        } else {
+          ops.push({ type: "deleted", value: oldTokens[i - 1] });
+          i--;
+        }
+      }
+      ops.reverse();
+      return ops;
+    }
+    function diffParagraphs(oldDocXml, newDocXml) {
+      const oldParas = extractAllXmlBlocks(oldDocXml, "w:p").map((p) => extractParagraphText(p.xml));
+      const newParas = extractAllXmlBlocks(newDocXml, "w:p").map((p) => extractParagraphText(p.xml));
+      let ops = lcsAlign(oldParas, newParas);
+      ops = pairModified(ops, oldParas, newParas);
+      const stats = { added: 0, deleted: 0, modified: 0, unchanged: 0 };
+      const changes = ops.map((op) => {
+        let detail = null;
+        switch (op.type) {
+          case "equal":
+            stats.unchanged++;
+            return { type: "equal", oldIdx: op.oldIdx, newIdx: op.newIdx, text: oldParas[op.oldIdx] };
+          case "delete":
+            stats.deleted++;
+            return { type: "deleted", oldIdx: op.oldIdx, text: oldParas[op.oldIdx] };
+          case "insert":
+            stats.added++;
+            return { type: "added", newIdx: op.newIdx, text: newParas[op.newIdx] };
+          case "modified":
+            stats.modified++;
+            detail = wordDiff(oldParas[op.oldIdx], newParas[op.newIdx]);
+            return {
+              type: "modified",
+              oldIdx: op.oldIdx,
+              newIdx: op.newIdx,
+              oldText: oldParas[op.oldIdx],
+              newText: newParas[op.newIdx],
+              detail
+            };
+        }
+      });
+      return { stats, changes };
+    }
+    function diffTables(oldDocXml, newDocXml) {
+      const oldTables = XmlTableOps.listTables(oldDocXml);
+      const newTables = XmlTableOps.listTables(newDocXml);
+      const maxLen = Math.max(oldTables.length, newTables.length);
+      const stats = { added: 0, deleted: 0, modified: 0, unchanged: 0 };
+      const tables = [];
+      for (let i = 0; i < maxLen; i++) {
+        const oldExists = i < oldTables.length;
+        const newExists = i < newTables.length;
+        if (!oldExists) {
+          stats.added++;
+          const data = XmlTableOps.readTable(newDocXml, i);
+          tables.push({ type: "added", index: i, newRows: data.length, data });
+          continue;
+        }
+        if (!newExists) {
+          stats.deleted++;
+          const data = XmlTableOps.readTable(oldDocXml, i);
+          tables.push({ type: "deleted", index: i, oldRows: data.length, data });
+          continue;
+        }
+        const oldData = XmlTableOps.readTable(oldDocXml, i);
+        const newData = XmlTableOps.readTable(newDocXml, i);
+        const cellChanges = [];
+        const maxR = Math.max(oldData.length, newData.length);
+        for (let r = 0; r < maxR; r++) {
+          const oldRow = oldData[r] || [];
+          const newRow = newData[r] || [];
+          const maxC = Math.max(oldRow.length, newRow.length);
+          for (let c = 0; c < maxC; c++) {
+            const oldVal = oldRow[c] || "";
+            const newVal = newRow[c] || "";
+            if (oldVal !== newVal) {
+              cellChanges.push({ row: r, col: c, old: oldVal, new: newVal });
+            }
+          }
+        }
+        if (cellChanges.length > 0) {
+          stats.modified++;
+          tables.push({ type: "modified", index: i, oldRows: oldData.length, newRows: newData.length, cellChanges });
+        } else {
+          stats.unchanged++;
+          tables.push({ type: "equal", index: i });
+        }
+      }
+      return { stats, tables };
+    }
+    async function diffImages(oldDocx, newDocx) {
+      const oldImgs = ImageOps.listImages(oldDocx);
+      const newImgs = ImageOps.listImages(newDocx);
+      const oldNames = new Set(oldImgs.map((im) => im.name));
+      const newNames = new Set(newImgs.map((im) => im.name));
+      const stats = { added: 0, deleted: 0, modified: 0, unchanged: 0 };
+      const images = [];
+      for (const oldImg of oldImgs) {
+        if (newNames.has(oldImg.name)) {
+          const oldBuf = await oldDocx.readFile(`word/media/${oldImg.name}`);
+          const newBuf = await newDocx.readFile(`word/media/${oldImg.name}`);
+          const oldMd5 = crypto.createHash("md5").update(oldBuf).digest("hex");
+          const newMd5 = crypto.createHash("md5").update(newBuf).digest("hex");
+          if (oldMd5 === newMd5) {
+            stats.unchanged++;
+            images.push({ type: "equal", name: oldImg.name });
+          } else {
+            stats.modified++;
+            images.push({ type: "modified", name: oldImg.name });
+          }
+        } else {
+          stats.deleted++;
+          images.push({ type: "deleted", name: oldImg.name });
+        }
+      }
+      for (const newImg of newImgs) {
+        if (!oldNames.has(newImg.name)) {
+          stats.added++;
+          images.push({ type: "added", name: newImg.name });
+        }
+      }
+      return { stats, images };
+    }
+    async function diffHeadersFooters(oldDocx, newDocx) {
+      const oldHF = HeaderFooterOps.getHeaderFooterFiles(oldDocx);
+      const newHF = HeaderFooterOps.getHeaderFooterFiles(newDocx);
+      const result = { headers: [], footers: [] };
+      const oldHeaderSet = new Set(oldHF.headers);
+      const newHeaderSet = new Set(newHF.headers);
+      for (const h of oldHF.headers) {
+        const oldXml = await oldDocx.readXml(h);
+        const oldText = HeaderFooterOps.readText(oldXml).join("\n");
+        if (newHeaderSet.has(h)) {
+          const newXml = await newDocx.readXml(h);
+          const newText = HeaderFooterOps.readText(newXml).join("\n");
+          result.headers.push({
+            type: oldText === newText ? "equal" : "modified",
+            file: h,
+            old: oldText,
+            new: newText
+          });
+        } else {
+          result.headers.push({ type: "deleted", file: h, old: oldText });
+        }
+      }
+      for (const h of newHF.headers) {
+        if (!oldHeaderSet.has(h)) {
+          const newXml = await newDocx.readXml(h);
+          const newText = HeaderFooterOps.readText(newXml).join("\n");
+          result.headers.push({ type: "added", file: h, new: newText });
+        }
+      }
+      const oldFooterSet = new Set(oldHF.footers);
+      const newFooterSet = new Set(newHF.footers);
+      for (const f of oldHF.footers) {
+        const oldXml = await oldDocx.readXml(f);
+        const oldText = HeaderFooterOps.readText(oldXml).join("\n");
+        if (newFooterSet.has(f)) {
+          const newXml = await newDocx.readXml(f);
+          const newText = HeaderFooterOps.readText(newXml).join("\n");
+          result.footers.push({
+            type: oldText === newText ? "equal" : "modified",
+            file: f,
+            old: oldText,
+            new: newText
+          });
+        } else {
+          result.footers.push({ type: "deleted", file: f, old: oldText });
+        }
+      }
+      for (const f of newHF.footers) {
+        if (!oldFooterSet.has(f)) {
+          const newXml = await newDocx.readXml(f);
+          const newText = HeaderFooterOps.readText(newXml).join("\n");
+          result.footers.push({ type: "added", file: f, new: newText });
+        }
+      }
+      return result;
+    }
+    async function diffMeta(oldDocx, newDocx) {
+      const oldCoreXml = await oldDocx.readXml("docProps/core.xml");
+      const newCoreXml = await newDocx.readXml("docProps/core.xml");
+      const oldAppXml = await oldDocx.readXml("docProps/app.xml");
+      const newAppXml = await newDocx.readXml("docProps/app.xml");
+      const oldMeta = { ...oldCoreXml ? MetaOps.read(oldCoreXml) : {}, ...oldAppXml ? MetaOps.readApp(oldAppXml) : {} };
+      const newMeta = { ...newCoreXml ? MetaOps.read(newCoreXml) : {}, ...newAppXml ? MetaOps.readApp(newAppXml) : {} };
+      const allKeys = /* @__PURE__ */ new Set([...Object.keys(oldMeta), ...Object.keys(newMeta)]);
+      const changes = [];
+      for (const key of allKeys) {
+        const oldVal = oldMeta[key] || "";
+        const newVal = newMeta[key] || "";
+        if (oldVal !== newVal) {
+          changes.push({ key, old: oldVal, new: newVal });
+        }
+      }
+      return { changes };
+    }
+    async function fullDiff(oldDocx, newDocx) {
+      const oldDocXml = await oldDocx.readXml("word/document.xml");
+      const newDocXml = await newDocx.readXml("word/document.xml");
+      const [paragraphs, tables, images, headersFooters, meta] = await Promise.all([
+        Promise.resolve(diffParagraphs(oldDocXml, newDocXml)),
+        Promise.resolve(diffTables(oldDocXml, newDocXml)),
+        diffImages(oldDocx, newDocx),
+        diffHeadersFooters(oldDocx, newDocx),
+        diffMeta(oldDocx, newDocx)
+      ]);
+      return { paragraphs, tables, images, headersFooters, meta };
+    }
+    module2.exports = { DiffOps: { diffParagraphs, diffTables, diffImages, diffHeadersFooters, diffMeta, fullDiff } };
+  }
+});
+
+// lib/diff_md.js
+var require_diff_md = __commonJS({
+  "lib/diff_md.js"(exports2, module2) {
+    function now() {
+      const d = /* @__PURE__ */ new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+    function esc(text) {
+      return (text || "").replace(/\|/g, "\\|").replace(/\n/g, " ");
+    }
+    function formatSummary(result, oldPath, newPath) {
+      const lines = [];
+      lines.push(`# \u6587\u6863\u5DEE\u5F02\u6982\u8981`);
+      lines.push("");
+      lines.push(`- **\u57FA\u51C6\u6587\u6863**: ${oldPath}`);
+      lines.push(`- **\u5BF9\u6BD4\u6587\u6863**: ${newPath}`);
+      lines.push(`- **\u751F\u6210\u65F6\u95F4**: ${now()}`);
+      lines.push("");
+      lines.push("## \u7EDF\u8BA1");
+      lines.push("");
+      const ps = result.paragraphs.stats;
+      const hasChanges = ps.added + ps.deleted + ps.modified > 0 || result.tables.stats.added + result.tables.stats.deleted + result.tables.stats.modified > 0 || result.images.stats.added + result.images.stats.deleted + result.images.stats.modified > 0;
+      lines.push("| \u7EF4\u5EA6 | \u65B0\u589E | \u5220\u9664 | \u4FEE\u6539 | \u672A\u53D8 |");
+      lines.push("|------|------|------|------|------|");
+      lines.push(`| \u6BB5\u843D | ${ps.added} | ${ps.deleted} | ${ps.modified} | ${ps.unchanged} |`);
+      const ts = result.tables.stats;
+      lines.push(`| \u8868\u683C | ${ts.added} | ${ts.deleted} | ${ts.modified} | ${ts.unchanged || "\u2014"} |`);
+      const ims = result.images.stats;
+      lines.push(`| \u56FE\u7247 | ${ims.added} | ${ims.deleted} | ${ims.modified} | ${ims.unchanged || "\u2014"} |`);
+      const hfChanged = [...result.headersFooters.headers, ...result.headersFooters.footers].filter((h) => h.type !== "equal").length;
+      lines.push(`| \u9875\u7709\u9875\u811A | ${hfChanged > 0 ? hfChanged + " \u9879\u53D8\u66F4" : "\u2014"} | \u2014 | \u2014 | \u2014 |`);
+      const metaCount = result.meta.changes.length;
+      lines.push(`| \u5143\u6570\u636E | ${metaCount > 0 ? metaCount + " \u9879\u53D8\u66F4" : "\u2014"} | \u2014 | \u2014 | \u2014 |`);
+      lines.push("");
+      if (!hasChanges && hfChanged === 0 && metaCount === 0) {
+        lines.push("> \u2705 \u4E24\u4E2A\u6587\u6863\u5B8C\u5168\u76F8\u540C\uFF0C\u65E0\u5DEE\u5F02\u3002");
+      } else {
+        lines.push("> \u26A0\uFE0F \u68C0\u6D4B\u5230\u5DEE\u5F02\uFF0C\u4F7F\u7528\u5B8C\u6574\u6A21\u5F0F\u67E5\u770B\u8BE6\u60C5\uFF1A`node skill.js old.docx diff new.docx`");
+      }
+      return lines.join("\n");
+    }
+    function formatReport(result, oldPath, newPath) {
+      const lines = [];
+      lines.push("# \u6587\u6863\u5DEE\u5F02\u62A5\u544A");
+      lines.push("");
+      lines.push(`- **\u57FA\u51C6\u6587\u6863**: ${oldPath}`);
+      lines.push(`- **\u5BF9\u6BD4\u6587\u6863**: ${newPath}`);
+      lines.push(`- **\u751F\u6210\u65F6\u95F4**: ${now()}`);
+      lines.push("");
+      lines.push("## \u6982\u8981");
+      lines.push("");
+      lines.push(formatSummary(result, oldPath, newPath).split("\n").slice(5).join("\n"));
+      lines.push("## \u6BB5\u843D\u5DEE\u5F02");
+      lines.push("");
+      formatParagraphs(result.paragraphs, lines);
+      lines.push("## \u8868\u683C\u5DEE\u5F02");
+      lines.push("");
+      formatTables(result.tables, lines);
+      lines.push("## \u56FE\u7247\u5DEE\u5F02");
+      lines.push("");
+      formatImages(result.images, lines);
+      lines.push("## \u9875\u7709\u9875\u811A");
+      lines.push("");
+      formatHeadersFooters(result.headersFooters, lines);
+      lines.push("## \u5143\u6570\u636E");
+      lines.push("");
+      formatMeta(result.meta, lines);
+      return lines.join("\n");
+    }
+    function formatParagraphs(paragraphs, lines) {
+      let paraNum = 0;
+      const changes = paragraphs.changes.filter((c) => c.type !== "equal");
+      if (changes.length === 0) {
+        lines.push("\u65E0\u53D8\u5316");
+        lines.push("");
+        return;
+      }
+      for (const c of changes) {
+        paraNum++;
+        if (c.type === "modified") {
+          lines.push(`### \xB6${paraNum} [\u4FEE\u6539]`);
+          lines.push("");
+          lines.push(`- **\u65E7**: ${esc(c.oldText)}`);
+          lines.push(`- **\u65B0**: ${esc(c.newText)}`);
+          lines.push(`- **\u5DEE\u5F02**: ${formatWordDiff(c.detail)}`);
+          lines.push("");
+        } else if (c.type === "deleted") {
+          lines.push(`### \xB6${paraNum} [\u5220\u9664]`);
+          lines.push("");
+          lines.push(`- ~~${esc(c.text)}~~`);
+          lines.push("");
+        } else if (c.type === "added") {
+          lines.push(`### \xB6${paraNum} [\u65B0\u589E]`);
+          lines.push("");
+          lines.push(`- **${esc(c.text)}**`);
+          lines.push("");
+        }
+      }
+    }
+    function formatWordDiff(segments) {
+      if (!segments) return "";
+      return segments.map((s) => {
+        switch (s.type) {
+          case "equal":
+            return s.value;
+          case "deleted":
+            return `~~${s.value}~~`;
+          case "inserted":
+            return `**${s.value}**`;
+          default:
+            return s.value;
+        }
+      }).join("");
+    }
+    function formatTables(tables, lines) {
+      const changed = tables.tables.filter((t) => t.type !== "equal");
+      if (changed.length === 0) {
+        lines.push("\u65E0\u53D8\u5316");
+        lines.push("");
+        return;
+      }
+      for (const t of changed) {
+        if (t.type === "added") {
+          lines.push(`### \u8868\u683C ${t.index} [\u65B0\u589E]`);
+          lines.push("");
+          lines.push(`${t.newRows} \u884C`);
+          lines.push("");
+        } else if (t.type === "deleted") {
+          lines.push(`### \u8868\u683C ${t.index} [\u5220\u9664]`);
+          lines.push("");
+          lines.push(`${t.oldRows} \u884C`);
+          lines.push("");
+        } else if (t.type === "modified") {
+          lines.push(`### \u8868\u683C ${t.index} [\u4FEE\u6539]`);
+          lines.push("");
+          if (t.cellChanges.length > 0) {
+            lines.push("| \u4F4D\u7F6E | \u65E7\u503C | \u65B0\u503C |");
+            lines.push("|------|------|------|");
+            for (const cc of t.cellChanges) {
+              lines.push(`| \u7B2C${cc.row + 1}\u884C\u7B2C${cc.col + 1}\u5217 | ${esc(cc.old)} | ${esc(cc.new)} |`);
+            }
+            lines.push("");
+          }
+        }
+      }
+    }
+    function formatImages(images, lines) {
+      const changed = images.images.filter((im) => im.type !== "equal");
+      if (changed.length === 0) {
+        lines.push("\u65E0\u53D8\u5316");
+        lines.push("");
+        return;
+      }
+      lines.push("| \u53D8\u66F4 | \u540D\u79F0 | \u8BF4\u660E |");
+      lines.push("|------|------|------|");
+      for (const im of changed) {
+        const label = im.type === "added" ? "\u65B0\u589E" : im.type === "deleted" ? "\u5220\u9664" : "\u4FEE\u6539";
+        const desc = im.type === "modified" ? "\u5185\u5BB9\u5DF2\u53D8\u5316" : im.type === "added" ? "\u65B0\u63D2\u5165" : "\u5DF2\u79FB\u9664";
+        lines.push(`| ${label} | ${im.name} | ${desc} |`);
+      }
+      lines.push("");
+    }
+    function formatHeadersFooters(hf, lines) {
+      const all = [...hf.headers, ...hf.footers];
+      const changed = all.filter((h) => h.type !== "equal");
+      if (changed.length === 0) {
+        lines.push("\u65E0\u53D8\u5316");
+        lines.push("");
+        return;
+      }
+      for (const item of changed) {
+        const kind = item.file.includes("header") ? "\u9875\u7709" : "\u9875\u811A";
+        const label = item.type === "added" ? "\u65B0\u589E" : item.type === "deleted" ? "\u5220\u9664" : "\u4FEE\u6539";
+        lines.push(`- **${kind} ${item.file}** [${label}]`);
+        if (item.type === "modified") {
+          lines.push(`  - \u65E7: ${esc(item.old)}`);
+          lines.push(`  - \u65B0: ${esc(item.new)}`);
+        } else if (item.old) {
+          lines.push(`  - \u5185\u5BB9: ${esc(item.old)}`);
+        } else if (item.new) {
+          lines.push(`  - \u5185\u5BB9: ${esc(item.new)}`);
+        }
+      }
+      lines.push("");
+    }
+    function formatMeta(meta, lines) {
+      if (meta.changes.length === 0) {
+        lines.push("\u65E0\u53D8\u5316");
+        lines.push("");
+        return;
+      }
+      lines.push("| \u5C5E\u6027 | \u65E7\u503C | \u65B0\u503C |");
+      lines.push("|------|------|------|");
+      for (const c of meta.changes) {
+        lines.push(`| ${c.key} | ${esc(c.old)} | ${esc(c.new)} |`);
+      }
+      lines.push("");
+    }
+    module2.exports = { DiffMd: { formatReport, formatSummary } };
+  }
+});
+
 // lib/cli.js
 var require_cli = __commonJS({
   "lib/cli.js"(exports2, module2) {
     var { DocxZip: DocxZip2 } = require_docx_zip();
     var { XmlTextOps, XmlTableOps, ImageOps, HeaderFooterOps, MetaOps, StyleOps } = require_ops();
-    var SKILL_VERSION2 = true ? "260522.162750" : "dev";
+    var SKILL_VERSION2 = true ? "260529.162419" : "dev";
     function parseArgs2(argv) {
       const args2 = { _: [] };
       let i = 0;
@@ -11296,6 +11872,8 @@ var require_cli = __commonJS({
           args2.image = argv[++i];
         } else if (a === "--regex") {
           args2.regex = true;
+        } else if (a === "--summary") {
+          args2.summary = true;
         } else if (a === "--dry-run") {
           args2.dryRun = true;
         } else if (a === "-h" || a === "--help") {
@@ -11334,6 +11912,10 @@ DOCX \u7F16\u8F91\u5DE5\u5177 v${SKILL_VERSION2}
   footer-read [index]               \u8BFB\u53D6\u9875\u811A
   meta-read                         \u8BFB\u53D6\u6587\u6863\u5C5E\u6027
 
+\u5BF9\u6BD4\u547D\u4EE4:
+  diff <new.docx>                   \u6BD4\u8F83\u4E24\u6587\u6863\u5DEE\u5F02\uFF08Markdown \u62A5\u544A\uFF09
+  diff <new.docx> --summary         \u4EC5\u8F93\u51FA\u5DEE\u5F02\u6982\u8981\u7EDF\u8BA1
+
 \u5199\u5165\u547D\u4EE4:
   text-replace '<json>'             \u6587\u672C\u66FF\u6362
   table-update <index> '<json>'     \u4FEE\u6539\u8868\u683C\u5355\u5143\u683C
@@ -11347,6 +11929,7 @@ DOCX \u7F16\u8F91\u5DE5\u5177 v${SKILL_VERSION2}
   -i, --image <path>                \u65B0\u56FE\u7247\u8DEF\u5F84
   --regex                           \u6B63\u5219\u641C\u7D22\u6A21\u5F0F
   --dry-run                         \u9884\u89C8\u4FEE\u6539\uFF0C\u4E0D\u5B9E\u9645\u6267\u884C
+  --summary                         \u4EC5\u8F93\u51FA\u5DEE\u5F02\u6982\u8981\uFF08diff \u547D\u4EE4\uFF09
 
 \u793A\u4F8B:
   node skill.js doc.docx info
@@ -11357,6 +11940,11 @@ DOCX \u7F16\u8F91\u5DE5\u5177 v${SKILL_VERSION2}
   node skill.js doc.docx image-list
   node skill.js doc.docx image-replace image1.png -i new.png
   node skill.js doc.docx meta-update '{"dc:title":"\u65B0\u6807\u9898"}'
+
+\u5BF9\u6BD4\u793A\u4F8B:
+  node skill.js old.docx diff new.docx
+  node skill.js old.docx diff new.docx --summary
+  node skill.js old.docx diff new.docx -o report.md
 
 \u6837\u5F0F\u547D\u4EE4:
   style-read <query>                 \u67E5\u770B\u6587\u672C\u6837\u5F0F
@@ -11387,6 +11975,7 @@ DOCX \u7F16\u8F91\u5DE5\u5177 v${SKILL_VERSION2}
       if (!command) outputError("none", "\u8BF7\u6307\u5B9A\u547D\u4EE4\u3002\u8FD0\u884C node skill.js --help \u67E5\u770B\u5E2E\u52A9");
       const fs = require("fs");
       if (!fs.existsSync(filePath2)) outputError(command, `\u6587\u4EF6\u4E0D\u5B58\u5728: ${filePath2}`);
+      if (command === "diff") return cmdDiff(filePath2, p2, command, args2);
       const docx = await DocxZip2.fromFile(filePath2);
       const outputPath = args2.output || filePath2;
       switch (command) {
@@ -11646,6 +12235,23 @@ DOCX \u7F16\u8F91\u5DE5\u5177 v${SKILL_VERSION2}
         await docx.save(outputPath);
       }
       output(true, command, { find, styleChanges, count: result.count, dryRun: !!args2.dryRun, outputPath: args2.dryRun ? null : outputPath });
+    }
+    async function cmdDiff(oldPath, newPath, command, args2) {
+      if (!newPath) outputError(command, "\u8BF7\u6307\u5B9A\u65B0\u6587\u6863\u8DEF\u5F84\uFF0C\u683C\u5F0F: node skill.js old.docx diff new.docx");
+      const fs = require("fs");
+      if (!fs.existsSync(newPath)) outputError(command, `\u65B0\u6587\u6863\u4E0D\u5B58\u5728: ${newPath}`);
+      const { DiffOps } = require_diff_ops();
+      const { DiffMd } = require_diff_md();
+      const oldDocx = await DocxZip2.fromFile(oldPath);
+      const newDocx = await DocxZip2.fromFile(newPath);
+      const result = await DiffOps.fullDiff(oldDocx, newDocx);
+      const md = args2.summary ? DiffMd.formatSummary(result, oldPath, newPath) : DiffMd.formatReport(result, oldPath, newPath);
+      if (args2.output) {
+        fs.writeFileSync(args2.output, md, "utf-8");
+        console.log(`\u5DEE\u5F02\u62A5\u544A\u5DF2\u5199\u5165: ${args2.output}`);
+      } else {
+        console.log(md);
+      }
     }
     module2.exports = { dispatch: dispatch2, parseArgs: parseArgs2, showHelp: showHelp2, SKILL_VERSION: SKILL_VERSION2 };
   }

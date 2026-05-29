@@ -1,8 +1,8 @@
 ---
 name: ms_office_x_editer
-description: 当用户要求"编辑 Word 文档"、"修改 docx 文件"、"编辑 Excel 文件"、"修改 xlsx 文件"、"替换文档中的文本"、"修改表格"、"查看文档信息"、"修改样式"、"设置字体颜色"、"设置加粗"、"读取 Excel"、"写入 Excel"、"修改工作表"时使用此 skill。支持 docx 和 xlsx 两种格式。
-version: 260522.162750
-skill_version: 260522.162750
+description: 当用户要求"编辑 Word 文档"、"修改 docx 文件"、"编辑 Excel 文件"、"修改 xlsx 文件"、"替换文档中的文本"、"修改表格"、"查看文档信息"、"修改样式"、"设置字体颜色"、"设置加粗"、"读取 Excel"、"写入 Excel"、"修改工作表"、"比较文档差异"、"docx diff"、"文档对比"时使用此 skill。支持 docx 和 xlsx 两种格式。
+version: 260529.162419
+skill_version: 260529.162419
 ---
 
 # MS Office 编辑工具
@@ -81,14 +81,46 @@ node skill.js doc.docx style-apply '{"find":"备注","underline":"single","itali
 node skill.js doc.docx style-apply '{"find":"标题","fontFamily":{"ascii":"Arial","eastAsia":"宋体"}}'
 ```
 
+## 对比命令
+
+比较两个 docx 文档的差异，输出 Markdown 格式报告。
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `diff <new.docx>` | 完整差异报告（Markdown） | `node skill.js old.docx diff new.docx` |
+| `diff <new.docx> --summary` | 仅概要统计 | `node skill.js old.docx diff new.docx --summary` |
+| `diff <new.docx> -o report.md` | 输出到文件 | `node skill.js old.docx diff new.docx -o report.md` |
+
+### 差异报告内容
+
+- **段落差异**：LCS 对齐 + 相似度配对检测修改，词级 diff 显示具体变化（删除线 ~~旧~~ / **加粗** 新增）
+- **表格差异**：逐单元格对比，输出变更位置
+- **图片差异**：MD5 哈希对比，检测内容变化
+- **页眉页脚**：文本内容对比
+- **元数据**：属性值变化对比
+
+### diff 示例
+
+```bash
+# 完整差异报告
+node skill.js /path/old.docx diff /path/new.docx
+
+# 仅查看概要统计
+node skill.js /path/old.docx diff /path/new.docx --summary
+
+# 报告保存到文件
+node skill.js /path/old.docx diff /path/new.docx -o /tmp/diff_report.md
+```
+
 ## 通用选项
 
 | 选项 | 说明 |
 |------|------|
-| `-o, --output <path>` | 输出路径（默认覆盖原文件） |
+| `-o, --output <path>` | 输出路径（默认覆盖原文件，diff 命令输出到指定 md 文件） |
 | `-i, --image <path>` | 新图片路径（image-replace 使用） |
 | `--regex` | 正则搜索模式 |
 | `--dry-run` | 预览修改，不实际执行 |
+| `--summary` | 仅输出差异概要（diff 命令使用） |
 
 ## 输出格式
 

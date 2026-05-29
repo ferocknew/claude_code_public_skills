@@ -17,6 +17,7 @@ function parseArgs(argv) {
     if (a === "-o" || a === "--output") { args.output = argv[++i]; }
     else if (a === "-i" || a === "--image") { args.image = argv[++i]; }
     else if (a === "--regex") { args.regex = true; }
+    else if (a === "--summary") { args.summary = true; }
     else if (a === "--dry-run") { args.dryRun = true; }
     else if (a === "-h" || a === "--help") { args.help = true; }
     else if (a === "-v" || a === "--version") { args.version = true; }
@@ -57,6 +58,10 @@ DOCX 编辑工具 v${SKILL_VERSION}
   footer-read [index]               读取页脚
   meta-read                         读取文档属性
 
+对比命令:
+  diff <new.docx>                   比较两文档差异（Markdown 报告）
+  diff <new.docx> --summary         仅输出差异概要统计
+
 写入命令:
   text-replace '<json>'             文本替换
   table-update <index> '<json>'     修改表格单元格
@@ -70,6 +75,7 @@ DOCX 编辑工具 v${SKILL_VERSION}
   -i, --image <path>                新图片路径
   --regex                           正则搜索模式
   --dry-run                         预览修改，不实际执行
+  --summary                         仅输出差异概要（diff 命令）
 
 示例:
   node skill.js doc.docx info
@@ -80,6 +86,11 @@ DOCX 编辑工具 v${SKILL_VERSION}
   node skill.js doc.docx image-list
   node skill.js doc.docx image-replace image1.png -i new.png
   node skill.js doc.docx meta-update '{"dc:title":"新标题"}'
+
+对比示例:
+  node skill.js old.docx diff new.docx
+  node skill.js old.docx diff new.docx --summary
+  node skill.js old.docx diff new.docx -o report.md
 
 样式命令:
   style-read <query>                 查看文本样式
@@ -115,6 +126,9 @@ async function dispatch(args) {
 
   const fs = require("fs");
   if (!fs.existsSync(filePath)) outputError(command, `文件不存在: ${filePath}`);
+
+  // diff 命令不走常规 docx 加载流程
+  if (command === "diff") return cmdDiff(filePath, p2, command, args);
 
   const docx = await DocxZip.fromFile(filePath);
   const outputPath = args.output || filePath;
@@ -395,6 +409,34 @@ async function cmdStyleApply(docx, command, jsonStr, outputPath, args) {
   }
 
   output(true, command, { find, styleChanges, count: result.count, dryRun: !!args.dryRun, outputPath: args.dryRun ? null : outputPath });
+}
+
+// ─── Diff 命令 ──────────────────────────────────────────────────
+
+async function cmdDiff(oldPath, newPath, command, args) {
+  if (!newPath) outputError(command, "请指定新文档路径，格式: node skill.js old.docx diff new.docx");
+
+  const fs = require("fs");
+  if (!fs.existsSync(newPath)) outputError(command, `新文档不存在: ${newPath}`);
+
+  const { DiffOps } = require("./diff_ops");
+  const { DiffMd } = require("./diff_md");
+
+  const oldDocx = await DocxZip.fromFile(oldPath);
+  const newDocx = await DocxZip.fromFile(newPath);
+
+  const result = await DiffOps.fullDiff(oldDocx, newDocx);
+
+  const md = args.summary
+    ? DiffMd.formatSummary(result, oldPath, newPath)
+    : DiffMd.formatReport(result, oldPath, newPath);
+
+  if (args.output) {
+    fs.writeFileSync(args.output, md, "utf-8");
+    console.log(`差异报告已写入: ${args.output}`);
+  } else {
+    console.log(md);
+  }
 }
 
 module.exports = { dispatch, parseArgs, showHelp, SKILL_VERSION };
