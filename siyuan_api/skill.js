@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 思源笔记 API 工具 v260529.101335 - 包含所有依赖，无需安装
+// 思源笔记 API 工具 v260529.103831 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -130,6 +130,141 @@ var require_api = __commonJS({
     module2.exports = {
       siyuanPost
     };
+  }
+});
+
+// lib/sync_entity.js
+var require_sync_entity = __commonJS({
+  "lib/sync_entity.js"(exports2, module2) {
+    var { siyuanPost } = require_api();
+    function generateObsTitle(content) {
+      let text = content.replace(/^\d{4}-\d{2}-\d{2}:\s*/, "").trim();
+      const match = text.match(/^(.{2,20}?)[，。、；：,\.;:\s]/);
+      if (match) return match[1].trim();
+      return text.length <= 20 ? text : text.substring(0, 15);
+    }
+    async function findDoc(url, token, notebookId, hpath) {
+      try {
+        const data = await siyuanPost(url, token, "/api/query/sql", {
+          stmt: `SELECT id FROM blocks WHERE box='${notebookId}' AND type='d' AND hpath='${hpath}' LIMIT 1`
+        });
+        return Array.isArray(data) && data.length > 0 ? data[0].id : null;
+      } catch {
+        return null;
+      }
+    }
+    function buildEntityMd({ name, entityType, date, tags, obsList, relations }) {
+      const tagStr = (tags || [entityType]).join(", ");
+      let md = "";
+      md += "| \u5C5E\u6027 | \u503C |\n|------|-----|\n";
+      md += "| category | MAIN_ENTITY |\n";
+      md += `| type | \u5B9E\u4F53 |
+`;
+      md += `| entity_class | ${entityType} |
+`;
+      md += `| entity_label | ${name} |
+`;
+      md += `| created | ${date} |
+`;
+      md += `| tags | ${tagStr} |
+
+`;
+      md += `**\u5B9E\u4F53\u7C7B\u578B**: ${entityType}
+
+`;
+      md += "## \u57FA\u672C\u4FE1\u606F\n";
+      md += `- **\u521B\u5EFA\u65F6\u95F4**: ${date}
+`;
+      md += `- **\u89C2\u5BDF\u6570\u91CF**: ${obsList.length}
+
+`;
+      md += "## \u5173\u8054\u5173\u7CFB\n";
+      if (relations && relations.length > 0) {
+        relations.forEach((r) => {
+          md += `- ${r.relationType}: ${r.toEntity}
+`;
+        });
+      } else {
+        md += "<!-- \u6682\u65E0\u5173\u8054\u5173\u7CFB -->\n";
+      }
+      md += "\n";
+      md += "### \u89C2\u5BDF\n";
+      obsList.forEach((obs) => {
+        md += `- ((${obs.id} '${obs.title}'))
+`;
+      });
+      return md;
+    }
+    function buildObsMd(content, parentName, parentId, date) {
+      let md = "";
+      md += "| \u5C5E\u6027 | \u503C |\n|------|-----|\n";
+      md += "| category | OBSERVATION |\n";
+      md += "| type | \u89C2\u5BDF |\n";
+      md += `| parent | ${parentName} |
+`;
+      md += `| created | ${date} |
+
+`;
+      md += `${date}: ${content}
+
+`;
+      md += "## \u5173\u8054\u5173\u7CFB\n";
+      md += `- \u5C5E\u4E8E: ((${parentId} '${parentName}'))
+`;
+      return md;
+    }
+    async function syncEntity2(url, token, notebookId, entityData) {
+      const {
+        name,
+        entityType,
+        observations = [],
+        tags,
+        relations,
+        createdAt
+      } = entityData;
+      const date = createdAt || (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+      const basePath = `/${name}`;
+      let entityId = await findDoc(url, token, notebookId, basePath);
+      if (!entityId) {
+        const result = await siyuanPost(url, token, "/api/filetree/createDocWithMd", {
+          notebook: notebookId,
+          path: basePath,
+          markdown: ""
+        });
+        entityId = typeof result === "string" ? result : result.id || result;
+      }
+      const obsList = [];
+      for (const obs of observations) {
+        const content = typeof obs === "string" ? obs : obs.content;
+        const title = generateObsTitle(content);
+        const obsPath = `${basePath}/${title}`;
+        const obsMd = buildObsMd(content, name, entityId, date);
+        let obsId = await findDoc(url, token, notebookId, obsPath);
+        if (obsId) {
+          await siyuanPost(url, token, "/api/block/updateBlock", {
+            dataType: "markdown",
+            data: obsMd,
+            id: obsId
+          });
+        } else {
+          const result = await siyuanPost(url, token, "/api/filetree/createDocWithMd", {
+            notebook: notebookId,
+            path: obsPath,
+            markdown: obsMd
+          });
+          obsId = typeof result === "string" ? result : result.id || result;
+        }
+        obsList.push({ id: obsId, title });
+      }
+      const entityMd = buildEntityMd({ name, entityType, date, tags, obsList, relations });
+      await siyuanPost(url, token, "/api/block/updateBlock", {
+        dataType: "markdown",
+        data: entityMd,
+        id: entityId
+      });
+      return { entityId, observations: obsList };
+    }
+    module2.exports = { syncEntity: syncEntity2, generateObsTitle };
   }
 });
 
@@ -3166,14 +3301,10 @@ var require_doc = __commonJS({
         console.error("\u7528\u6CD5: node skill.js doc create --notebook <id> --path <path> [--title <title>] <markdown>");
         process.exit(1);
       }
-      if (!markdown) {
-        console.error("\u9519\u8BEF: \u8BF7\u63D0\u4F9B Markdown \u5185\u5BB9");
-        console.error('\u7528\u6CD5: node skill.js doc create --notebook <id> --path <path> "markdown\u5185\u5BB9"');
-        process.exit(1);
-      }
+      const md = markdown || "";
       try {
         const fullPath = docPath.startsWith("/") ? docPath : "/" + docPath;
-        const params = { notebook, path: fullPath, markdown };
+        const params = { notebook, path: fullPath, markdown: md };
         const data = await siyuanPost(url, token, "/api/filetree/createDocWithMd", params);
         console.log(`\u2705 \u6587\u6863\u5DF2\u521B\u5EFA`);
         console.log(`   \u7B14\u8BB0\u672C: ${notebook}`);
@@ -3813,10 +3944,11 @@ var require_cmd = __commonJS({
 
 // run.js
 var fetch = globalThis.fetch;
-var SKILL_VERSION = true ? "260529.101335" : "0.0.1-dev";
+var SKILL_VERSION = true ? "260529.103831" : "0.0.1-dev";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
 var { resolve: resolveEnv } = require_env();
+var { syncEntity } = require_sync_entity();
 var {
   cmdNotebook,
   cmdDoc,
@@ -3843,6 +3975,7 @@ function showHelp() {
   file <subcommand>              \u6587\u4EF6\u64CD\u4F5C
   export <subcommand>            \u5BFC\u51FA
   system <subcommand>            \u7CFB\u7EDF\u4FE1\u606F
+  sync <notebook-id> '<json>'    \u4ECE Memory MCP \u540C\u6B65\u5B9E\u4F53\u5230\u601D\u6E90
 
 \u7B14\u8BB0\u672C\u5B50\u547D\u4EE4:
   ls                             \u5217\u51FA\u6240\u6709\u7B14\u8BB0\u672C
@@ -4025,6 +4158,27 @@ function main() {
         process.exit(1);
       }
       cmdSystem(url, token, args[0], args.slice(1), options);
+      break;
+    case "sync":
+      if (!args[0] || !args[1]) {
+        console.error("\u9519\u8BEF: sync \u9700\u8981 <notebook-id> \u548C\u5B9E\u4F53 JSON");
+        console.error(`\u7528\u6CD5: node skill.js sync <notebook-id> '{"name":"...","entityType":"...","observations":["..."]}'`);
+        process.exit(1);
+      }
+      (async () => {
+        try {
+          const entityData = JSON.parse(args[1]);
+          const result = await syncEntity(url, token, args[0], entityData);
+          console.log(`\u2705 \u540C\u6B65\u5B8C\u6210`);
+          console.log(`   \u5B9E\u4F53: ${entityData.name} (ID: ${result.entityId})`);
+          console.log(`   \u89C2\u5BDF: ${result.observations.length} \u6761`);
+          result.observations.forEach((obs) => {
+            console.log(`     - ${obs.title} (${obs.id})`);
+          });
+        } catch (error) {
+          handleError(error, "\u540C\u6B65\u5B9E\u4F53\u5931\u8D25");
+        }
+      })();
       break;
     default:
       console.error(`\u9519\u8BEF: \u672A\u77E5\u547D\u4EE4: ${command}`);

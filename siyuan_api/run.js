@@ -18,6 +18,7 @@ const SKILL_VERSION = typeof __VERSION !== "undefined" ? __VERSION : "0.0.1-dev"
 const { parseArgs } = require("./lib/parser");
 const { handleError } = require("./lib/errors");
 const { resolve: resolveEnv } = require("./lib/env");
+const { syncEntity } = require("./lib/sync_entity");
 const {
   cmdNotebook,
   cmdDoc,
@@ -48,6 +49,7 @@ function showHelp() {
   file <subcommand>              文件操作
   export <subcommand>            导出
   system <subcommand>            系统信息
+  sync <notebook-id> '<json>'    从 Memory MCP 同步实体到思源
 
 笔记本子命令:
   ls                             列出所有笔记本
@@ -257,6 +259,28 @@ function main() {
         process.exit(1);
       }
       cmdSystem(url, token, args[0], args.slice(1), options);
+      break;
+
+    case "sync":
+      if (!args[0] || !args[1]) {
+        console.error("错误: sync 需要 <notebook-id> 和实体 JSON");
+        console.error("用法: node skill.js sync <notebook-id> '{\"name\":\"...\",\"entityType\":\"...\",\"observations\":[\"...\"]}'");
+        process.exit(1);
+      }
+      (async () => {
+        try {
+          const entityData = JSON.parse(args[1]);
+          const result = await syncEntity(url, token, args[0], entityData);
+          console.log(`✅ 同步完成`);
+          console.log(`   实体: ${entityData.name} (ID: ${result.entityId})`);
+          console.log(`   观察: ${result.observations.length} 条`);
+          result.observations.forEach(obs => {
+            console.log(`     - ${obs.title} (${obs.id})`);
+          });
+        } catch (error) {
+          handleError(error, "同步实体失败");
+        }
+      })();
       break;
 
     default:

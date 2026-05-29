@@ -1,7 +1,7 @@
 ---
 name: siyuan-api
 description: 当用户要求"查询思源笔记"、"操作思源笔记"、"获取思源笔记内容"、"思源笔记 API"时使用此 skill。
-version: 260529.101335
+version: 260529.103831
 ---
 
 # 思源笔记 REST API 工具
