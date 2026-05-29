@@ -6,7 +6,8 @@
  * code 非 0 为异常
  */
 
-const fetch = require("node-fetch");
+// Node.js 18+ 内置 fetch，无需 node-fetch
+const fetch = globalThis.fetch;
 
 /**
  * 发送 POST 请求到思源笔记 API
