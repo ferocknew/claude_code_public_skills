@@ -18,6 +18,8 @@
 | HeaderFooterOps | 页眉页脚读取/替换 |
 | MetaOps | 元数据读取/修改（docx/xlsx 共用） |
 | StyleOps | docx 文本样式修改 |
+| DiffOps | 文档差异算法（LCS 对齐、词级 diff） |
+| DiffMd | 差异报告 Markdown 格式化 |
 
 ### xlsx 模块
 
