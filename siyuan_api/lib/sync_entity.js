@@ -14,6 +14,7 @@
  *   - YAML frontmatter 被思源吞掉，改用顶部表格存元数据
  *   - 双链输入格式: ((block-id 'name'))
  *   - 观察标题从内容自动生成
+ *   - 记录 Memory MCP UUID，方便后续定位、更新、删除
  */
 
 const { siyuanPost } = require("./api");
@@ -28,7 +29,6 @@ const { siyuanPost } = require("./api");
  */
 function generateObsTitle(content) {
   let text = content.replace(/^\d{4}-\d{2}-\d{2}:\s*/, "").trim();
-  // 优先在标点处断句
   const match = text.match(/^(.{2,20}?)[，。、；：,\.;:\s]/);
   if (match) return match[1].trim();
   return text.length <= 20 ? text : text.substring(0, 15);
@@ -36,7 +36,6 @@ function generateObsTitle(content) {
 
 /**
  * 通过 hpath 查找文档 ID
- * @returns {string|null}
  */
 async function findDoc(url, token, notebookId, hpath) {
   try {
@@ -49,12 +48,28 @@ async function findDoc(url, token, notebookId, hpath) {
   }
 }
 
+/**
+ * 通过 Memory MCP UUID 查找思源文档 ID
+ * 在 content 字段中搜索 | memory-uuid | <uuid> | 行
+ */
+async function findDocByUuid(url, token, notebookId, memoryUuid) {
+  if (!memoryUuid) return null;
+  try {
+    const data = await siyuanPost(url, token, "/api/query/sql", {
+      stmt: `SELECT id FROM blocks WHERE box='${notebookId}' AND type='d' AND content LIKE '%${memoryUuid}%' LIMIT 1`
+    });
+    return Array.isArray(data) && data.length > 0 ? data[0].id : null;
+  } catch {
+    return null;
+  }
+}
+
 // ──────────────────────────── builders ────────────────────────────
 
 /**
  * 构建实体文档 Markdown
  */
-function buildEntityMd({ name, entityType, date, tags, obsList, relations }) {
+function buildEntityMd({ name, entityType, uuid, date, tags, obsList, relations }) {
   const tagStr = (tags || [entityType]).join(", ");
 
   let md = "";
@@ -65,6 +80,7 @@ function buildEntityMd({ name, entityType, date, tags, obsList, relations }) {
   md += `| type | 实体 |\n`;
   md += `| entity_class | ${entityType} |\n`;
   md += `| entity_label | ${name} |\n`;
+  if (uuid) md += `| memory-uuid | ${uuid} |\n`;
   md += `| created | ${date} |\n`;
   md += `| tags | ${tagStr} |\n\n`;
 
@@ -99,7 +115,7 @@ function buildEntityMd({ name, entityType, date, tags, obsList, relations }) {
 /**
  * 构建观察文档 Markdown
  */
-function buildObsMd(content, parentName, parentId, date) {
+function buildObsMd(content, parentName, parentId, date, obsUuid) {
   let md = "";
 
   // 元数据表格
@@ -107,6 +123,7 @@ function buildObsMd(content, parentName, parentId, date) {
   md += "| category | OBSERVATION |\n";
   md += "| type | 观察 |\n";
   md += `| parent | ${parentName} |\n`;
+  if (obsUuid) md += `| memory-uuid | ${obsUuid} |\n`;
   md += `| created | ${date} |\n\n`;
 
   // 内容
@@ -124,22 +141,24 @@ function buildObsMd(content, parentName, parentId, date) {
 /**
  * 同步 Memory MCP 实体到思源笔记
  *
- * @param {string} url       - 思源服务地址
- * @param {string} token     - API Token
+ * @param {string} url        - 思源服务地址
+ * @param {string} token      - API Token
  * @param {string} notebookId - 目标笔记本 ID
  * @param {Object} entityData - Memory MCP 实体数据
- * @param {string} entityData.name        - 实体名称
- * @param {string} entityData.entityType   - 实体类型
- * @param {Array}  entityData.observations - 观察内容数组（字符串）
- * @param {Array}  [entityData.tags]       - 标签
- * @param {Array}  [entityData.relations]  - 关联 [{relationType, toEntity}]
- * @param {string} [entityData.createdAt]  - 创建日期
- * @returns {Promise<{entityId: string, observations: Array<{id,title}>}>}
+ * @param {string} entityData.name         - 实体名称
+ * @param {string} entityData.entityType    - 实体类型
+ * @param {string} [entityData.uuid]        - Memory MCP 实体 UUID
+ * @param {Array}  entityData.observations  - 观察（字符串 或 {uuid, content}）
+ * @param {Array}  [entityData.tags]        - 标签
+ * @param {Array}  [entityData.relations]   - 关联 [{relationType, toEntity}]
+ * @param {string} [entityData.createdAt]   - 创建日期
+ * @returns {Promise<{entityId, observations}>}
  */
 async function syncEntity(url, token, notebookId, entityData) {
   const {
     name,
     entityType,
+    uuid,
     observations = [],
     tags,
     relations,
@@ -148,8 +167,11 @@ async function syncEntity(url, token, notebookId, entityData) {
   const date = createdAt || new Date().toISOString().split("T")[0];
   const basePath = `/${name}`;
 
-  // 1. 查找或创建实体文档
-  let entityId = await findDoc(url, token, notebookId, basePath);
+  // 1. 查找或创建实体文档（优先按 UUID 查找，其次按 hpath）
+  let entityId = uuid
+    ? await findDocByUuid(url, token, notebookId, uuid)
+    : null;
+  entityId = entityId || await findDoc(url, token, notebookId, basePath);
 
   if (!entityId) {
     const result = await siyuanPost(url, token, "/api/filetree/createDocWithMd", {
@@ -164,21 +186,24 @@ async function syncEntity(url, token, notebookId, entityData) {
   const obsList = [];
   for (const obs of observations) {
     const content = typeof obs === "string" ? obs : obs.content;
+    const obsUuid = typeof obs === "object" ? obs.uuid : null;
     const title = generateObsTitle(content);
     const obsPath = `${basePath}/${title}`;
-    const obsMd = buildObsMd(content, name, entityId, date);
+    const obsMd = buildObsMd(content, name, entityId, date, obsUuid);
 
-    let obsId = await findDoc(url, token, notebookId, obsPath);
+    // 优先按 UUID 查找已有观察
+    let obsId = obsUuid
+      ? await findDocByUuid(url, token, notebookId, obsUuid)
+      : null;
+    obsId = obsId || await findDoc(url, token, notebookId, obsPath);
 
     if (obsId) {
-      // 原地更新
       await siyuanPost(url, token, "/api/block/updateBlock", {
         dataType: "markdown",
         data: obsMd,
         id: obsId,
       });
     } else {
-      // 新建
       const result = await siyuanPost(url, token, "/api/filetree/createDocWithMd", {
         notebook: notebookId,
         path: obsPath,
@@ -187,11 +212,11 @@ async function syncEntity(url, token, notebookId, entityData) {
       obsId = typeof result === "string" ? result : result.id || result;
     }
 
-    obsList.push({ id: obsId, title });
+    obsList.push({ id: obsId, title, uuid: obsUuid });
   }
 
   // 3. 更新实体文档（写入观察双链）
-  const entityMd = buildEntityMd({ name, entityType, date, tags, obsList, relations });
+  const entityMd = buildEntityMd({ name, entityType, uuid, date, tags, obsList, relations });
   await siyuanPost(url, token, "/api/block/updateBlock", {
     dataType: "markdown",
     data: entityMd,
@@ -201,4 +226,22 @@ async function syncEntity(url, token, notebookId, entityData) {
   return { entityId, observations: obsList };
 }
 
-module.exports = { syncEntity, generateObsTitle };
+/**
+ * 通过 Memory MCP UUID 删除思源笔记中的实体及所有观察
+ *
+ * @param {string} url        - 思源服务地址
+ * @param {string} token      - API Token
+ * @param {string} notebookId - 笔记本 ID
+ * @param {string} memoryUuid - Memory MCP 实体 UUID
+ */
+async function deleteByUuid(url, token, notebookId, memoryUuid) {
+  const entityId = await findDocByUuid(url, token, notebookId, memoryUuid);
+  if (!entityId) {
+    console.log(`未找到 UUID=${memoryUuid} 对应的文档`);
+    return null;
+  }
+  await siyuanPost(url, token, "/api/filetree/removeDocByID", { id: entityId });
+  return entityId;
+}
+
+module.exports = { syncEntity, deleteByUuid, generateObsTitle };
