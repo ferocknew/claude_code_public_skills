@@ -110,16 +110,13 @@ async function cmdDocCreate(url, token, markdown, options) {
     process.exit(1);
   }
 
-  if (!markdown) {
-    console.error("错误: 请提供 Markdown 内容");
-    console.error("用法: node skill.js doc create --notebook <id> --path <path> \"markdown内容\"");
-    process.exit(1);
-  }
+  // markdown 允许为空（创建空文档/文件夹）
+  const md = markdown || "";
 
   try {
     // path 需要 / 开头
     const fullPath = docPath.startsWith("/") ? docPath : "/" + docPath;
-    const params = { notebook, path: fullPath, markdown };
+    const params = { notebook, path: fullPath, markdown: md };
 
     const data = await siyuanPost(url, token, "/api/filetree/createDocWithMd", params);
     console.log(`✅ 文档已创建`);
