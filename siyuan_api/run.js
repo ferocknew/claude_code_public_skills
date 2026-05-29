@@ -9,7 +9,7 @@
  * 版本: 0.0.1
  */
 
-const fetch = require("node-fetch");
+const fetch = globalThis.fetch;
 
 // 版本号（打包时会通过 __VERSION 注入）
 const SKILL_VERSION = typeof __VERSION !== "undefined" ? __VERSION : "0.0.1-dev";
@@ -51,11 +51,15 @@ function showHelp() {
 
 笔记本子命令:
   ls                             列出所有笔记本
+  create <name>                  创建笔记本
   open <id>                      打开笔记本
   close <id>                     关闭笔记本
   conf <id>                      获取笔记本配置
 
 文档子命令:
+  create --notebook <id> --path <path> <markdown>  创建文档
+  remove <id>                    删除文档
+  rename <id> --title <title>    重命名文档
   hpath --notebook <id> --path <path>   通过存储路径获取人类可读路径
   hpath-by-id <id>                      通过块 ID 获取人类可读路径
   path-by-id <id>                       通过块 ID 获取存储路径
@@ -64,9 +68,16 @@ function showHelp() {
 块子命令:
   kramdown <id>                  获取块的 Kramdown 内容
   children <id>                  获取子块列表
+  insert <md> --parentID <id>    插入块（也可用 --nextID / --previousID）
+  prepend <md> --parentID <id>   前置插入子块
+  append <md> --parentID <id>    后置插入子块
+  update <id> <md>               更新块内容
+  delete <id>                    删除块
+  move <id> --previousID <id>    移动块（或 --parentID）
 
 属性子命令:
   get <id>                       获取块属性
+  set <id> '<json-attrs>'        设置块属性
 
 文件子命令:
   get <path>                     获取文件内容
@@ -177,7 +188,7 @@ function main() {
     case "nb":
       if (!args[0]) {
         console.error("错误: 请指定笔记本子命令");
-        console.error("用法: node skill.js notebook <ls|open|close|conf> [args...]");
+        console.error("用法: node skill.js notebook <ls|create|open|close|conf> [args...]");
         process.exit(1);
       }
       cmdNotebook(url, token, args[0], args.slice(1), options);
@@ -186,7 +197,7 @@ function main() {
     case "doc":
       if (!args[0]) {
         console.error("错误: 请指定文档子命令");
-        console.error("用法: node skill.js doc <hpath|hpath-by-id|path-by-id|ids-by-hpath> [args...]");
+        console.error("用法: node skill.js doc <create|remove|rename|hpath|hpath-by-id|path-by-id|ids-by-hpath> [args...]");
         process.exit(1);
       }
       cmdDoc(url, token, args[0], args.slice(1), options);
@@ -195,7 +206,7 @@ function main() {
     case "block":
       if (!args[0]) {
         console.error("错误: 请指定块子命令");
-        console.error("用法: node skill.js block <kramdown|children> <id>");
+        console.error("用法: node skill.js block <kramdown|children|insert|prepend|append|update|delete|move> [args...]");
         process.exit(1);
       }
       cmdBlock(url, token, args[0], args.slice(1), options);
@@ -204,7 +215,7 @@ function main() {
     case "attr":
       if (!args[0]) {
         console.error("错误: 请指定属性子命令");
-        console.error("用法: node skill.js attr <get> <id>");
+        console.error("用法: node skill.js attr <get|set> <id> [args...]");
         process.exit(1);
       }
       cmdAttr(url, token, args[0], args.slice(1), options);

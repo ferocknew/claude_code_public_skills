@@ -84,6 +84,25 @@ async function cmdNotebookConf(url, token, notebookId, options) {
 }
 
 /**
+ * 创建笔记本
+ */
+async function cmdNotebookCreate(url, token, name, options) {
+  if (!name) {
+    console.error("错误: 请指定笔记本名称");
+    console.error("用法: node skill.js notebook create <name>");
+    process.exit(1);
+  }
+
+  try {
+    const data = await siyuanPost(url, token, "/api/notebook/createNotebook", { name });
+    console.log(`✅ 笔记本已创建: ${name}`);
+    console.log(`   ID: ${data.id || data}`);
+  } catch (error) {
+    handleError(error, `创建笔记本 ${name} 失败`);
+  }
+}
+
+/**
  * 笔记本命令路由
  */
 async function cmdNotebook(url, token, subCmd, args, options) {
@@ -91,6 +110,10 @@ async function cmdNotebook(url, token, subCmd, args, options) {
     case "ls":
     case "list":
       await cmdNotebookLs(url, token, options);
+      break;
+
+    case "create":
+      await cmdNotebookCreate(url, token, args[0], options);
       break;
 
     case "open":
@@ -122,7 +145,7 @@ async function cmdNotebook(url, token, subCmd, args, options) {
 
     default:
       console.error(`错误: 未知笔记本子命令: ${subCmd}`);
-      console.error("可用子命令: ls, open, close, conf");
+      console.error("可用子命令: ls, create, open, close, conf");
       process.exit(1);
   }
 }

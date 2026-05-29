@@ -91,10 +91,110 @@ async function cmdDocIdsByHPath(url, token, options) {
 }
 
 /**
+ * 通过 Markdown 创建文档
+ */
+async function cmdDocCreate(url, token, markdown, options) {
+  const notebook = options.notebook;
+  const docPath = options.path;
+  const title = options.title;
+
+  if (!notebook) {
+    console.error("错误: 需要提供 --notebook 参数");
+    console.error("用法: node skill.js doc create --notebook <id> --path <path> [--title <title>] <markdown>");
+    process.exit(1);
+  }
+
+  if (!docPath) {
+    console.error("错误: 需要提供 --path 参数");
+    console.error("用法: node skill.js doc create --notebook <id> --path <path> [--title <title>] <markdown>");
+    process.exit(1);
+  }
+
+  if (!markdown) {
+    console.error("错误: 请提供 Markdown 内容");
+    console.error("用法: node skill.js doc create --notebook <id> --path <path> \"markdown内容\"");
+    process.exit(1);
+  }
+
+  try {
+    // path 需要 / 开头
+    const fullPath = docPath.startsWith("/") ? docPath : "/" + docPath;
+    const params = { notebook, path: fullPath, markdown };
+
+    const data = await siyuanPost(url, token, "/api/filetree/createDocWithMd", params);
+    console.log(`✅ 文档已创建`);
+    console.log(`   笔记本: ${notebook}`);
+    console.log(`   路径: ${fullPath}`);
+    if (data) {
+      console.log(`   ID: ${typeof data === "string" ? data : data.id || JSON.stringify(data)}`);
+    }
+  } catch (error) {
+    handleError(error, `创建文档失败`);
+  }
+}
+
+/**
+ * 删除文档（通过 ID）
+ */
+async function cmdDocRemove(url, token, docId, options) {
+  if (!docId) {
+    console.error("错误: 请指定文档 ID");
+    console.error("用法: node skill.js doc remove <id>");
+    process.exit(1);
+  }
+
+  try {
+    await siyuanPost(url, token, "/api/filetree/removeDocByID", { id: docId });
+    console.log(`✅ 文档已删除: ${docId}`);
+  } catch (error) {
+    handleError(error, `删除文档 ${docId} 失败`);
+  }
+}
+
+/**
+ * 重命名文档（通过 ID）
+ */
+async function cmdDocRename(url, token, docId, options) {
+  if (!docId) {
+    console.error("错误: 请指定文档 ID");
+    console.error("用法: node skill.js doc rename <id> --title <new-title>");
+    process.exit(1);
+  }
+
+  const title = options.title;
+  if (!title) {
+    console.error("错误: 需要提供 --title 参数");
+    console.error("用法: node skill.js doc rename <id> --title <new-title>");
+    process.exit(1);
+  }
+
+  try {
+    await siyuanPost(url, token, "/api/filetree/renameDocByID", { id: docId, title });
+    console.log(`✅ 文档已重命名: ${docId} → ${title}`);
+  } catch (error) {
+    handleError(error, `重命名文档 ${docId} 失败`);
+  }
+}
+
+/**
  * 文档命令路由
  */
 async function cmdDoc(url, token, subCmd, args, options) {
   switch (subCmd) {
+    case "create":
+      await cmdDocCreate(url, token, args[0], options);
+      break;
+
+    case "remove":
+    case "rm":
+    case "delete":
+      await cmdDocRemove(url, token, args[0], options);
+      break;
+
+    case "rename":
+      await cmdDocRename(url, token, args[0], options);
+      break;
+
     case "hpath":
       await cmdDocHPath(url, token, options);
       break;
@@ -113,7 +213,7 @@ async function cmdDoc(url, token, subCmd, args, options) {
 
     default:
       console.error(`错误: 未知文档子命令: ${subCmd}`);
-      console.error("可用子命令: hpath, hpath-by-id, path-by-id, ids-by-hpath");
+      console.error("可用子命令: create, remove, rename, hpath, hpath-by-id, path-by-id, ids-by-hpath");
       process.exit(1);
   }
 }
