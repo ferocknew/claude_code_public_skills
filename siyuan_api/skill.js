@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 思源笔记 API 工具 v260529.103831 - 包含所有依赖，无需安装
+// 思源笔记 API 工具 v260529.104141 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -153,7 +153,18 @@ var require_sync_entity = __commonJS({
         return null;
       }
     }
-    function buildEntityMd({ name, entityType, date, tags, obsList, relations }) {
+    async function findDocByUuid(url, token, notebookId, memoryUuid) {
+      if (!memoryUuid) return null;
+      try {
+        const data = await siyuanPost(url, token, "/api/query/sql", {
+          stmt: `SELECT id FROM blocks WHERE box='${notebookId}' AND type='d' AND content LIKE '%${memoryUuid}%' LIMIT 1`
+        });
+        return Array.isArray(data) && data.length > 0 ? data[0].id : null;
+      } catch {
+        return null;
+      }
+    }
+    function buildEntityMd({ name, entityType, uuid, date, tags, obsList, relations }) {
       const tagStr = (tags || [entityType]).join(", ");
       let md = "";
       md += "| \u5C5E\u6027 | \u503C |\n|------|-----|\n";
@@ -163,6 +174,8 @@ var require_sync_entity = __commonJS({
       md += `| entity_class | ${entityType} |
 `;
       md += `| entity_label | ${name} |
+`;
+      if (uuid) md += `| memory-uuid | ${uuid} |
 `;
       md += `| created | ${date} |
 `;
@@ -195,12 +208,14 @@ var require_sync_entity = __commonJS({
       });
       return md;
     }
-    function buildObsMd(content, parentName, parentId, date) {
+    function buildObsMd(content, parentName, parentId, date, obsUuid) {
       let md = "";
       md += "| \u5C5E\u6027 | \u503C |\n|------|-----|\n";
       md += "| category | OBSERVATION |\n";
       md += "| type | \u89C2\u5BDF |\n";
       md += `| parent | ${parentName} |
+`;
+      if (obsUuid) md += `| memory-uuid | ${obsUuid} |
 `;
       md += `| created | ${date} |
 
@@ -217,6 +232,7 @@ var require_sync_entity = __commonJS({
       const {
         name,
         entityType,
+        uuid,
         observations = [],
         tags,
         relations,
@@ -224,7 +240,8 @@ var require_sync_entity = __commonJS({
       } = entityData;
       const date = createdAt || (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
       const basePath = `/${name}`;
-      let entityId = await findDoc(url, token, notebookId, basePath);
+      let entityId = uuid ? await findDocByUuid(url, token, notebookId, uuid) : null;
+      entityId = entityId || await findDoc(url, token, notebookId, basePath);
       if (!entityId) {
         const result = await siyuanPost(url, token, "/api/filetree/createDocWithMd", {
           notebook: notebookId,
@@ -236,10 +253,12 @@ var require_sync_entity = __commonJS({
       const obsList = [];
       for (const obs of observations) {
         const content = typeof obs === "string" ? obs : obs.content;
+        const obsUuid = typeof obs === "object" ? obs.uuid : null;
         const title = generateObsTitle(content);
         const obsPath = `${basePath}/${title}`;
-        const obsMd = buildObsMd(content, name, entityId, date);
-        let obsId = await findDoc(url, token, notebookId, obsPath);
+        const obsMd = buildObsMd(content, name, entityId, date, obsUuid);
+        let obsId = obsUuid ? await findDocByUuid(url, token, notebookId, obsUuid) : null;
+        obsId = obsId || await findDoc(url, token, notebookId, obsPath);
         if (obsId) {
           await siyuanPost(url, token, "/api/block/updateBlock", {
             dataType: "markdown",
@@ -254,9 +273,9 @@ var require_sync_entity = __commonJS({
           });
           obsId = typeof result === "string" ? result : result.id || result;
         }
-        obsList.push({ id: obsId, title });
+        obsList.push({ id: obsId, title, uuid: obsUuid });
       }
-      const entityMd = buildEntityMd({ name, entityType, date, tags, obsList, relations });
+      const entityMd = buildEntityMd({ name, entityType, uuid, date, tags, obsList, relations });
       await siyuanPost(url, token, "/api/block/updateBlock", {
         dataType: "markdown",
         data: entityMd,
@@ -264,7 +283,16 @@ var require_sync_entity = __commonJS({
       });
       return { entityId, observations: obsList };
     }
-    module2.exports = { syncEntity: syncEntity2, generateObsTitle };
+    async function deleteByUuid(url, token, notebookId, memoryUuid) {
+      const entityId = await findDocByUuid(url, token, notebookId, memoryUuid);
+      if (!entityId) {
+        console.log(`\u672A\u627E\u5230 UUID=${memoryUuid} \u5BF9\u5E94\u7684\u6587\u6863`);
+        return null;
+      }
+      await siyuanPost(url, token, "/api/filetree/removeDocByID", { id: entityId });
+      return entityId;
+    }
+    module2.exports = { syncEntity: syncEntity2, deleteByUuid, generateObsTitle };
   }
 });
 
@@ -3944,7 +3972,7 @@ var require_cmd = __commonJS({
 
 // run.js
 var fetch = globalThis.fetch;
-var SKILL_VERSION = true ? "260529.103831" : "0.0.1-dev";
+var SKILL_VERSION = true ? "260529.104141" : "0.0.1-dev";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
 var { resolve: resolveEnv } = require_env();
