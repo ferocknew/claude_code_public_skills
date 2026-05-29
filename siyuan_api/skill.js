@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 思源笔记 API 工具 v260529.094538 - 包含所有依赖，无需安装
+// 思源笔记 API 工具 v260529.100149 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -3094,7 +3094,7 @@ var require_env = __commonJS({
     loadEnvFile(envPath);
     function resolve(positional) {
       let url = process.env.SIYUAN_URL || "";
-      let token = process.env.SIYUAN_TOKEN || "";
+      let token = process.env.SIYUAN_API_TOKEN || process.env.SIYUAN_TOKEN || "";
       const args = [...positional];
       if (args.length > 0 && /^https?:\/\//i.test(args[0])) {
         url = args.shift();
@@ -6561,7 +6561,7 @@ var require_cmd = __commonJS({
 
 // run.js
 var fetch = require_lib2();
-var SKILL_VERSION = true ? "260529.094538" : "0.0.1-dev";
+var SKILL_VERSION = true ? "260529.100149" : "0.0.1-dev";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
 var { resolve: resolveEnv } = require_env();
@@ -6630,7 +6630,7 @@ function showHelp() {
 
 \u73AF\u5883\u53D8\u91CF:
   SIYUAN_URL                     \u601D\u6E90\u7B14\u8BB0\u5730\u5740\uFF08\u9ED8\u8BA4 http://127.0.0.1:6806\uFF09
-  SIYUAN_TOKEN                    API Token\uFF08\u8BBE\u7F6E > \u5173\u4E8E \u4E2D\u83B7\u53D6\uFF09
+  SIYUAN_API_TOKEN                API Token\uFF08\u8BBE\u7F6E > \u5173\u4E8E \u4E2D\u83B7\u53D6\uFF09
 
 \u793A\u4F8B:
   # \u67E5\u770B\u7CFB\u7EDF\u7248\u672C
@@ -6653,7 +6653,7 @@ function showHelp() {
 
   # \u4F7F\u7528\u73AF\u5883\u53D8\u91CF\u7B80\u5316\u547D\u4EE4
   export SIYUAN_URL="http://127.0.0.1:6806"
-  export SIYUAN_TOKEN="your-token"
+  export SIYUAN_API_TOKEN="your-token"
   node skill.js notebook ls
   node skill.js sql "SELECT * FROM blocks LIMIT 5"
 
@@ -6690,8 +6690,8 @@ function main() {
     console.error("\u9519\u8BEF: \u8BF7\u63D0\u4F9B API Token");
     console.error("\u53EF\u4EE5\u901A\u8FC7\u4EE5\u4E0B\u65B9\u5F0F\u63D0\u4F9B:");
     console.error("  1. \u547D\u4EE4\u53C2\u6570: node skill.js notebook ls <url> <token>");
-    console.error("  2. \u73AF\u5883\u53D8\u91CF: export SIYUAN_TOKEN=your-token");
-    console.error("  3. \u540C\u76EE\u5F55 .env \u6587\u4EF6: SIYUAN_TOKEN=your-token");
+    console.error("  2. \u73AF\u5883\u53D8\u91CF: export SIYUAN_API_TOKEN=your-token");
+    console.error("  3. \u540C\u76EE\u5F55 .env \u6587\u4EF6: SIYUAN_API_TOKEN=your-token");
     console.error("\n\u{1F4A1} Token \u83B7\u53D6\u8DEF\u5F84: \u601D\u6E90\u7B14\u8BB0 > \u8BBE\u7F6E > \u5173\u4E8E > API Token");
     process.exit(1);
   }
