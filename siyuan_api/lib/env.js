@@ -45,7 +45,7 @@ loadEnvFile(envPath);
  */
 function resolve(positional) {
   let url = process.env.SIYUAN_URL || "";
-  let token = process.env.SIYUAN_TOKEN || "";
+  let token = process.env.SIYUAN_API_TOKEN || process.env.SIYUAN_TOKEN || "";
   const args = [...positional];
 
   // 启发式检测：命令行中的 URL 和 Token

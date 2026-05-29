@@ -87,7 +87,7 @@ function showHelp() {
 
 环境变量:
   SIYUAN_URL                     思源笔记地址（默认 http://127.0.0.1:6806）
-  SIYUAN_TOKEN                    API Token（设置 > 关于 中获取）
+  SIYUAN_API_TOKEN                API Token（设置 > 关于 中获取）
 
 示例:
   # 查看系统版本
@@ -110,7 +110,7 @@ function showHelp() {
 
   # 使用环境变量简化命令
   export SIYUAN_URL="http://127.0.0.1:6806"
-  export SIYUAN_TOKEN="your-token"
+  export SIYUAN_API_TOKEN="your-token"
   node skill.js notebook ls
   node skill.js sql "SELECT * FROM blocks LIMIT 5"
 
@@ -165,8 +165,8 @@ function main() {
     console.error("错误: 请提供 API Token");
     console.error("可以通过以下方式提供:");
     console.error("  1. 命令参数: node skill.js notebook ls <url> <token>");
-    console.error("  2. 环境变量: export SIYUAN_TOKEN=your-token");
-    console.error("  3. 同目录 .env 文件: SIYUAN_TOKEN=your-token");
+    console.error("  2. 环境变量: export SIYUAN_API_TOKEN=your-token");
+    console.error("  3. 同目录 .env 文件: SIYUAN_API_TOKEN=your-token");
     console.error("\n💡 Token 获取路径: 思源笔记 > 设置 > 关于 > API Token");
     process.exit(1);
   }

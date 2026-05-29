@@ -1,7 +1,7 @@
 ---
 name: siyuan-api
 description: 当用户要求"查询思源笔记"、"操作思源笔记"、"获取思源笔记内容"、"思源笔记 API"时使用此 skill。
-version: 260529.094538
+version: 260529.100149
 ---
 
 # 思源笔记 REST API 工具
@@ -15,7 +15,7 @@ version: 260529.094538
 ```bash
 # 设置环境变量
 export SIYUAN_URL="http://127.0.0.1:6806"
-export SIYUAN_TOKEN="your-api-token"
+export SIYUAN_API_TOKEN="your-api-token"
 
 # 查看系统版本
 node skill.js system version
@@ -89,13 +89,13 @@ Authorization: Token your-token-here
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `SIYUAN_URL` | 思源笔记服务地址 | `http://127.0.0.1:6806` |
-| `SIYUAN_TOKEN` | API Token | 无 |
+| `SIYUAN_API_TOKEN` | API Token | 无 |
 
 也可以在同目录创建 `.env` 文件：
 
 ```
 SIYUAN_URL=http://127.0.0.1:6806
-SIYUAN_TOKEN=your-token-here
+SIYUAN_API_TOKEN=your-token-here
 ```
 
 ---
