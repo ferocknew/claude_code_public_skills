@@ -1,7 +1,7 @@
 ---
 name: financial
 description: 当用户需要查询金融行情、黄金/白银现货期货、A股实时行情、K线数据、新浪财经海外期货、财经新闻、同花顺股票新闻公告研报，或需要调用本地 financial_info_api 的 HTTP/MCP 接口时使用此 skill。
-version: 260531.111546
+version: 260531.122702
 ---
 
 # Financial Info API 查询
@@ -50,7 +50,6 @@ node skill.js ths-timeshare 300033
 node skill.js ths-news 300033 --limit 10
 node skill.js ths-announcements 300033 --limit 10
 node skill.js ths-reports 300033 --limit 10
-node skill.js ths-industry-news 300033 --limit 10
 ```
 
 需要临时覆盖配置时：
@@ -78,7 +77,6 @@ node skill.js quote AU9999 --base-url "http://127.0.0.1:8000" --token "YOUR_TOKE
 | `ths-news <code>` | 获取公司新闻 |
 | `ths-announcements <code>` | 获取公司公告 |
 | `ths-reports <code>` | 获取研究报告 |
-| `ths-industry-news <code>` | 获取行业资讯 |
 
 ## 代码规则
 
