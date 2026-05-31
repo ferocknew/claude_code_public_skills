@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Financial Info API 工具 v260531.111546
+// Financial Info API 工具 v260531.122702
 
 
 // run.js
 var fs = require("fs");
 var path = require("path");
-var SKILL_VERSION = true ? "260531.111546" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260531.122702" : "1.0.0-dev";
 var COMMANDS = {
   info: { method: "GET", path: () => "/api/v1/mcp" },
   quote: { method: "GET", path: (p) => `/api/v1/mcp/quote/${encodeURIComponent(p.code)}` },
@@ -21,8 +21,7 @@ var COMMANDS = {
   "ths-timeshare": { method: "GET", path: (p) => `/api/v1/mcp/ths/stock/${encodeURIComponent(p.code)}/timeshare` },
   "ths-news": { method: "GET", path: (p) => `/api/v1/mcp/ths/stock/${encodeURIComponent(p.code)}/news`, query: ["limit"] },
   "ths-announcements": { method: "GET", path: (p) => `/api/v1/mcp/ths/stock/${encodeURIComponent(p.code)}/announcements`, query: ["limit"] },
-  "ths-reports": { method: "GET", path: (p) => `/api/v1/mcp/ths/stock/${encodeURIComponent(p.code)}/reports`, query: ["limit"] },
-  "ths-industry-news": { method: "GET", path: (p) => `/api/v1/mcp/ths/stock/${encodeURIComponent(p.code)}/industry-news`, query: ["limit"] }
+  "ths-reports": { method: "GET", path: (p) => `/api/v1/mcp/ths/stock/${encodeURIComponent(p.code)}/reports`, query: ["limit"] }
 };
 var OPTION_ALIASES = {
   type: "kline_type",
@@ -97,7 +96,6 @@ function printHelp() {
   ths-news <code> [--limit 10]
   ths-announcements <code> [--limit 10]
   ths-reports <code> [--limit 10]
-  ths-industry-news <code> [--limit 10]
 
 \u793A\u4F8B:
   node skill.js info --token "$MCP_API_KEY"
@@ -183,7 +181,7 @@ function validateParams(params) {
   if (!params.token) {
     throw new Error("\u7F3A\u5C11 Bearer Token\uFF0C\u8BF7\u8BBE\u7F6E FINANCIAL_API_TOKEN \u6216 MCP_API_KEY\uFF0C\u6216\u4F20\u5165 --token");
   }
-  if (["quote", "history", "kline", "ths-quote", "ths-kline", "ths-timeshare", "ths-news", "ths-announcements", "ths-reports", "ths-industry-news"].includes(params.command)) {
+  if (["quote", "history", "kline", "ths-quote", "ths-kline", "ths-timeshare", "ths-news", "ths-announcements", "ths-reports"].includes(params.command)) {
     requireValue(params, "code", "\u4EE3\u7801\u53C2\u6570");
   }
   if (params.command === "sina-futures") requireValue(params, "symbol", "\u671F\u8D27\u4EE3\u7801");

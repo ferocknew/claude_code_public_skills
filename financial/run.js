@@ -21,7 +21,6 @@ const COMMANDS = {
   "ths-news": { method: "GET", path: (p) => `/api/v1/mcp/ths/stock/${encodeURIComponent(p.code)}/news`, query: ["limit"] },
   "ths-announcements": { method: "GET", path: (p) => `/api/v1/mcp/ths/stock/${encodeURIComponent(p.code)}/announcements`, query: ["limit"] },
   "ths-reports": { method: "GET", path: (p) => `/api/v1/mcp/ths/stock/${encodeURIComponent(p.code)}/reports`, query: ["limit"] },
-  "ths-industry-news": { method: "GET", path: (p) => `/api/v1/mcp/ths/stock/${encodeURIComponent(p.code)}/industry-news`, query: ["limit"] },
 };
 
 const OPTION_ALIASES = {
@@ -102,7 +101,6 @@ function printHelp() {
   ths-news <code> [--limit 10]
   ths-announcements <code> [--limit 10]
   ths-reports <code> [--limit 10]
-  ths-industry-news <code> [--limit 10]
 
 示例:
   node skill.js info --token "$MCP_API_KEY"
@@ -196,7 +194,7 @@ function validateParams(params) {
   if (!params.token) {
     throw new Error("缺少 Bearer Token，请设置 FINANCIAL_API_TOKEN 或 MCP_API_KEY，或传入 --token");
   }
-  if (["quote", "history", "kline", "ths-quote", "ths-kline", "ths-timeshare", "ths-news", "ths-announcements", "ths-reports", "ths-industry-news"].includes(params.command)) {
+  if (["quote", "history", "kline", "ths-quote", "ths-kline", "ths-timeshare", "ths-news", "ths-announcements", "ths-reports"].includes(params.command)) {
     requireValue(params, "code", "代码参数");
   }
   if (params.command === "sina-futures") requireValue(params, "symbol", "期货代码");
