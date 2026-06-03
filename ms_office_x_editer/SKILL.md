@@ -1,8 +1,8 @@
 ---
 name: ms_office_x_editer
 description: 当用户要求"编辑 Word 文档"、"修改 docx 文件"、"编辑 Excel 文件"、"修改 xlsx 文件"、"替换文档中的文本"、"修改表格"、"查看文档信息"、"修改样式"、"设置字体颜色"、"设置加粗"、"读取 Excel"、"写入 Excel"、"修改工作表"、"比较文档差异"、"docx diff"、"文档对比"时使用此 skill。支持 docx 和 xlsx 两种格式。
-version: 260529.162419
-skill_version: 260529.162419
+version: 260529.164052
+skill_version: 260529.164052
 ---
 
 # MS Office 编辑工具

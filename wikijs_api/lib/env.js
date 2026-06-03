@@ -20,7 +20,9 @@ function loadEnvFile(envPath) {
     if (eqIdx < 1) return;
     const key = trimmed.slice(0, eqIdx).trim();
     const val = trimmed.slice(eqIdx + 1).trim();
-    process.env[key] = val;
+    if (!process.env[key]) {
+      process.env[key] = val;
+    }
   });
 }
 

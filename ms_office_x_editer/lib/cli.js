@@ -431,12 +431,19 @@ async function cmdDiff(oldPath, newPath, command, args) {
     ? DiffMd.formatSummary(result, oldPath, newPath)
     : DiffMd.formatReport(result, oldPath, newPath);
 
+  const path = require("path");
+  let outputPath;
   if (args.output) {
-    fs.writeFileSync(args.output, md, "utf-8");
-    console.log(`差异报告已写入: ${args.output}`);
+    outputPath = path.resolve(args.output);
   } else {
-    console.log(md);
+    const oldDir = path.dirname(path.resolve(oldPath));
+    const oldBase = path.basename(oldPath, path.extname(oldPath));
+    const newBase = path.basename(newPath, path.extname(newPath));
+    outputPath = path.join(oldDir, `diff_${oldBase}_vs_${newBase}.md`);
   }
+
+  fs.writeFileSync(outputPath, md, "utf-8");
+  console.log(`差异报告已写入: ${outputPath}`);
 }
 
 module.exports = { dispatch, parseArgs, showHelp, SKILL_VERSION };

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wiki.js GraphQL API 工具 v260524.101348 - 包含所有依赖，无需安装
+// Wiki.js GraphQL API 工具 v260603.090246 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -3083,7 +3083,9 @@ var require_env = __commonJS({
         if (eqIdx < 1) return;
         const key = trimmed.slice(0, eqIdx).trim();
         const val = trimmed.slice(eqIdx + 1).trim();
-        process.env[key] = val;
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
       });
     }
     var envPath = fs.existsSync(path.join(__dirname, ".env")) ? path.join(__dirname, ".env") : path.join(__dirname, "..", ".env");
@@ -6734,7 +6736,7 @@ var require_cmd = __commonJS({
 
 // run.js
 var fetch2 = require_lib2();
-var SKILL_VERSION = true ? "260524.101348" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260603.090246" : "1.0.0-dev";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
 var { resolve: resolveEnv } = require_env();

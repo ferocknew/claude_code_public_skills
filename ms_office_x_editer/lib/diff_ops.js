@@ -487,4 +487,4 @@ async function fullDiff(oldDocx, newDocx) {
   return { paragraphs, tables, images, headersFooters, meta };
 }
 
-module.exports = { DiffOps: { diffParagraphs, diffTables, diffImages, diffHeadersFooters, diffMeta, fullDiff } };
+module.exports = { DiffOps: { diffParagraphs, diffTables, diffImages, diffHeadersFooters, diffMeta, fullDiff, _wordDiff: wordDiff } };
