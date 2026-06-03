@@ -1,7 +1,7 @@
 ---
 name: wikijs-api
 description: 当用户要求"查询 Wiki.js"、"操作 Wiki.js"、"获取 Wiki.js 页面"、"创建 Wiki.js 页面"、"Wiki.js GraphQL API"时，或者需要通过 GraphQL API 与 Wiki.js 实例交互时使用此 skill。
-version: 260524.101348
+version: 260603.090246
 ---
 
 # Wiki.js GraphQL API 工具

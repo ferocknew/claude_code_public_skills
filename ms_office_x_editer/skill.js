@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// DOCX Editor Skill v260529.162419
+// DOCX Editor Skill v260529.164052
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -11648,7 +11648,7 @@ var require_diff_ops = __commonJS({
       ]);
       return { paragraphs, tables, images, headersFooters, meta };
     }
-    module2.exports = { DiffOps: { diffParagraphs, diffTables, diffImages, diffHeadersFooters, diffMeta, fullDiff } };
+    module2.exports = { DiffOps: { diffParagraphs, diffTables, diffImages, diffHeadersFooters, diffMeta, fullDiff, _wordDiff: wordDiff } };
   }
 });
 
@@ -11657,37 +11657,43 @@ var require_diff_md = __commonJS({
   "lib/diff_md.js"(exports2, module2) {
     function now() {
       const d = /* @__PURE__ */ new Date();
-      const pad = (n) => String(n).padStart(2, "0");
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      const p = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     }
     function esc(text) {
-      return (text || "").replace(/\|/g, "\\|").replace(/\n/g, " ");
+      return (text || "").replace(/\|/g, "\\|").replace(/\n/g, "\u21B5");
+    }
+    function trunc(text, max) {
+      if (!text || text.length <= max) return text;
+      return text.substring(0, max) + "\u2026";
     }
     function formatSummary(result, oldPath, newPath) {
       const lines = [];
-      lines.push(`# \u6587\u6863\u5DEE\u5F02\u6982\u8981`);
+      lines.push("# \u6587\u6863\u5DEE\u5F02\u6982\u8981");
       lines.push("");
-      lines.push(`- **\u57FA\u51C6\u6587\u6863**: ${oldPath}`);
-      lines.push(`- **\u5BF9\u6BD4\u6587\u6863**: ${newPath}`);
-      lines.push(`- **\u751F\u6210\u65F6\u95F4**: ${now()}`);
+      lines.push(`| | |`);
+      lines.push(`|------|------|`);
+      lines.push(`| \u57FA\u51C6\u6587\u6863 | ${oldPath} |`);
+      lines.push(`| \u5BF9\u6BD4\u6587\u6863 | ${newPath} |`);
+      lines.push(`| \u751F\u6210\u65F6\u95F4 | ${now()} |`);
       lines.push("");
       lines.push("## \u7EDF\u8BA1");
       lines.push("");
       const ps = result.paragraphs.stats;
-      const hasChanges = ps.added + ps.deleted + ps.modified > 0 || result.tables.stats.added + result.tables.stats.deleted + result.tables.stats.modified > 0 || result.images.stats.added + result.images.stats.deleted + result.images.stats.modified > 0;
-      lines.push("| \u7EF4\u5EA6 | \u65B0\u589E | \u5220\u9664 | \u4FEE\u6539 | \u672A\u53D8 |");
-      lines.push("|------|------|------|------|------|");
-      lines.push(`| \u6BB5\u843D | ${ps.added} | ${ps.deleted} | ${ps.modified} | ${ps.unchanged} |`);
       const ts = result.tables.stats;
-      lines.push(`| \u8868\u683C | ${ts.added} | ${ts.deleted} | ${ts.modified} | ${ts.unchanged || "\u2014"} |`);
       const ims = result.images.stats;
-      lines.push(`| \u56FE\u7247 | ${ims.added} | ${ims.deleted} | ${ims.modified} | ${ims.unchanged || "\u2014"} |`);
       const hfChanged = [...result.headersFooters.headers, ...result.headersFooters.footers].filter((h) => h.type !== "equal").length;
-      lines.push(`| \u9875\u7709\u9875\u811A | ${hfChanged > 0 ? hfChanged + " \u9879\u53D8\u66F4" : "\u2014"} | \u2014 | \u2014 | \u2014 |`);
       const metaCount = result.meta.changes.length;
-      lines.push(`| \u5143\u6570\u636E | ${metaCount > 0 ? metaCount + " \u9879\u53D8\u66F4" : "\u2014"} | \u2014 | \u2014 | \u2014 |`);
+      lines.push("| \u7EF4\u5EA6 | `+` \u65B0\u589E | `-` \u5220\u9664 | `~` \u4FEE\u6539 | \u672A\u53D8 |");
+      lines.push("|------|----------|----------|----------|------|");
+      lines.push(`| \u6BB5\u843D | ${ps.added} | ${ps.deleted} | ${ps.modified} | ${ps.unchanged} |`);
+      lines.push(`| \u8868\u683C | ${ts.added} | ${ts.deleted} | ${ts.modified} | ${ts.unchanged || "\u2014"} |`);
+      lines.push(`| \u56FE\u7247 | ${ims.added} | ${ims.deleted} | ${ims.modified} | ${ims.unchanged || "\u2014"} |`);
+      lines.push(`| \u9875\u7709\u9875\u811A | \u2014 | \u2014 | ${hfChanged || "\u2014"} | \u2014 |`);
+      lines.push(`| \u5143\u6570\u636E | \u2014 | \u2014 | ${metaCount || "\u2014"} | \u2014 |`);
       lines.push("");
-      if (!hasChanges && hfChanged === 0 && metaCount === 0) {
+      const hasChanges = ps.added + ps.deleted + ps.modified > 0 || ts.added + ts.deleted + ts.modified > 0 || ims.added + ims.deleted + ims.modified > 0 || hfChanged > 0 || metaCount > 0;
+      if (!hasChanges) {
         lines.push("> \u2705 \u4E24\u4E2A\u6587\u6863\u5B8C\u5168\u76F8\u540C\uFF0C\u65E0\u5DEE\u5F02\u3002");
       } else {
         lines.push("> \u26A0\uFE0F \u68C0\u6D4B\u5230\u5DEE\u5F02\uFF0C\u4F7F\u7528\u5B8C\u6574\u6A21\u5F0F\u67E5\u770B\u8BE6\u60C5\uFF1A`node skill.js old.docx diff new.docx`");
@@ -11698,13 +11704,13 @@ var require_diff_md = __commonJS({
       const lines = [];
       lines.push("# \u6587\u6863\u5DEE\u5F02\u62A5\u544A");
       lines.push("");
-      lines.push(`- **\u57FA\u51C6\u6587\u6863**: ${oldPath}`);
-      lines.push(`- **\u5BF9\u6BD4\u6587\u6863**: ${newPath}`);
-      lines.push(`- **\u751F\u6210\u65F6\u95F4**: ${now()}`);
+      lines.push(`| | |`);
+      lines.push(`|------|------|`);
+      lines.push(`| \u57FA\u51C6\u6587\u6863 | ${oldPath} |`);
+      lines.push(`| \u5BF9\u6BD4\u6587\u6863 | ${newPath} |`);
+      lines.push(`| \u751F\u6210\u65F6\u95F4 | ${now()} |`);
       lines.push("");
-      lines.push("## \u6982\u8981");
-      lines.push("");
-      lines.push(formatSummary(result, oldPath, newPath).split("\n").slice(5).join("\n"));
+      appendSummaryTable(result, lines);
       lines.push("## \u6BB5\u843D\u5DEE\u5F02");
       lines.push("");
       formatParagraphs(result.paragraphs, lines);
@@ -11722,34 +11728,63 @@ var require_diff_md = __commonJS({
       formatMeta(result.meta, lines);
       return lines.join("\n");
     }
+    function appendSummaryTable(result, lines) {
+      const ps = result.paragraphs.stats;
+      const ts = result.tables.stats;
+      const ims = result.images.stats;
+      const hfChanged = [...result.headersFooters.headers, ...result.headersFooters.footers].filter((h) => h.type !== "equal").length;
+      const metaCount = result.meta.changes.length;
+      lines.push("### \u6982\u8981");
+      lines.push("");
+      lines.push("| \u7EF4\u5EA6 | `+` \u65B0\u589E | `-` \u5220\u9664 | `~` \u4FEE\u6539 | \u672A\u53D8 |");
+      lines.push("|------|----------|----------|----------|------|");
+      lines.push(`| \u6BB5\u843D | ${ps.added} | ${ps.deleted} | ${ps.modified} | ${ps.unchanged} |`);
+      lines.push(`| \u8868\u683C | ${ts.added} | ${ts.deleted} | ${ts.modified} | ${ts.unchanged || "\u2014"} |`);
+      lines.push(`| \u56FE\u7247 | ${ims.added} | ${ims.deleted} | ${ims.modified} | ${ims.unchanged || "\u2014"} |`);
+      lines.push(`| \u9875\u7709\u9875\u811A | \u2014 | \u2014 | ${hfChanged || "\u2014"} | \u2014 |`);
+      lines.push(`| \u5143\u6570\u636E | \u2014 | \u2014 | ${metaCount || "\u2014"} | \u2014 |`);
+      lines.push("");
+    }
     function formatParagraphs(paragraphs, lines) {
-      let paraNum = 0;
       const changes = paragraphs.changes.filter((c) => c.type !== "equal");
       if (changes.length === 0) {
-        lines.push("\u65E0\u53D8\u5316");
+        lines.push("> \u65E0\u53D8\u5316");
         lines.push("");
         return;
       }
-      for (const c of changes) {
-        paraNum++;
-        if (c.type === "modified") {
-          lines.push(`### \xB6${paraNum} [\u4FEE\u6539]`);
-          lines.push("");
-          lines.push(`- **\u65E7**: ${esc(c.oldText)}`);
-          lines.push(`- **\u65B0**: ${esc(c.newText)}`);
-          lines.push(`- **\u5DEE\u5F02**: ${formatWordDiff(c.detail)}`);
-          lines.push("");
-        } else if (c.type === "deleted") {
-          lines.push(`### \xB6${paraNum} [\u5220\u9664]`);
-          lines.push("");
-          lines.push(`- ~~${esc(c.text)}~~`);
-          lines.push("");
-        } else if (c.type === "added") {
-          lines.push(`### \xB6${paraNum} [\u65B0\u589E]`);
-          lines.push("");
-          lines.push(`- **${esc(c.text)}**`);
-          lines.push("");
+      const modified = changes.filter((c) => c.type === "modified");
+      if (modified.length > 0) {
+        lines.push("#### `~` \u4FEE\u6539");
+        lines.push("");
+        lines.push("| # | \u57FA\u51C6\u6587\u6863 | \u5BF9\u6BD4\u6587\u6863 | \u5DEE\u5F02 |");
+        lines.push("|---|----------|----------|------|");
+        for (const c of modified) {
+          const diff = formatWordDiff(c.detail);
+          lines.push(`| \xB6${c.oldIdx + 1} | ${esc(trunc(c.oldText, 120))} | ${esc(trunc(c.newText, 120))} | ${diff} |`);
         }
+        lines.push("");
+      }
+      const deleted = changes.filter((c) => c.type === "deleted");
+      if (deleted.length > 0) {
+        lines.push("#### `-` \u5220\u9664");
+        lines.push("");
+        lines.push("| # | \u5185\u5BB9 | \u5DEE\u5F02 |");
+        lines.push("|---|------|------|");
+        for (const c of deleted) {
+          lines.push(`| \xB6${c.oldIdx + 1} | ${esc(trunc(c.text, 200))} | ~~${esc(trunc(c.text, 200))}~~ |`);
+        }
+        lines.push("");
+      }
+      const added = changes.filter((c) => c.type === "added");
+      if (added.length > 0) {
+        lines.push("#### `+` \u65B0\u589E");
+        lines.push("");
+        lines.push("| # | \u5185\u5BB9 | \u5DEE\u5F02 |");
+        lines.push("|---|------|------|");
+        for (const c of added) {
+          lines.push(`| \xB6${c.newIdx + 1} | ${esc(trunc(c.text, 200))} | **${esc(trunc(c.text, 200))}** |`);
+        }
+        lines.push("");
       }
     }
     function formatWordDiff(segments) {
@@ -11757,61 +11792,72 @@ var require_diff_md = __commonJS({
       return segments.map((s) => {
         switch (s.type) {
           case "equal":
-            return s.value;
+            return esc(s.value);
           case "deleted":
-            return `~~${s.value}~~`;
+            return `~~${esc(s.value)}~~`;
           case "inserted":
-            return `**${s.value}**`;
+            return `**${esc(s.value)}**`;
           default:
-            return s.value;
+            return esc(s.value);
         }
       }).join("");
+    }
+    function formatWordDiffFromTexts(oldText, newText) {
+      if (oldText === newText) return "\u2014";
+      try {
+        const { DiffOps } = require_diff_ops();
+        const segs = DiffOps._wordDiff(oldText, newText);
+        return formatWordDiff(segs);
+      } catch (e) {
+        return `~~${esc(trunc(oldText, 60))}~~ \u2192 **${esc(trunc(newText, 60))}**`;
+      }
     }
     function formatTables(tables, lines) {
       const changed = tables.tables.filter((t) => t.type !== "equal");
       if (changed.length === 0) {
-        lines.push("\u65E0\u53D8\u5316");
+        lines.push("> \u65E0\u53D8\u5316");
         lines.push("");
         return;
       }
+      lines.push("| # | \u64CD\u4F5C | \u884C\u6570\u53D8\u5316 |");
+      lines.push("|---|------|----------|");
       for (const t of changed) {
         if (t.type === "added") {
-          lines.push(`### \u8868\u683C ${t.index} [\u65B0\u589E]`);
-          lines.push("");
-          lines.push(`${t.newRows} \u884C`);
-          lines.push("");
+          lines.push(`| \u8868\u683C${t.index} | \`+\` \u65B0\u589E | ${t.newRows} \u884C |`);
         } else if (t.type === "deleted") {
-          lines.push(`### \u8868\u683C ${t.index} [\u5220\u9664]`);
-          lines.push("");
-          lines.push(`${t.oldRows} \u884C`);
-          lines.push("");
-        } else if (t.type === "modified") {
-          lines.push(`### \u8868\u683C ${t.index} [\u4FEE\u6539]`);
-          lines.push("");
-          if (t.cellChanges.length > 0) {
-            lines.push("| \u4F4D\u7F6E | \u65E7\u503C | \u65B0\u503C |");
-            lines.push("|------|------|------|");
-            for (const cc of t.cellChanges) {
-              lines.push(`| \u7B2C${cc.row + 1}\u884C\u7B2C${cc.col + 1}\u5217 | ${esc(cc.old)} | ${esc(cc.new)} |`);
-            }
-            lines.push("");
-          }
+          lines.push(`| \u8868\u683C${t.index} | \`-\` \u5220\u9664 | ${t.oldRows} \u884C |`);
+        } else {
+          const rowInfo = t.oldRows === t.newRows ? `${t.newRows} \u884C` : `${t.oldRows}\u2192${t.newRows} \u884C`;
+          lines.push(`| \u8868\u683C${t.index} | \`~\` \u4FEE\u6539 | ${rowInfo} |`);
         }
+      }
+      lines.push("");
+      const modifiedTables = changed.filter((t) => t.type === "modified" && t.cellChanges.length > 0);
+      for (const t of modifiedTables) {
+        lines.push(`##### \u8868\u683C${t.index} \u5355\u5143\u683C\u5DEE\u5F02`);
+        lines.push("");
+        lines.push("| \u884C | \u5217 | \u57FA\u51C6\u6587\u6863 | \u5BF9\u6BD4\u6587\u6863 | \u5DEE\u5F02 |");
+        lines.push("|----|----|----------|----------|------|");
+        for (const cc of t.cellChanges) {
+          const diff = formatWordDiffFromTexts(cc.old, cc.new);
+          lines.push(`| ${cc.row + 1} | ${cc.col + 1} | ${esc(trunc(cc.old, 120))} | ${esc(trunc(cc.new, 120))} | ${diff} |`);
+        }
+        lines.push("");
       }
     }
     function formatImages(images, lines) {
       const changed = images.images.filter((im) => im.type !== "equal");
       if (changed.length === 0) {
-        lines.push("\u65E0\u53D8\u5316");
+        lines.push("> \u65E0\u53D8\u5316");
         lines.push("");
         return;
       }
-      lines.push("| \u53D8\u66F4 | \u540D\u79F0 | \u8BF4\u660E |");
+      lines.push("| \u64CD\u4F5C | \u540D\u79F0 | \u8BF4\u660E |");
       lines.push("|------|------|------|");
       for (const im of changed) {
-        const label = im.type === "added" ? "\u65B0\u589E" : im.type === "deleted" ? "\u5220\u9664" : "\u4FEE\u6539";
+        const op = im.type === "added" ? "`+` \u65B0\u589E" : im.type === "deleted" ? "`-` \u5220\u9664" : "`~` \u4FEE\u6539";
         const desc = im.type === "modified" ? "\u5185\u5BB9\u5DF2\u53D8\u5316" : im.type === "added" ? "\u65B0\u63D2\u5165" : "\u5DF2\u79FB\u9664";
-        lines.push(`| ${label} | ${im.name} | ${desc} |`);
+        lines.push(`| ${op} | ${im.name} | ${desc} |`);
       }
       lines.push("");
     }
@@ -11819,35 +11865,31 @@ var require_diff_md = __commonJS({
       const all = [...hf.headers, ...hf.footers];
       const changed = all.filter((h) => h.type !== "equal");
       if (changed.length === 0) {
-        lines.push("\u65E0\u53D8\u5316");
+        lines.push("> \u65E0\u53D8\u5316");
         lines.push("");
         return;
       }
+      lines.push("| \u4F4D\u7F6E | \u64CD\u4F5C | \u57FA\u51C6\u6587\u6863 | \u5BF9\u6BD4\u6587\u6863 |");
+      lines.push("|------|------|----------|----------|");
       for (const item of changed) {
         const kind = item.file.includes("header") ? "\u9875\u7709" : "\u9875\u811A";
-        const label = item.type === "added" ? "\u65B0\u589E" : item.type === "deleted" ? "\u5220\u9664" : "\u4FEE\u6539";
-        lines.push(`- **${kind} ${item.file}** [${label}]`);
-        if (item.type === "modified") {
-          lines.push(`  - \u65E7: ${esc(item.old)}`);
-          lines.push(`  - \u65B0: ${esc(item.new)}`);
-        } else if (item.old) {
-          lines.push(`  - \u5185\u5BB9: ${esc(item.old)}`);
-        } else if (item.new) {
-          lines.push(`  - \u5185\u5BB9: ${esc(item.new)}`);
-        }
+        const op = item.type === "added" ? "`+`" : item.type === "deleted" ? "`-`" : "`~`";
+        const oldVal = item.old ? esc(trunc(item.old, 120)) : "\u2014";
+        const newVal = item.new ? esc(trunc(item.new, 120)) : "\u2014";
+        lines.push(`| ${kind} ${item.file} | ${op} | ${oldVal} | ${newVal} |`);
       }
       lines.push("");
     }
     function formatMeta(meta, lines) {
       if (meta.changes.length === 0) {
-        lines.push("\u65E0\u53D8\u5316");
+        lines.push("> \u65E0\u53D8\u5316");
         lines.push("");
         return;
       }
-      lines.push("| \u5C5E\u6027 | \u65E7\u503C | \u65B0\u503C |");
-      lines.push("|------|------|------|");
+      lines.push("| \u5C5E\u6027 | \u57FA\u51C6\u6587\u6863 | \u5BF9\u6BD4\u6587\u6863 |");
+      lines.push("|------|----------|----------|");
       for (const c of meta.changes) {
-        lines.push(`| ${c.key} | ${esc(c.old)} | ${esc(c.new)} |`);
+        lines.push(`| ${c.key} | ${esc(trunc(c.old, 120))} | ${esc(trunc(c.new, 120))} |`);
       }
       lines.push("");
     }
@@ -11860,7 +11902,7 @@ var require_cli = __commonJS({
   "lib/cli.js"(exports2, module2) {
     var { DocxZip: DocxZip2 } = require_docx_zip();
     var { XmlTextOps, XmlTableOps, ImageOps, HeaderFooterOps, MetaOps, StyleOps } = require_ops();
-    var SKILL_VERSION2 = true ? "260529.162419" : "dev";
+    var SKILL_VERSION2 = true ? "260529.164052" : "dev";
     function parseArgs2(argv) {
       const args2 = { _: [] };
       let i = 0;
@@ -12246,12 +12288,18 @@ DOCX \u7F16\u8F91\u5DE5\u5177 v${SKILL_VERSION2}
       const newDocx = await DocxZip2.fromFile(newPath);
       const result = await DiffOps.fullDiff(oldDocx, newDocx);
       const md = args2.summary ? DiffMd.formatSummary(result, oldPath, newPath) : DiffMd.formatReport(result, oldPath, newPath);
+      const path = require("path");
+      let outputPath;
       if (args2.output) {
-        fs.writeFileSync(args2.output, md, "utf-8");
-        console.log(`\u5DEE\u5F02\u62A5\u544A\u5DF2\u5199\u5165: ${args2.output}`);
+        outputPath = path.resolve(args2.output);
       } else {
-        console.log(md);
+        const oldDir = path.dirname(path.resolve(oldPath));
+        const oldBase = path.basename(oldPath, path.extname(oldPath));
+        const newBase = path.basename(newPath, path.extname(newPath));
+        outputPath = path.join(oldDir, `diff_${oldBase}_vs_${newBase}.md`);
       }
+      fs.writeFileSync(outputPath, md, "utf-8");
+      console.log(`\u5DEE\u5F02\u62A5\u544A\u5DF2\u5199\u5165: ${outputPath}`);
     }
     module2.exports = { dispatch: dispatch2, parseArgs: parseArgs2, showHelp: showHelp2, SKILL_VERSION: SKILL_VERSION2 };
   }
