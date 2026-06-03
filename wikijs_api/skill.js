@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wiki.js GraphQL API 工具 v260603.090246 - 包含所有依赖，无需安装
+// Wiki.js GraphQL API 工具 v260603.091243 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -6736,7 +6736,7 @@ var require_cmd = __commonJS({
 
 // run.js
 var fetch2 = require_lib2();
-var SKILL_VERSION = true ? "260603.090246" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260603.091243" : "1.0.0-dev";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
 var { resolve: resolveEnv } = require_env();

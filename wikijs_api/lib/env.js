@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 
 /**
- * 加载 .env 文件，覆盖已有环境变量
+ * 加载 .env 文件，仅在环境变量不存在时设置（不覆盖已有值）
  * @param {string} envPath - .env 文件路径
  */
 function loadEnvFile(envPath) {
