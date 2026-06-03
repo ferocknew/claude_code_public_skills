@@ -1,0 +1,13 @@
+{
+  "name": "gitea_api",
+  "version": "1.0.0",
+  "description": "Gitea REST API client for Claude Code",
+  "main": "run.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
