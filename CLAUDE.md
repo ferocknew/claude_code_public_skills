@@ -74,7 +74,7 @@ All bundled skills share the same build pipeline using esbuild.
 ```bash
 cd <skill-dir>
 pnpm install       # Install dependencies
-npm run build      # Bundle run.js -> skill.js (also updates skill_version in SKILL.md)
+pnpm run build     # Bundle run.js -> skill.js (also updates skill_version in SKILL.md)
 node skill.js ...  # Run the standalone bundled version
 ```
 
