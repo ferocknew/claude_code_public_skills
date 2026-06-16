@@ -51,6 +51,33 @@ GITEA_API_TOKEN=your-api-token
 
 ---
 
+## ⚠️ 容器包清理规则（极其重要）
+
+**容器镜像的 tag 和 `sha256:...` manifest digest 是一一对应的关系，不可分离！**
+
+- `sha256:...` 版本是容器的实际镜像 manifest digest，是镜像数据的本体
+- tag（如 `latest`、`0.2.8`）只是指向 digest 的别名/引用
+- 一个 tag 必然对应一个 sha256 digest，两者必须同时存在，镜像才能正常 pull
+
+**查询 tag 与 digest 的对应关系：**
+通过 Docker Registry v2 API 的 `Docker-Content-Digest` 响应头获取：
+```bash
+curl -s -D - -o /dev/null \
+  -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+  -H "Authorization: Bearer <token>" \
+  "https://<gitea>/v2/<owner>/<name>/manifests/<tag>"
+# 响应头: docker-content-digest: sha256:xxxx
+```
+
+**清理旧包的正确做法：**
+1. 确认要删除的旧 tag（如 `0.2.3`）
+2. 通过 v2 API 查询该 tag 对应的 sha256 digest
+3. 删除 tag：`DELETE /api/v1/packages/{owner}/container/{name}/{tag}`
+4. 删除对应的 digest：`DELETE /api/v1/packages/{owner}/container/{name}/sha256:{digest}`
+5. **保留的 tag 及其对应的 sha256 digest 都不动**
+
+---
+
 ## 选项
 
 | 选项 | 说明 |

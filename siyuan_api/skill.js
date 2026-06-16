@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 思源笔记 API 工具 v260529.104141 - 包含所有依赖，无需安装
+// 思源笔记 API 工具 v260616.170825 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -14,7 +14,7 @@ var require_parser = __commonJS({
       const positional = [];
       for (let i = 0; i < args.length; i++) {
         if (args[i].startsWith("--")) {
-          const key = args[i].slice(2);
+          const key = args[i].slice(2).toLowerCase();
           const value = args[i + 1];
           if (value && !value.startsWith("--")) {
             options[key] = value;
@@ -3972,7 +3972,7 @@ var require_cmd = __commonJS({
 
 // run.js
 var fetch = globalThis.fetch;
-var SKILL_VERSION = true ? "260529.104141" : "0.0.1-dev";
+var SKILL_VERSION = true ? "260616.170825" : "0.0.1-dev";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
 var { resolve: resolveEnv } = require_env();

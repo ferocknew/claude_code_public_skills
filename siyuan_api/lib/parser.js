@@ -13,7 +13,8 @@ function parseArgs(args) {
 
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
-      const key = args[i].slice(2);
+      // 转小写：使 --parentID / --nextID 等任意大小写均与 cmd 中 options.parentid 小写访问匹配
+      const key = args[i].slice(2).toLowerCase();
       const value = args[i + 1];
       if (value && !value.startsWith("--")) {
         options[key] = value;
