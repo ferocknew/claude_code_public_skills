@@ -1,62 +1,48 @@
 ---
 name: siyuan-api
-description: 当用户要求"查询思源笔记"、"操作思源笔记"、"获取思源笔记内容"、"思源笔记 API"时使用此 skill。
-version: 260529.104141
+description: 当用户要求"查询思源笔记"、"操作思源笔记"、"获取思源笔记内容"、"思源笔记 API"、"写笔记"、"往思源新增/修改笔记"、"同步记忆到思源"时使用此 skill。
+version: 260616.170825
 ---
 
 # 思源笔记 REST API 工具
 
-通过 REST API 与思源笔记实例交互，支持笔记本、文档、块、属性、SQL 查询、文件操作和导出等功能。
+通过 REST API 与思源笔记交互，支持笔记本、文档、块的**增删改查**、属性、SQL 查询、文件操作、导出，以及从 Memory MCP 同步实体。
 
 ---
 
 ## 快速开始
 
 ```bash
-# 设置环境变量
 export SIYUAN_URL="http://127.0.0.1:6806"
-export SIYUAN_API_TOKEN="your-api-token"
+export SIYUAN_API_TOKEN="your-token"
 
-# 查看系统版本
-node skill.js system version
-
-# 列出所有笔记本
-node skill.js notebook ls
-
-# SQL 查询
-node skill.js sql "SELECT * FROM blocks WHERE type='d' LIMIT 10"
-
-# 导出文档为 Markdown
-node skill.js export md 20231230123456-abcdef
-
-# 获取块属性
-node skill.js attr get 20231230123456-abcdef
+node skill.js notebook ls                                            # 列笔记本
+node skill.js sql "SELECT * FROM blocks WHERE type='d' LIMIT 10"    # SQL 查询
+node skill.js doc create --notebook <id> --path note "标题" "# 正文" # 建文档
+node skill.js export md <doc-id>                                     # 导出为 Markdown
 ```
 
 ---
 
-## 命令参考
+## 命令总表
 
-| 命令 | 说明 |
-|------|------|
-| `notebook ls` | 列出所有笔记本 |
-| `notebook open <id>` | 打开笔记本 |
-| `notebook close <id>` | 关闭笔记本 |
-| `notebook conf <id>` | 获取笔记本配置 |
-| `doc hpath --notebook <id> --path <path>` | 通过存储路径获取人类可读路径 |
-| `doc hpath-by-id <id>` | 通过块 ID 获取人类可读路径 |
-| `doc path-by-id <id>` | 通过块 ID 获取存储路径 |
-| `doc ids-by-hpath --notebook <id> --path <hpath>` | 通过人类可读路径获取 ID |
-| `block kramdown <id>` | 获取块的 Kramdown 内容 |
-| `block children <id>` | 获取子块列表 |
-| `attr get <id>` | 获取块属性 |
-| `sql <stmt>` | 执行 SQL 查询 |
-| `file get <path>` | 获取文件内容 |
-| `file ls <path>` | 列出目录内容 |
-| `export md <id>` | 导出文档为 Markdown |
-| `system version` | 获取思源笔记版本 |
-| `system time` | 获取服务器时间 |
-| `system boot` | 获取启动进度 |
+| 对象 | 查询 | 写入 / 修改 |
+|------|------|-------------|
+| `notebook` | `ls` / `conf <id>` | `create <name>` / `open` / `close` |
+| `doc` | `hpath` / `hpath-by-id` / `path-by-id` / `ids-by-hpath` | `create` / `rename` / `remove` |
+| `block` | `kramdown <id>` / `children <id>` | `insert` / `prepend` / `append` / `update` / `delete` / `move` |
+| `attr` | `get <id>` | `set <id> '<json>'` |
+| `sql` | `<stmt>` | — |
+| `file` | `get <path>` / `ls <path>` | — |
+| `export` | `md <id>` | — |
+| `system` | `version` / `time` / `boot` | — |
+| `sync` | — | `<notebook-id> '<entity-json>'`（Memory MCP → 思源） |
+
+> 📖 **详细用法、参数说明与完整案例**：
+>
+> - 📝 创建（建笔记本 / 文档 / 写块）→ [`examples/create.md`](./examples/create.md)
+> - 🔍 查询（检索 / SQL / 导出）→ [`examples/query.md`](./examples/query.md)
+> - ✏️ 修改（改 / 删 / 移动 / 属性 / 同步）→ [`examples/modify.md`](./examples/modify.md)
 
 ---
 
@@ -64,39 +50,24 @@ node skill.js attr get 20231230123456-abcdef
 
 | 选项 | 说明 |
 |------|------|
-| `--format <type>` | 输出格式（json/yaml/table/default） |
+| `--format <type>` | 输出格式（`json` / `yaml` / `table` / `default`）；YAML 省 ~50% token |
 | `--notebook <id>` | 笔记本 ID（doc 命令） |
 | `--path <path>` | 路径（doc 命令） |
+| `--title <t>` | 文档标题（doc create / rename） |
+| `--parentID` / `--nextID` / `--previousID` | 块插入 / 移动锚点（大小写不敏感） |
 
 ---
 
-## 认证
+## 认证与配置
 
-访问 API 需要有效的 API Token。
-
-获取方式：**思源笔记 > 设置 > 关于 > API Token**
-
-Token 通过 `Token` 方式传递：
-
-```
-Authorization: Token your-token-here
-```
-
----
-
-## 环境变量
+访问需 API Token：**思源笔记 > 设置 > 关于 > API Token**，通过 `Authorization: Token <token>` 传递。
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `SIYUAN_URL` | 思源笔记服务地址 | `http://127.0.0.1:6806` |
+| `SIYUAN_URL` | 服务地址 | `http://127.0.0.1:6806` |
 | `SIYUAN_API_TOKEN` | API Token | 无 |
 
-也可以在同目录创建 `.env` 文件：
-
-```
-SIYUAN_URL=http://127.0.0.1:6806
-SIYUAN_API_TOKEN=your-token-here
-```
+也可在同目录 `.env` 写入这两个变量。URL / Token 还可作为命令尾部位置参数临时覆盖。
 
 ---
 
@@ -107,19 +78,13 @@ SIYUAN_API_TOKEN=your-token-here
 | `notebook` | `nb` |
 | `system` | `sys` |
 | `sql` | `query` |
+| `doc remove` | `rm` / `delete` |
 
 ---
 
 ## 常见问题
 
-**Q: 如何获取 API Token？**
-打开思源笔记，进入 **设置 > 关于**，找到 **API Token**。
-
-**Q: 连接被拒绝怎么办？**
-确认思源笔记已启动，默认监听 `http://127.0.0.1:6806`。
-
-**Q: SQL 查询支持哪些表？**
-常用表：`blocks`（块）、`spans`（行级元素）、`attributes`（属性）、`assets`（资源文件）。
-
-**Q: 如何查看文档内容？**
-使用 `export md <id>` 导出为 Markdown，或 `block kramdown <id>` 获取块的 Kramdown 源码。
+- **Token 怎么拿？** 设置 > 关于 > API Token。
+- **连接被拒？** 确认思源已启动，默认监听 `http://127.0.0.1:6806`。
+- **怎么查文档内容？** `export md <id>` 导出 Markdown，或 `block kramdown <id>` 取源码，或 `sql` 直接查 `blocks` 表。
+- **怎么写 / 改笔记？** 见 [`examples/create.md`](./examples/create.md) 与 [`examples/modify.md`](./examples/modify.md)。
