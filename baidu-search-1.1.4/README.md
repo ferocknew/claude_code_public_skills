@@ -1,2 +1,0 @@
-- https://clawhub.ai/ide-rea/baidu-search#files
-- https://cloud.baidu.com/doc/qianfan/s/Mmlda41a2
