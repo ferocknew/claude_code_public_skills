@@ -5,6 +5,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getConfig } = require("./api");
+const { notifyLive } = require("./live");
 const { createDocument, addVertex, addEdge, addContainer, addSwimlane, toXml, fromXml } = require("./xml_builder");
 const { SHAPES, COLORS, applyColor, getStyle, listShapes } = require("./shapes");
 
@@ -47,6 +48,7 @@ async function cmdNew(opts, positional) {
   const xml = toXml(doc);
   const outFile = opts.output || `${name}.drawio`;
   fs.writeFileSync(outFile, xml, "utf8");
+  await notifyLive(path.resolve(outFile), xml);
 
   return {
     success: true,
@@ -82,6 +84,7 @@ async function cmdAdd(opts, positional) {
 
   const outXml = toXml(doc);
   fs.writeFileSync(file, outXml, "utf8");
+  await notifyLive(path.resolve(file), outXml);
 
   return {
     success: true,
@@ -115,6 +118,7 @@ async function cmdConnect(opts, positional) {
 
   const outXml = toXml(doc);
   fs.writeFileSync(file, outXml, "utf8");
+  await notifyLive(path.resolve(file), outXml);
 
   return {
     success: true,
@@ -194,6 +198,7 @@ async function cmdBatch(opts, positional) {
 
   const outXml = toXml(doc);
   fs.writeFileSync(file, outXml, "utf8");
+  await notifyLive(path.resolve(file), outXml);
 
   return {
     success: true,

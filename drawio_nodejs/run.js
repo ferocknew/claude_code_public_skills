@@ -16,6 +16,7 @@
  *   view <file>               生成只读查看 URL
  *   shapes                    列出可用形状
  *   config                    显示当前配置
+ *   live [file]               启动本地实时预览
  */
 
 const { loadDotEnv, initTls } = require("./lib/api");
@@ -25,6 +26,7 @@ const {
   cmdStatus, cmdNew, cmdAdd, cmdConnect, cmdBatch,
   cmdExport, cmdEdit, cmdView, cmdShapes, cmdConfig, cmdHelp,
 } = require("./lib/commands");
+const { cmdLive } = require("./lib/live");
 
 loadDotEnv(__dirname);
 initTls();
@@ -71,6 +73,7 @@ function showHelp() {
   view <file>                         生成只读查看 URL
   shapes [--query <keyword>]          列出可用形状样式
   config                              显示当前配置
+  live [file] [--port N] [--no-open]  启动本地实时预览（浏览器实时刷新）
 
 全局选项:
   --url <url>       覆盖 draw.io 服务器地址
@@ -85,6 +88,8 @@ function showHelp() {
   --label <text>    连接线标签 (connect 命令)
   --template <name> 新建模板: flowchart / sequence / architecture (new 命令)
   --query <keyword> 搜索形状 (shapes 命令)
+  --port <n>        live 预览服务端口 (默认 17777)
+  --no-open         live 不自动打开浏览器
   -h, --help        显示帮助
   -v, --version     显示版本
 
@@ -119,6 +124,10 @@ function showHelp() {
 
   # 导出为 SVG
   node skill.js export myflow.drawio svg
+
+  # 实时预览（两个终端配合）
+  # 终端1: node skill.js live myflow.drawio        # 启动预览服务并打开浏览器
+  # 终端2: node skill.js add myflow.drawio "新节点"  # 浏览器实时刷新
 `);
 }
 
@@ -134,6 +143,7 @@ const COMMANDS = {
   edit:     { handler: (opts, pos) => cmdEdit(opts, pos), args: ["file"], req: ["文件路径"] },
   view:     { handler: (opts, pos) => cmdView(opts, pos), args: ["file"], req: ["文件路径"] },
   shapes:   { handler: (opts) => cmdShapes(opts), args: [], req: [] },
+  live:     { handler: (opts, pos) => cmdLive(opts, pos), args: [], req: [] },
   config:   { handler: () => cmdConfig(), args: [], req: [] },
   help:     { handler: () => cmdHelp(), args: [], req: [] },
 };
