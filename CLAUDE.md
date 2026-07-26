@@ -1,366 +1,158 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本仓库的 Claude Code 开发指导文件。
 
-## Repository Overview
+## 仓库概览
 
-This is a **Claude Code Skills Collection** repository. Each directory contains a skill that Claude Code can load to provide specialized capabilities in specific domains.
+**Claude Code Skills Collection**：Claude Code 可加载的技能集合，每个目录一个技能包。
 
-Skills fall into two categories:
+技能分两类：
+- **Bundled**：`run.js` + `build.js` + `package.json`，esbuild 打包为独立 `skill.js`（零依赖），
+  运行 `node skill.js <args>`
+- **Agent-only**：仅 `SKILL.md`，LLM 通过 MCP 工具或 CLI 命令驱动
 
-- **Bundled skills**: Have `run.js` + `build.js` + `package.json` — use esbuild to bundle Node.js dependencies into a standalone `skill.js`. Run via `node skill.js <args>`.
-- **Agent-only skills**: Only `SKILL.md` — the LLM drives execution via MCP tools or CLI commands, no Node.js runtime code.
+## 当前技能
 
-## Current Skills
+| 技能 | 类型 | 用途 |
+|------|------|------|
+| `88cha` | Bundled | 企业搜索（工商信息、关联企业、专利） |
+| `agent-browser` | Agent-only | 浏览器自动化、截图、网页测试 |
+| `brz_repair_manual_query` | Agent-only | 斯巴鲁 BRZ 维修手册查询 |
+| `cmo-weather-query` | Bundled | 中国气象局天气查询 |
+| `db_client` | Bundled | 数据库客户端（MySQL/PostgreSQL/SQLite + SSH 隧道） |
+| `dianping-search` | Bundled | 大众点评商户搜索 |
+| `doc_reader` | Bundled | 读取 .docx 转 Markdown/HTML |
+| `documents_ripgrep` | Bundled | ripgrep + textract 全文搜索（代码+Office） |
+| `excel-alasql` | Bundled | SQL 查询 Excel，支持中文列名 |
+| `financial` | Bundled | 金融信息 API（金银期、A股、K线、新闻） |
+| `figma-code-connect` | Agent-only | Figma 组件与代码映射 |
+| `figma-create-design-system-rules` | Agent-only | AI 编码助手设计系统规则生成 |
+| `figma-create-new-file` | Agent-only | 创建空白 Figma 文件 |
+| `figma-generate-design` | Agent-only | 从代码/描述构建 Figma 页面 |
+| `figma-generate-library` | Agent-only | 从代码库构建 Figma 设计系统 |
+| `figma-implement-design` | Agent-only | Figma 设计稿转生产代码 |
+| `figma-use` | Agent-only | Figma Plugin API MCP 封装 |
+| `file_code_box` | Agent-only | 匿名口令分享文本和文件 |
+| `gaode_map` | Bundled | 高德地图（地理编码、POI、路径、路况） |
+| `game_mahjong_agent` | Bundled | AI 多人麻将游戏模拟器 |
+| `happy_agent_easy` | Bundled | Happy Agent 远程会话管理客户端 |
+| `jina_reader` | Agent-only | Jina AI Reader 网页纯文本提取 |
+| `makepad-进化` | Agent-only | 自我改进 Makepad 开发技能 |
+| `mind-map-skill` | Bundled | 心智图 REST API 远程控制 |
+| `ms_office_x_editer` | Bundled | Word/Excel 编辑（替换、样式、表格、图片、diff） |
+| `obsidian_cli` | Agent-only | Obsidian 知识库交互（读写、搜索、任务） |
+| `obsidian-bases` | Agent-only | Obsidian Bases 文件创建/编辑 |
+| `obsidian-json-canvas` | Agent-only | JSON Canvas 文件创建/编辑 |
+| `sendmail` | Bundled | SMTP 发送邮件（支持附件） |
+| `siyuan_api` | Bundled | 思源笔记 REST API（增删改查、SQL、导出） |
+| `use_http_mcp` | Bundled | HTTP 请求工具（GET/POST/PUT/DELETE） |
+| `website_security_scan` | Bundled | 网站安全扫描（HTTP头、CORS、CSP、XSS） |
+| `where-am-i` | Bundled | 公网 IP 地理位置查询 |
+| `where-is-this` | Bundled | 经纬度逆地理编码 |
+| `wikijs_api` | Bundled | Wiki.js GraphQL API 客户端 |
+| `x_release_by_agent_browser` | Agent-only | X/Twitter 自动发布推文 |
 
-| Skill | Type | Purpose |
-|-------|------|---------|
-| `88cha` | Bundled | Enterprise search via 88cha.com — company info, person-to-company relations, patent search, deep search |
-| `agent-browser` | Agent-only | Browser automation, form filling, screenshots, web testing |
-| `cmo-weather-query` | Bundled | Weather query from China Meteorological Administration |
-| `db_client` | Bundled | Database client (MySQL, PostgreSQL, SQLite) with SSH tunnel |
-| `dianping-search` | Bundled | Dianping (大众点评) merchant search by city/category |
-| `doc_reader` | Bundled | Read .docx files, convert to Markdown/HTML |
-| `documents_ripgrep` | Bundled | Full-text search in code files and Office docs via ripgrep+textract |
-| `excel-alasql` | Bundled | SQL queries on Excel files via AlaSQL, Chinese column name support |
-| `gaode_map` | Bundled | AMap geocoding, POI search (v3+v5), route planning, traffic status, address verification |
-| `figma-code-connect` | Agent-only | Create/maintain `.figma.ts` files mapping Figma components to code |
-| `figma-create-design-system-rules` | Agent-only | Generate project-level design system rules for AI coding agents |
-| `figma-create-new-file` | Agent-only | Create a new blank Figma file in user's drafts |
-| `figma-generate-design` | Agent-only | Build/update full-page screens in Figma from code or descriptions |
-| `figma-generate-library` | Agent-only | Build a complete design system library in Figma from a codebase |
-| `figma-implement-design` | Agent-only | Translate Figma designs into production-ready application code |
-| `figma-use` | Agent-only | Figma Plugin API via MCP — foundation for all Figma write operations |
-| `game_mahjong_agent` | Bundled | Multi-player Mahjong game AI agent simulator |
-| `happy_agent_easy` | Bundled | Simplified Happy Agent client — manage remote Agent sessions |
-| `jina_reader` | Agent-only | Fetch web page content as clean text via Jina AI Reader |
-| `makepad-进化` | Agent-only | Self-improving Makepad development skill system |
-| `obsidian_cli` | Agent-only | Interact with Obsidian vault via CLI — read, search, create notes |
-| `obsidian-bases` | Agent-only | Create/edit Obsidian Bases (.base) files with views, filters, formulas |
-| `obsidian-json-canvas` | Agent-only | Create/edit JSON Canvas (.canvas) files with nodes, edges, groups |
-| `sendmail` | Bundled | Send emails via SMTP with Nodemailer, supports attachments |
-| `use_http_mcp` | Bundled | HTTP requests via native fetch, REST API testing, MCP server interaction |
-| `website_security_scan` | Bundled | Website security scan: HTTP headers, CORS, CSP, XSS detection |
-| `where-am-i` | Bundled | Query public IP address, geolocation, ISP info |
-| `where-is-this` | Bundled | Reverse geocoding — coordinates to detailed address |
-| `x_release_by_agent_browser` | Agent-only | Publish tweets on X/Twitter via agent-browser automation |
-| `wikijs_api` | Bundled | Wiki.js GraphQL API client — pages CRUD, search, history, version recovery, YAML output |
-| `file_code_box` | Agent-only | FileCodeBox file express cabinet — anonymous passcode sharing text and files |
-| `financial` | Bundled | Financial info API — gold/silver spot futures, A-share quotes, K-line, news via local MCP service |
-| `mind-map-skill` | Bundled | Mind map remote control via REST API — full CRUD, node ops, exec 45 simple-mind-map commands |
-| `ms_office_x_editer` | Bundled | Edit Word (.docx) and Excel (.xlsx) files — text replace, styles, tables, images, diff |
-| `siyuan_api` | Bundled | SiYuan Notes REST API client — notebooks, docs, blocks, SQL query, file ops, export |
-| `brz_repair_manual_query` | Agent-only | Search Subaru BRZ repair manuals — maintenance steps, wiring diagrams, diagnostics |
+> 各 skill 用法和架构详见其目录下 `SKILL.md` 和 `CLAUDE.md`。
 
-## Skill File Structure
+## SKILL.md 规范
 
-Each skill directory contains a `SKILL.md` file with:
-- **YAML frontmatter** (required): `name` and `description` fields
-- **Optional frontmatter**: `version`, `skill_version` (bundled skills)
-- **Markdown content**: Skill documentation, patterns, examples
+YAML frontmatter 必须包含 `name`（kebab-case）和 `description`（说明"何时使用"，
+触发词覆盖查询+写入意图）。
 
 ```yaml
 ---
 name: skill-name
-description: Brief description of when to use this skill.
-version: YYMMDD.HHmmSS          # optional, mainly for bundled skills
-skill_version: YYMMDD.HHmmSS    # optional, auto-updated by build.js
+description: 当用户要求"..."时使用此 skill。
+skill_version: YYMMDD.HHmmSS    # build.js 自动更新，不要手填
 ---
-
-# Skill Documentation
-
-Detailed content...
 ```
 
-## Development Commands — Bundled Skills
+Bundled skill 采用"瘦索引"模式：快速开始 + 命令总表（必须含写入命令）+
+选项 + 认证 + FAQ，详细案例路由到 `examples/`。
 
-All bundled skills share the same build pipeline using esbuild.
+## 构建与版本
+
+所有 Bundled skill 共享 esbuild 打包流程：
 
 ```bash
 cd <skill-dir>
-pnpm install       # Install dependencies
-pnpm run build     # Bundle run.js -> skill.js (also updates skill_version in SKILL.md)
-node skill.js ...  # Run the standalone bundled version
+pnpm install && pnpm run build   # run.js → skill.js（零依赖）
+node skill.js --help             # 验证
 ```
 
-### Skill-specific usage
-
-#### 88cha
-```bash
-node skill.js "腾讯"                          # 企业搜索
-node skill.js "马化腾" --person                # 按人名查关联企业
-node skill.js "华为" --patent                  # 专利搜索
-node skill.js "字节跳动" --stream              # 深度搜索（SSE）
-node skill.js "腾讯" --cookie "YOUR_COOKIE"   # 首次手动提供 Cookie
-```
-
-#### Use-HTTP-MCP
-```bash
-node skill.js get <url>
-node skill.js post <url> '{"key": "value"}'
-```
-
-#### Excel-AlaSQL
-```bash
-node skill.js <file-path>                         # Data overview
-node skill.js <file-path> "keyword"               # Keyword search
-node skill.js <file-path> "SELECT * WHERE c1 > 100"  # SQL query
-node skill.js <file-path> "*" > output.json       # Export JSON
-```
-
-#### Doc Reader
-```bash
-node skill.js /path/to/document.docx              # Default (with formatting)
-node skill.js /path/to/document.docx --raw        # Raw markdown
-node skill.js /path/to/document.docx --html       # HTML format
-```
-**Conversion flow**: DOCX → Mammoth.js → HTML → Turndown → Markdown
-
-#### DB Client
-```bash
-node skill.js mysql host:localhost,port:3306,user:root,password:123,database:testdb
-node skill.js mysql --ssh host:server.com,user:ubuntu --db host:localhost,port:3306,user:root,password:123,database:testdb
-```
-**Native modules** (cannot bundle): `better-sqlite3` (SQLite), `ssh2` (SSH tunnel)
-
-#### Documents Ripgrep
-```bash
-node skill.js <directory> <keyword>               # Basic search
-node skill.js <directory> <keyword> -s            # Case-sensitive
-node skill.js <directory> <regex> -e              # Regex search
-node skill.js <directory> <keyword> -m 50         # Limit results
-```
-
-#### Sendmail
-```bash
-node skill.js --to user@example.com --subject "Hi" --body "Hello"
-```
-
-#### Wiki.js API
-```bash
-# 配置环境变量
-export WIKI_URL="https://wiki.example.com"
-export WIKI_TOKEN="your-api-token"
-
-# 查询所有页面
-node skill.js query pages
-
-# 搜索页面（默认带预览摘要）
-node skill.js search "关键词"
-
-# 查看页面历史
-node skill.js history 15
-
-# 获取特定版本内容
-node skill.js version 15 5
-
-# 创建/更新/删除页面
-node skill.js create "new/page" "标题" "内容"
-node skill.js update 15 "新内容"
-node skill.js delete 15
-
-# YAML 格式输出（节省 Token）
-node skill.js history 15 --format yaml
-node skill.js version 15 5 --format yaml
-```
-
-#### Financial
-```bash
-node skill.js quote AU9999                    # Real-time quote (auto-detects code type)
-node skill.js kline AU9999 --type day --days 30  # K-line history
-node skill.js sina-futures GC                 # Sina overseas futures
-node skill.js ths-quote 300033                # Tonghuashun stock data
-node skill.js ths-news 300033 --limit 10      # Stock news
-```
-
-#### Mind Map Skill
-```bash
-node skill.js <command> [args] [options]      # All simple-mind-map operations
-```
-
-#### MS Office Editor
-```bash
-node skill.js <file> info                     # Document info
-node skill.js <file> read [selector]          # Read content
-node skill.js <file> replace "old" "new"      # Text replace
-node skill.js <file> xlsx-info                # Excel info
-node skill.js <file> xlsx-read Sheet1 A1:B10  # Read cells
-```
+`build.js` 标准配置：`platform: "node"`、`target: "node18"`、`bundle: true`、
+`define: { __VERSION }` 注入版本号，自动更新 SKILL.md 的 `skill_version`。
 
-#### SiYuan API
-```bash
-export SIYUAN_URL="http://127.0.0.1:6806"
-export SIYUAN_API_TOKEN="your-token"
-node skill.js notebook ls                     # List notebooks
-node skill.js sql "SELECT * FROM blocks LIMIT 10"  # SQL query
-node skill.js export md <block-id>            # Export as Markdown
-```
+版本号格式 `YYMMDD.HHmmSS`，由 `getTimestamp()` 生成。
 
-### Version Numbering
+native 模块（`better-sqlite3`、`ssh2`）须加 `external`，不能打进 bundle。
 
-All bundled skills use timestamp-based versioning in `YYMMDD.HHmmSS` format, generated by a shared `build.js` pattern:
+## 模块化规范
 
-1. `build.js` calls `esbuild` to bundle `run.js` → `skill.js`
-2. It computes the current timestamp and injects it as `__VERSION` and a banner comment
-3. It updates `skill_version` in `SKILL.md` frontmatter
+Bundled skill 的 `lib/` 有两种模式：
+- **扁平模式**（简单 skill）：`lib/api.js` + `lib/commands.js`
+- **cmd 子目录**（复杂 skill）：`lib/cmd/<对象>.js` + `index.js` +
+  `lib/parser.js` + `lib/env.js` + `lib/errors.js` + `lib/output.js`
 
-### Common `build.js` Structure
+编码规范：CommonJS（`require`/`module.exports`）、Node 18+ 全局 `fetch`、
+错误统一 `JSON.stringify({ error, message })` 输出、配置从环境变量读取、
+中文注释与输出。
 
-Each bundled skill's `build.js` follows the same template:
+## 隐私红线
 
-```
-- esbuild bundling with platform=node, bundle=true
-- external: ["react-native-fs", "react-native-fetch-blob"] (for RN compatibility)
-- Banner with version string
-- Optional define: __VERSION injection
-- SKILL.md skill_version auto-update
-```
+**禁止将私有信息提交到 GitHub。** 本仓库为公开仓库。
 
-## Architecture Highlights
+- 代码/SKILL.md/help 不得硬编码内网 IP、token、密码、内部域名
+- 默认值用 `localhost` 或占位符，真实地址由 `.env` 注入
+- `.env`/cookie/私钥文件必须被 `.gitignore`
+- `skill.js` 打包会将 `lib/` 源码原样打进 bundle，隐私检查必须在源码层做
+- 提交前扫描：
+  `git diff --cached | grep -iE "token|password|10\.0\."`
 
-### Excel-AlaSQL Column Mapping
+> Node.js skill 专家 agent：`.claude/agents/nodejs-expert.md`
+> 内置撰写规范、隐私检查和验证清单。
 
-AlaSQL does not support Chinese column names as SQL identifiers. The skill implements a **column mapping mechanism**:
+## 添加新技能
 
-1. Original columns (e.g., `层次`, `事件编号`) are mapped to `c0`, `c1`, `c2`...
-2. SQL queries use mapped identifiers: `SELECT * WHERE c0 = '中间事件'`
-3. Results are automatically converted back to original column names
+1. 创建目录（短名用下划线如 `db_client`，多词用连字符如 `agent-browser`）
+2. 添加 `SKILL.md`（frontmatter: name + description）
+3. Bundled skill：添加 `run.js` + `build.js` + `package.json` + `lib/`
+4. `pnpm install && pnpm run build` 打包，`node skill.js --help` 验证
+5. 更新本文件和 README.md 的技能表格
 
-**Key functions**:
-- `mapColumns(data)` — Maps original column names to c0, c1...
-- `unmapColumns(data, mapping)` — Converts query results back to original names
+## 文件规范
 
-**SQL restrictions**: Only SELECT queries allowed. UPDATE/DELETE/INSERT/CREATE/DROP/ALTER/TRUNCATE/REPLACE are blocked.
+| 项目 | 规范 |
+|------|------|
+| Skill 文档 | `SKILL.md`（大写） |
+| 打包入口 | `run.js`（开发）→ `skill.js`（产物，提交仓库） |
+| 打包脚本 | `build.js`，esbuild，仅 devDep: esbuild |
+| 模块化 | `lib/cmd/*.js` + `lib/cmd/index.js` |
+| 版本号 | `YYMMDD.HHmmSS`，build.js 自动更新 |
 
-### Wiki.js API Architecture
+子 skill 三文档模型：`SKILL.md`（LLM 运行时）、
+`CLAUDE.md`（开发指导）、`README.md`（人类用户）。
 
-**Search snippet extraction**: Two modes for context-aware previews
-  - Line mode (`--contextLength 1`): Extracts N lines around keyword (recommended for LLM)
-  - Char mode (`--contextLength 100`): Extracts N characters around keyword
-  - Markdown stripping: Removes images, links, code blocks before extraction
+## Session 历史
 
-**Output formats**: JSON / YAML / Default
-  - YAML: ~50% less tokens than JSON, recommended for LLM analysis
-  - Default: Clean readable format with clickable links
+**2026-07-26**：创建 nodejs-expert agent（内置撰写规范）；
+修复 drawio_nodejs 内网 IP 泄露（`10.0.0.40` 硬编码），
+filter-branch 重写历史 + force push；
+将"隐私红线"写入 agent 和本文件。
 
-**Modular command structure**: `lib/cmd/` — one file per command
-  - `query.js`, `create.js`, `update.js`, `delete.js`, `search_cmd.js`, `history.js`, `version.js`
-  - `index.js` — unified exports
+## GitNexus MCP
 
-### Documents Ripgrep Architecture
+本项目由 GitNexus 索引（149 symbols）。
+代码理解/调试/影响分析任务先读
+`gitnexus://repo/claude_code_public_skills/context`。
 
-- **Parallel processing**: 5 Office files concurrently per batch
-- **Smart caching**: Parsed text cached at `~/.cache/documents_ripgrep/`
-  - Cache key: `sha1.<file-mtime>.txt`
-  - Auto-invalidates on file modification
-  - Auto-cleanup after 30 days
+| 任务 | Skill 文件 |
+|------|-----------|
+| 理解架构 | `.claude/skills/gitnexus/exploring/SKILL.md` |
+| 爆炸半径 | `.claude/skills/gitnexus/impact-analysis/SKILL.md` |
+| 追踪 bug | `.claude/skills/gitnexus/debugging/SKILL.md` |
+| 重命名/重构 | `.claude/skills/gitnexus/refactoring/SKILL.md` |
 
-### MS Office Editor Architecture
-
-- **ZIP-level XML manipulation**: Uses JSZip to open Office files (ZIP format), directly edits XML strings
-- **Cross-run text replacement**: docx text may be split across multiple `<w:r>` elements; strategy concatenates all `<w:t>` in a `<w:p>`, searches the full text, then replaces from back-to-front preserving the first run's formatting
-- **xlsx sharedStrings**: `t="s"` cells store sharedStrings index in `<v>`; reads build index→text map, writes append new text and update `count`/`uniqueCount`
-- **Modular structure**: `lib/` with separate modules for docx (XmlTextOps, XmlTableOps, ImageOps, HeaderFooterOps, MetaOps, StyleOps, DiffOps) and xlsx (xlsx_cli, xlsx_utils, sheet_ops, xlsx_style_ops)
-
-### SiYuan API Architecture
-
-- **REST POST client**: All API calls via POST to `/api/...` endpoints with JSON body
-- **Modular command structure**: `lib/cmd/` — one file per command group (notebook, doc, block, attr, sql, file, export, system)
-- **Output formats**: JSON / YAML / table / default
-
-### BRZ Repair Manual Query
-
-- **Agent-only skill**: No Node.js code — uses `curl` + `sed` to fetch and parse repair manual search index
-- **Workflow**: User provides manual URL → derive base path → download `lookupjson.js` → parse JSON → filter by keyword → output matching entries with links
-
-## Adding New Skills
-
-1. Create a new directory for the skill
-2. Add a `SKILL.md` file with proper YAML frontmatter (name + description)
-3. The `description` field should clearly indicate when Claude should use this skill
-4. For Node.js skills: add `run.js` + `build.js` + `package.json` with esbuild
-5. Update this CLAUDE.md and README.md to include the new skill
-
-## File Conventions
-
-- **Skill docs**: `SKILL.md` (uppercase)
-- **Directory naming**: 
-  - Hyphens for multi-word names: `agent-browser`, `excel-alasql`, `use-http-mcp`, `mind-map-skill`
-  - Underscores for short names: `db_client`, `doc_reader`, `sendmail`, `wikijs_api`, `gaode_map`
-- **Frontmatter**: Valid YAML with `---` delimiters
-- **Build scripts**: `build.js` with esbuild (only for bundled skills)
-- **Entry points**: `run.js` (dev) → `skill.js` (bundled, committed to repo)
-- **Modular commands**: `lib/cmd/*.js` — one file per command, `index.js` for unified exports
-
-## Sub-skill CLAUDE.md Files
-
-Some skills include their own `CLAUDE.md` for internal development guidance. These follow a consistent three-doc model:
-
-| File | Audience | Purpose |
-|------|----------|---------|
-| `SKILL.md` | Claude AI (LLM runtime) | How to use the skill |
-| `CLAUDE.md` | Claude Code (dev assistant) | Architecture, dev conventions |
-| `README.md` | Human users | Complete usage documentation |
-
-<!-- gitnexus:start -->
-# GitNexus MCP
-
-This project is indexed by GitNexus as **claude_code_public_skills** (149 symbols, 240 relationships, 3 execution flows).
-
-GitNexus provides a knowledge graph over this codebase — call chains, blast radius, execution flows, and semantic search.
-
-## Always Start Here
-
-For any task involving code understanding, debugging, impact analysis, or refactoring, you must:
-
-1. **Read `gitnexus://repo/{name}/context`** — codebase overview + check index freshness
-2. **Match your task to a skill below** and **read that skill file**
-3. **Follow the skill's workflow and checklist**
-
-> If step 1 warns the index is stale, run `npx gitnexus analyze` in the terminal first.
-
-## Skills
-
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/refactoring/SKILL.md` |
-
-## Tools Reference
-
-| Tool | What it gives you |
-|------|-------------------|
-| `query` | Process-grouped code intelligence — execution flows related to a concept |
-| `context` | 360-degree symbol view — categorized refs, processes it participates in |
-| `impact` | Symbol blast radius — what breaks at depth 1/2/3 with confidence |
-| `detect_changes` | Git-diff impact — what do your current changes affect |
-| `rename` | Multi-file coordinated rename with confidence-tagged edits |
-| `cypher` | Raw graph queries (read `gitnexus://repo/{name}/schema` first) |
-| `list_repos` | Discover indexed repos |
-
-## Resources Reference
-
-Lightweight reads (~100-500 tokens) for navigation:
-
-| Resource | Content |
-|----------|---------|
-| `gitnexus://repo/{name}/context` | Stats, staleness check |
-| `gitnexus://repo/{name}/clusters` | All functional areas with cohesion scores |
-| `gitnexus://repo/{name}/cluster/{clusterName}` | Area members |
-| `gitnexus://repo/{name}/processes` | All execution flows |
-| `gitnexus://repo/{name}/process/{processName}` | Step-by-step trace |
-| `gitnexus://repo/{name}/schema` | Graph schema for Cypher |
-
-## Graph Schema
-
-**Nodes:** File, Function, Class, Interface, Method, Community, Process
-**Edges (via CodeRelation.type):** CALLS, IMPORTS, EXTENDS, IMPLEMENTS, DEFINES, MEMBER_OF, STEP_IN_PROCESS
-
-```cypher
-MATCH (caller)-[:CodeRelation {type: 'CALLS'}]->(f:Function {name: "myFunc"})
-RETURN caller.name, caller.filePath
-```
-
-<!-- gitnexus:end -->
+工具：`query`（代码智能）、`context`（符号全景）、
+`impact`（爆炸半径）、`detect_changes`（git diff）、
+`rename`（协同重命名）、`cypher`（图查询）。
