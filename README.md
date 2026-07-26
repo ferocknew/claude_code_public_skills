@@ -38,6 +38,39 @@
 | `wikijs_api` | Wiki.js API Client | Wiki.js GraphQL API 客户端，支持页面 CRUD、搜索、历史查看，支持 YAML 输出节省 Token |
 | `file_code_box` | FileCodeBox | 文件快递柜 - 匿名口令分享文本和文件，上传后返回提取码和分享链接 |
 
+## 项目规范
+
+### 技能分类
+- **Bundled**（含代码）：`run.js` + `build.js` + `package.json` + `lib/`
+  → esbuild 打包为零依赖 `skill.js`
+- **Agent-only**（纯文档）：仅 `SKILL.md`，LLM 驱动执行
+
+### 目录与命名
+- 目录名：短名用下划线（`db_client`），多词用连字符（`agent-browser`）
+- SKILL.md（大写）、run.js、build.js、package.json、skill.js
+- 模块化：`lib/cmd/*.js`（每命令一文件）+ `index.js`
+
+### 编码规范
+- CommonJS（`require`/`module.exports`），禁用 ESM/TypeScript
+- Node 18+ 全局 `fetch`，禁用 `node-fetch`
+- 错误统一 `JSON.stringify({ error, message })` 输出
+- 注释、帮助文本、输出使用简体中文
+
+### 版本号
+格式 `YYMMDD.HHmmSS`，由 `build.js` 自动注入并更新 SKILL.md，不要手填。
+
+### 隐私红线
+- **禁止将私有信息提交 GitHub**
+- 代码不得硬编码内网 IP / token / 密码，配置走环境变量
+- `.env` / cookie / 私钥文件必须 `.gitignore`
+- 反面教材中的真实地址用占位符替代
+
+### 添加新技能
+1. 创建目录 + `SKILL.md`（frontmatter: name + description）
+2. Bundled skill：添加 run.js / build.js / package.json / lib/
+3. `pnpm install && pnpm run build` 打包，`node skill.js --help` 验证
+4. 更新本文件和 CLAUDE.md 的技能表格
+
 ## 技能文件结构
 
 每个技能目录包含 `SKILL.md` 文件，格式如下：
