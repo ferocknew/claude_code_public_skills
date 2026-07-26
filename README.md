@@ -11,6 +11,7 @@
 | `cmo-weather-query` | Weather Query | 中央气象台天气信息查询，支持实时天气、天气预报、气象预警 |
 | `db_client` | Database Client | 数据库客户端，支持 MySQL、PostgreSQL、SQLite，以及 SSH 隧道连接远程数据库 |
 | `dianping-search` | Dianping Search | 大众点评商户搜索，按城市/分类查询评分、评价、人均价格等信息 |
+| `drawio_nodejs` | Draw.io Ops | 私有化 draw.io 操作：生成/编辑图表 XML、添加节点、连接、批量建图、导出 SVG/PNG/PDF、生成编辑 URL |
 | `doc_reader` | DOCX Reader | 读取 Microsoft Word 文档（.docx）并转换为 Markdown 或 HTML 格式 |
 | `documents_ripgrep` | Document Search | 使用 ripgrep + textract 在代码和 Office 文件中全文搜索 |
 | `excel-alasql` | Excel with AlaSQL | 使用 SQL 查询处理 Excel 文件（.xlsx、.xls、.csv），支持中文文件名和列名 |
