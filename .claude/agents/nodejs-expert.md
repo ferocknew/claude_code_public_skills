@@ -15,6 +15,7 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 3. **验证必须**：写完必须运行 `node build.js` 打包，再用 `node skill.js --help` 和至少一条真实命令验证产物可运行。
 4. **CommonJS 统一**：所有 `.js` 一律 `require` / `module.exports`，不用 ESM，不用 TypeScript。
 5. **中文注释与输出**：本仓库面向中文用户，注释、帮助文本、错误信息均用简体中文。
+6. **隐私红线**：禁止将私有信息提交到 GitHub。代码不得硬编码内网 IP、token、密码、内部域名；配置一律走环境变量；`.env`/cookie/私钥文件必须被 `.gitignore`。详见下文「安全与隐私规范」。
 
 ## Skill 两种类型
 
@@ -330,6 +331,64 @@ module.exports = { cmdNotebook, cmdDoc, /* ... */ };
 - **中文**：注释、帮助文本、错误消息、SKILL.md 全部简体中文。
 - **无副作用**：除非用户明确要求，不修改 `README.md`、不生成额外说明文档。
 
+## 安全与隐私规范
+
+**红线：禁止将私有信息提交到 GitHub。** 本仓库是 public skills 合集，任何提交都会公开。私有信息一旦推送，即使后续删除也会留在 git 历史里，必须从源头杜绝。
+
+### 禁止硬编码的私有信息
+
+代码、注释、帮助文本、`SKILL.md` 中**不得**出现：
+
+- 内网 IP（`10.x.x.x`、`192.168.x.x`、`172.16.x.x`）—— 默认值用 `localhost` 或占位符
+- API token / 密钥 / 密码 / Cookie —— 一律从环境变量读取
+- 内部域名 / 私有服务端点 —— 用 `https://example.com` 或环境变量
+- 个人邮箱、手机号、内部工号
+
+**默认值用占位符，不要用真实地址。** `drawio_nodejs` 的真实教训：
+
+```javascript
+// ✗ 错误：内网 IP 写进源码，会被提交到 GitHub 并打包进 skill.js
+url: process.env.DRAWIO_URL || "http://<内网IP>:32519",
+```
+
+```javascript
+// ✓ 正确：默认值用 localhost 占位，真实地址由 .env 注入
+url: process.env.DRAWIO_URL || "http://localhost:8080",
+```
+
+### 必须被 .gitignore 的文件
+
+根 `.gitignore` 已覆盖 `.env`、`node_modules`、`.claude`、`test`、`demo`。新建 skill 若引入新的敏感文件，须在本 skill 目录补 `.gitignore`：
+
+| 文件 | 说明 | 处理 |
+|------|------|------|
+| `.env` | 含 token / 密码 / 服务器地址 | gitignore，**不提交** |
+| `.cookie` / `.dper` | 站点登录凭据（参考 `88cha/.cookie`、`dianping-search/.dper`） | gitignore |
+| `*.key` / `*.pem` | SSH / TLS 私钥 | gitignore |
+| `sessions/` / `cache/` | 运行时会话、缓存 | gitignore |
+| `.env.example` | 配置模板（仅占位符） | **可提交**，给用户参考 |
+
+`.env.example` 只放占位符，绝不放真实值：
+
+```bash
+# .env.example（可提交）
+DRAWIO_URL=http://localhost:8080
+DRAWIO_API_TOKEN=your-token-here
+```
+
+### skill.js 打包产物的隐私风险
+
+`build.js` 会把 `lib/` 全部打进 `skill.js`，**源码里硬编码的私有信息会原样进入 bundle 并提交**。因此隐私检查必须在源码层做，不能依赖"打包时剔除"。
+
+### 提交前必做检查
+
+```bash
+git status                                              # 确认 .env / .cookie 等不在待提交列表
+git diff --cached | grep -iE "token|password|secret|10\.0\.|192\.168\.|172\.16\."  # 扫描暂存区
+```
+
+若命中：立即移除硬编码、改用环境变量；若敏感文件已被 `git add`，用 `git rm --cached <file>` 取消跟踪并加入 `.gitignore`；若已推送到远程，必须视为泄露，通知用户强制重写历史或轮换凭据。
+
 ## 创建新 skill 的步骤
 
 1. **选目录名**：短名用下划线（`db_client`、`sendmail`），多词用连字符（`agent-browser`、`excel-alasql`）。参考既有命名。
@@ -339,8 +398,9 @@ module.exports = { cmdNotebook, cmdDoc, /* ... */ };
 5. **写 run.js**：`COMMANDS` 分发表 + `showHelp()` + `main()`。
 6. **写 SKILL.md**：瘦索引，命令总表必须含写入命令。
 7. **装依赖打包**：`pnpm install && pnpm run build`（或 `npm install && node build.js`）。
-8. **验证**：`node skill.js --help` + 至少一条真实查询命令。
-9. **更新索引**：在本仓库根 `CLAUDE.md` 的 skill 表格新增一行（这是允许且要求的例外）。
+8. **隐私扫描**：确认源码/`SKILL.md`/help 无硬编码私有信息，`.env` 等敏感文件已被 `.gitignore`，详见「安全与隐私规范」。
+9. **验证**：`node skill.js --help` + 至少一条真实查询命令。
+10. **更新索引**：在本仓库根 `CLAUDE.md` 的 skill 表格新增一行（这是允许且要求的例外）。
 
 ## 验证清单（完成前必过）
 
@@ -352,6 +412,8 @@ module.exports = { cmdNotebook, cmdDoc, /* ... */ };
 - [ ] SKILL.md frontmatter 的 `name` kebab-case、`description` 覆盖查询+写入意图、命令总表含写入命令。
 - [ ] 无 native 模块被打进 bundle（如有，已加 `external` 并在 SKILL.md 标注）。
 - [ ] 所有代码 CommonJS，无 ESM/TS。
+- [ ] **隐私**：源码 / `SKILL.md` / help 无内网 IP、token、密码硬编码；默认值用 `localhost` 或占位符。
+- [ ] **隐私**：`.env` / `.cookie` / 私钥等敏感文件已被 `.gitignore`，`git status` 确认未进入暂存区；`skill.js` 未泄露私有配置。
 - [ ] 根 `CLAUDE.md` skill 表格已新增此 skill。
 
 ## 参考实例
