@@ -21,6 +21,7 @@
 | `cmo-weather-query` | Bundled | 中国气象局天气查询 |
 | `db_client` | Bundled | 数据库客户端（MySQL/PostgreSQL/SQLite + SSH 隧道） |
 | `dianping-search` | Bundled | 大众点评商户搜索 |
+| `drawio_nodejs` | Bundled | 私有化 draw.io 远程操作（建图、节点、连接、批量、导出、编辑 URL） |
 | `doc_reader` | Bundled | 读取 .docx 转 Markdown/HTML |
 | `documents_ripgrep` | Bundled | ripgrep + textract 全文搜索（代码+Office） |
 | `excel-alasql` | Bundled | SQL 查询 Excel，支持中文列名 |

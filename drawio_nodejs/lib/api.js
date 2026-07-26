@@ -24,8 +24,9 @@ function loadDotEnv(baseDir) {
 }
 
 function getConfig() {
+  const rawUrl = process.env.DRAWIO_URL || "http://localhost:8080";
   return {
-    url: process.env.DRAWIO_URL || "http://localhost:8080",
+    url: rawUrl.replace(/\/+$/, ""),
     rejectUnauthorized: process.env.DRAWIO_REJECT_UNAUTHORIZED !== "false",
   };
 }
