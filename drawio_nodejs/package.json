@@ -1,0 +1,12 @@
+{
+  "name": "drawio_nodejs",
+  "version": "1.0.0",
+  "description": "私有化 draw.io 远程操作工具，支持创建/编辑/导出流程图",
+  "main": "run.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}
