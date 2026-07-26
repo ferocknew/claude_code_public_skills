@@ -1,7 +1,7 @@
 ---
 name: drawio-nodejs
 description: 当用户要求"创建/编辑/导出 draw.io 流程图、架构图、时序图"，或操作私有化部署的 draw.io 服务（生成图表 XML、添加节点、连接节点、批量建图、导出 SVG/PNG/PDF、生成在线编辑/查看 URL、查询形状库）时使用此 skill。覆盖查询（shapes/status/config/view）与写入（new/add/connect/batch/export）两类意图。
-skill_version: 260726.113320
+skill_version: 260726.162630
 ---
 
 # draw.io 远程操作工具
@@ -46,6 +46,7 @@ node skill.js export myflow.drawio svg
 | `view` | `<file>` | 生成只读查看 URL | 查询 |
 | `shapes` | — | 列出可用形状与颜色（支持 `--query`） | 查询 |
 | `config` | — | 显示当前配置 | 查询 |
+| `live` | `[file]` | 启动本地实时预览，浏览器实时刷新（默认不启用） | 工具 |
 | `help` | — | 显示帮助提示 | — |
 
 ## 选项
@@ -63,6 +64,8 @@ node skill.js export myflow.drawio svg
 | `--label <text>` | connect | 连接线标签 |
 | `--query <keyword>` | shapes | 按关键词过滤形状 |
 | `--scale/--bg/--border` | export | 导出缩放/背景色/边距 |
+| `--port <n>` | live | 预览服务端口（默认 17777） |
+| `--no-open` | live | 不自动打开浏览器 |
 
 ## 认证与配置
 
@@ -97,6 +100,31 @@ DRAWIO_URL=http://your-drawio-host:port
 ```
 
 `nodes[].id` 与 `edges[].source/target` 可用自定义别名，工具会自动映射为生成的真实节点 ID。
+
+## 实时预览（live）
+
+默认**不启用**——不运行 `live` 命令时，所有命令行为完全不变（写入命令的推送函数在服务未启动时连接被拒即时返回，零开销）。适合 agent 自动化场景（agent 无需观察画面）。
+
+需要"浏览器实时看到生成内容"时，用两个终端配合：
+
+```bash
+# 终端1：启动预览服务（自动打开浏览器，前台运行）
+node skill.js live myflow.drawio
+
+# 终端2：执行写入命令，浏览器即时刷新
+node skill.js add myflow.drawio "新节点" --shape roundedRect --color blue
+node skill.js connect myflow.drawio 1 2 --label "调用"
+```
+
+原理：`live` 在本地 `127.0.0.1:17777` 起一个 SSE 服务，浏览器打开的是容器页（iframe 嵌入私有 drawio 的 embed 模式）。每次 `new`/`add`/`connect`/`batch` 写完文件，会把最新 XML 推给容器，容器再通过 drawio 的 postMessage 协议让画面即时重绘。
+
+| 选项 | 说明 |
+|------|------|
+| `[file]` | 初始加载的 `.drawio` 文件（可选） |
+| `--port <n>` | 服务端口（默认 17777，可用 `DRAWIO_LIVE_PORT` 环境变量配置） |
+| `--no-open` | 不自动打开浏览器 |
+
+服务绑定 `127.0.0.1` 仅本机访问，XML 数据不出本机。Ctrl+C 停止。
 
 ## 常见问题
 

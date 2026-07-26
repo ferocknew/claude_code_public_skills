@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 私有化 draw.io 远程操作工具 v260726.113320 - 无需安装依赖
+// 私有化 draw.io 远程操作工具 v260726.162630 - 无需安装依赖
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -80,6 +80,174 @@ var require_api = __commonJS({
       }
     }
     module2.exports = { SKILL_VERSION: SKILL_VERSION2, loadDotEnv: loadDotEnv2, getConfig, initTls: initTls2, apiRequest };
+  }
+});
+
+// lib/live.js
+var require_live = __commonJS({
+  "lib/live.js"(exports2, module2) {
+    var http = require("http");
+    var fs = require("fs");
+    var path = require("path");
+    var { exec } = require("child_process");
+    var { getConfig } = require_api();
+    var DEFAULT_PORT = parseInt(process.env.DRAWIO_LIVE_PORT, 10) || 17777;
+    function containerHtml(drawioUrl) {
+      return `<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>draw.io \u5B9E\u65F6\u9884\u89C8</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;font-family:-apple-system,sans-serif;font-size:12px}
+  #bar{height:30px;background:#fafafa;border-bottom:1px solid #e8e8e8;line-height:30px;padding:0 12px;color:#888;white-space:nowrap;overflow:hidden}
+  #bar .dot{width:8px;height:8px;border-radius:50%;background:#ccc;display:inline-block;margin-right:8px;vertical-align:middle}
+  #bar .dot.on{background:#52c41a}
+  #bar .tip{color:#bbb;margin-left:8px}
+  iframe{border:0;width:100vw;height:calc(100vh - 30px)}
+</style>
+</head>
+<body>
+<div id="bar"><span class="dot" id="st"></span><span id="info">\u8FDE\u63A5\u4E2D\u2026</span><span class="tip">draw.io live \xB7 Ctrl+C \u505C\u6B62</span></div>
+<iframe id="d" src="${drawioUrl}/?embed=1&proto=json&ui=min"></iframe>
+<script>
+var iframe=document.getElementById('d'),st=document.getElementById('st'),info=document.getElementById('info');
+var ready=false;
+function post(o){iframe.contentWindow.postMessage(JSON.stringify(o),'*');}
+window.addEventListener('message',function(e){
+  var m=e.data;
+  if(typeof m==='string'){try{m=JSON.parse(m)}catch(_){return}}
+  if(!m||typeof m!=='object')return;
+  if(m.event==='init'){
+    ready=true;st.classList.add('on');info.textContent='\u5DF2\u8FDE\u63A5 draw.io';
+    fetch('/current').then(function(r){return r.json()}).then(function(d){if(d&&d.xml)post({action:'load',xml:d.xml,autosave:0})}).catch(function(){});
+  }
+});
+var es=new EventSource('/sse');
+es.addEventListener('xml',function(e){
+  var d=JSON.parse(e.data);
+  if(ready&&d.xml)post({action:'load',xml:d.xml,autosave:0});
+  info.textContent=d.file?('\u5DF2\u66F4\u65B0: '+d.file):'\u5DF2\u66F4\u65B0';
+});
+es.onerror=function(){st.classList.remove('on');info.textContent='\u8FDE\u63A5\u65AD\u5F00\uFF0C\u91CD\u8FDE\u4E2D\u2026'};
+</script>
+</body>
+</html>`;
+    }
+    function createServer({ drawioUrl, initialXml, initialFile }) {
+      const clients = /* @__PURE__ */ new Set();
+      let latestXml = initialXml || "";
+      let latestFile = initialFile || "";
+      return http.createServer((req, res) => {
+        let pathname = req.url || "/";
+        const qIdx = pathname.indexOf("?");
+        if (qIdx >= 0) pathname = pathname.slice(0, qIdx);
+        if (pathname === "/" || pathname === "/index.html") {
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(containerHtml(drawioUrl));
+          return;
+        }
+        if (pathname === "/sse") {
+          res.writeHead(200, {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive"
+          });
+          res.write(":ok\n\n");
+          clients.add(res);
+          req.on("close", () => clients.delete(res));
+          return;
+        }
+        if (pathname === "/current") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ xml: latestXml, file: latestFile }));
+          return;
+        }
+        if (pathname === "/update" && req.method === "POST") {
+          let body = "";
+          req.on("data", (c) => body += c);
+          req.on("end", () => {
+            try {
+              const d = JSON.parse(body);
+              latestXml = d.xml || latestXml;
+              latestFile = d.file || latestFile;
+              const payload = "event: xml\ndata: " + JSON.stringify({ xml: latestXml, file: latestFile }) + "\n\n";
+              for (const c of clients) c.write(payload);
+              res.writeHead(200, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ success: true, clients: clients.size }));
+            } catch (e) {
+              res.writeHead(400, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ success: false, message: e.message }));
+            }
+          });
+          return;
+        }
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "not found" }));
+      });
+    }
+    function openUrl(url) {
+      const cmd = process.platform === "darwin" ? `open "${url}"` : process.platform === "win32" ? `start "" "${url}"` : `xdg-open "${url}"`;
+      exec(cmd, () => {
+      });
+    }
+    function cmdLive2(opts, positional) {
+      const config = getConfig();
+      const drawioUrl = (opts.url || config.url).replace(/\/+$/, "");
+      const port = parseInt(opts.port, 10) || DEFAULT_PORT;
+      const file = positional[0];
+      let initialXml = "";
+      let initialFile = "";
+      if (file) {
+        if (!fs.existsSync(file)) {
+          return { success: false, error: "\u6587\u4EF6\u4E0D\u5B58\u5728", message: `\u627E\u4E0D\u5230\u6587\u4EF6: ${file}` };
+        }
+        initialXml = fs.readFileSync(file, "utf8");
+        initialFile = path.resolve(file);
+      }
+      const openBrowser = opts["no-open"] !== true && String(opts.open) !== "false";
+      return new Promise((resolve) => {
+        const server = createServer({ drawioUrl, initialXml, initialFile });
+        server.on("listening", () => {
+          const containerUrl = `http://localhost:${port}/`;
+          if (openBrowser) openUrl(containerUrl);
+          resolve({
+            success: true,
+            message: "draw.io live \u9884\u89C8\u670D\u52A1\u5DF2\u542F\u52A8",
+            containerUrl,
+            drawioUrl,
+            port,
+            initialFile: initialFile || null,
+            tip: "\u53E6\u5F00\u4E00\u4E2A\u7EC8\u7AEF\u6267\u884C add/connect/batch \u7B49\u547D\u4EE4\uFF0C\u6D4F\u89C8\u5668\u5C06\u5B9E\u65F6\u5237\u65B0\u3002Ctrl+C \u505C\u6B62\u670D\u52A1\u3002"
+          });
+        });
+        server.on("error", (e) => {
+          resolve({
+            success: false,
+            error: e.code === "EADDRINUSE" ? "\u7AEF\u53E3\u5360\u7528" : "\u542F\u52A8\u5931\u8D25",
+            message: e.code === "EADDRINUSE" ? `\u7AEF\u53E3 ${port} \u5DF2\u88AB\u5360\u7528\uFF0C\u4F7F\u7528 --port \u6307\u5B9A\u5176\u4ED6\u7AEF\u53E3` : e.message
+          });
+        });
+        process.on("SIGINT", () => server.close(() => process.exit(0)));
+        process.on("SIGTERM", () => server.close(() => process.exit(0)));
+        server.listen(port, "127.0.0.1");
+      });
+    }
+    async function notifyLive(file, xml) {
+      const port = parseInt(process.env.DRAWIO_LIVE_PORT, 10) || DEFAULT_PORT;
+      try {
+        await fetch(`http://127.0.0.1:${port}/update`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file, xml }),
+          signal: AbortSignal.timeout(1500)
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    module2.exports = { cmdLive: cmdLive2, notifyLive, DEFAULT_PORT };
   }
 });
 
@@ -359,6 +527,7 @@ var require_commands = __commonJS({
     var fs = require("fs");
     var path = require("path");
     var { getConfig } = require_api();
+    var { notifyLive } = require_live();
     var { createDocument, addVertex, addEdge, addContainer, addSwimlane, toXml, fromXml } = require_xml_builder();
     var { SHAPES, COLORS, applyColor, getStyle, listShapes } = require_shapes();
     async function cmdStatus2(opts) {
@@ -394,6 +563,7 @@ var require_commands = __commonJS({
       const xml = toXml(doc);
       const outFile = opts.output || `${name}.drawio`;
       fs.writeFileSync(outFile, xml, "utf8");
+      await notifyLive(path.resolve(outFile), xml);
       return {
         success: true,
         file: path.resolve(outFile),
@@ -422,6 +592,7 @@ var require_commands = __commonJS({
       });
       const outXml = toXml(doc);
       fs.writeFileSync(file, outXml, "utf8");
+      await notifyLive(path.resolve(file), outXml);
       return {
         success: true,
         id,
@@ -448,6 +619,7 @@ var require_commands = __commonJS({
       });
       const outXml = toXml(doc);
       fs.writeFileSync(file, outXml, "utf8");
+      await notifyLive(path.resolve(file), outXml);
       return {
         success: true,
         id,
@@ -513,6 +685,7 @@ var require_commands = __commonJS({
       }
       const outXml = toXml(doc);
       fs.writeFileSync(file, outXml, "utf8");
+      await notifyLive(path.resolve(file), outXml);
       return {
         success: true,
         file: path.resolve(file),
@@ -709,7 +882,7 @@ var require_commands = __commonJS({
 
 // run.js
 var { loadDotEnv, initTls } = require_api();
-var SKILL_VERSION = true ? "260726.113320" : "1.0.0-dev";
+var SKILL_VERSION = true ? "260726.162630" : "1.0.0-dev";
 var {
   cmdStatus,
   cmdNew,
@@ -723,6 +896,7 @@ var {
   cmdConfig,
   cmdHelp
 } = require_commands();
+var { cmdLive } = require_live();
 loadDotEnv(__dirname);
 initTls();
 function parseOptions(args, startIndex) {
@@ -764,6 +938,7 @@ function showHelp() {
   view <file>                         \u751F\u6210\u53EA\u8BFB\u67E5\u770B URL
   shapes [--query <keyword>]          \u5217\u51FA\u53EF\u7528\u5F62\u72B6\u6837\u5F0F
   config                              \u663E\u793A\u5F53\u524D\u914D\u7F6E
+  live [file] [--port N] [--no-open]  \u542F\u52A8\u672C\u5730\u5B9E\u65F6\u9884\u89C8\uFF08\u6D4F\u89C8\u5668\u5B9E\u65F6\u5237\u65B0\uFF09
 
 \u5168\u5C40\u9009\u9879:
   --url <url>       \u8986\u76D6 draw.io \u670D\u52A1\u5668\u5730\u5740
@@ -778,6 +953,8 @@ function showHelp() {
   --label <text>    \u8FDE\u63A5\u7EBF\u6807\u7B7E (connect \u547D\u4EE4)
   --template <name> \u65B0\u5EFA\u6A21\u677F: flowchart / sequence / architecture (new \u547D\u4EE4)
   --query <keyword> \u641C\u7D22\u5F62\u72B6 (shapes \u547D\u4EE4)
+  --port <n>        live \u9884\u89C8\u670D\u52A1\u7AEF\u53E3 (\u9ED8\u8BA4 17777)
+  --no-open         live \u4E0D\u81EA\u52A8\u6253\u5F00\u6D4F\u89C8\u5668
   -h, --help        \u663E\u793A\u5E2E\u52A9
   -v, --version     \u663E\u793A\u7248\u672C
 
@@ -812,6 +989,10 @@ function showHelp() {
 
   # \u5BFC\u51FA\u4E3A SVG
   node skill.js export myflow.drawio svg
+
+  # \u5B9E\u65F6\u9884\u89C8\uFF08\u4E24\u4E2A\u7EC8\u7AEF\u914D\u5408\uFF09
+  # \u7EC8\u7AEF1: node skill.js live myflow.drawio        # \u542F\u52A8\u9884\u89C8\u670D\u52A1\u5E76\u6253\u5F00\u6D4F\u89C8\u5668
+  # \u7EC8\u7AEF2: node skill.js add myflow.drawio "\u65B0\u8282\u70B9"  # \u6D4F\u89C8\u5668\u5B9E\u65F6\u5237\u65B0
 `);
 }
 var COMMANDS = {
@@ -824,6 +1005,7 @@ var COMMANDS = {
   edit: { handler: (opts, pos) => cmdEdit(opts, pos), args: ["file"], req: ["\u6587\u4EF6\u8DEF\u5F84"] },
   view: { handler: (opts, pos) => cmdView(opts, pos), args: ["file"], req: ["\u6587\u4EF6\u8DEF\u5F84"] },
   shapes: { handler: (opts) => cmdShapes(opts), args: [], req: [] },
+  live: { handler: (opts, pos) => cmdLive(opts, pos), args: [], req: [] },
   config: { handler: () => cmdConfig(), args: [], req: [] },
   help: { handler: () => cmdHelp(), args: [], req: [] }
 };
