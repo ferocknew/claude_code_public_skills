@@ -38,6 +38,7 @@
 | `x_release_by_agent_browser` | X/Twitter Publish | 通过 agent-browser 自动化在 X/Twitter 上发布推文 |
 | `wikijs_api` | Wiki.js API Client | Wiki.js GraphQL API 客户端，支持页面 CRUD、搜索、历史查看，支持 YAML 输出节省 Token |
 | `file_code_box` | FileCodeBox | 文件快递柜 - 匿名口令分享文本和文件，上传后返回提取码和分享链接 |
+| `nexus3-skill` | Nexus3 Ops | Nexus3 私服 REST API 操作：查询仓库/组件/资产，删除 docker 镜像指定 tag、npm/pypi/maven 组件（默认预览模式，--yes 才真正执行） |
 
 ## 项目规范
 

@@ -41,6 +41,7 @@
 | `makepad-进化` | Agent-only | 自我改进 Makepad 开发技能 |
 | `mind-map-skill` | Bundled | 心智图 REST API 远程控制 |
 | `ms_office_x_editer` | Bundled | Word/Excel 编辑（替换、样式、表格、图片、diff） |
+| `nexus3-skill` | Bundled | Nexus3 REST API（Basic Auth，查询仓库/组件/资产，删除 docker tag/npm/pypi/maven 组件，默认预览+--yes 执行） |
 | `obsidian_cli` | Agent-only | Obsidian 知识库交互（读写、搜索、任务） |
 | `obsidian-bases` | Agent-only | Obsidian Bases 文件创建/编辑 |
 | `obsidian-json-canvas` | Agent-only | JSON Canvas 文件创建/编辑 |

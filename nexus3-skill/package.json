@@ -1,0 +1,13 @@
+{
+  "name": "nexus3_skill",
+  "version": "1.0.0",
+  "description": "Nexus3 REST API client for Claude Code",
+  "main": "run.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
