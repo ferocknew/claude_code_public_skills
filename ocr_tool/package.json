@@ -1,0 +1,10 @@
+{
+  "name": "ocr_tool",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OCR 工具：macOS 用系统 Vision 框架，Windows 用 tesseract.js",
+  "main": "run.js",
+  "dependencies": {
+    "tesseract.js": "^6.0.1"
+  }
+}
