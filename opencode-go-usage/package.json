@@ -1,0 +1,25 @@
+{
+  "name": "opencode-go-usage",
+  "version": "1.0.0",
+  "description": "查询 OpenCode Go 订阅用量余量（滚动/每周/每月百分比与重置时间）",
+  "main": "skill.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "keywords": [
+    "opencode",
+    "go",
+    "usage",
+    "余量",
+    "用量"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
