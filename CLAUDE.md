@@ -45,6 +45,7 @@
 | `obsidian_cli` | Agent-only | Obsidian 知识库交互（读写、搜索、任务） |
 | `obsidian-bases` | Agent-only | Obsidian Bases 文件创建/编辑 |
 | `obsidian-json-canvas` | Agent-only | JSON Canvas 文件创建/编辑 |
+| `opencode-go-usage` | Bundled | OpenCode Go 订阅用量查询（原生 fetch+完整浏览器头读 SSR 页面，滚动/每周/每月百分比+重置时间，auth cookie 认证） |
 | `sendmail` | Bundled | SMTP 发送邮件（支持附件） |
 | `siyuan_api` | Bundled | 思源笔记 REST API（增删改查、SQL、导出） |
 | `use_http_mcp` | Bundled | HTTP 请求工具（GET/POST/PUT/DELETE） |
