@@ -53,6 +53,7 @@
 | `where-am-i` | Bundled | 公网 IP 地理位置查询 |
 | `where-is-this` | Bundled | 经纬度逆地理编码 |
 | `wikijs_api` | Bundled | Wiki.js GraphQL API 客户端 |
+| `xiaomi-mimo-query` | Bundled | 小米 MiMo CodingPlan 用量查询（本月/计划/补偿 token 用量与百分比） |
 | `x_release_by_agent_browser` | Agent-only | X/Twitter 自动发布推文 |
 
 > 各 skill 用法和架构详见其目录下 `SKILL.md` 和 `CLAUDE.md`。
