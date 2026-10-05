@@ -1,0 +1,16 @@
+{
+  "name": "ssh2-node",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SSH/SFTP/隧道客户端，基于 ssh2，打包后零依赖",
+  "main": "run.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
+  "dependencies": {
+    "ssh2": "^1.17.0"
+  }
+}

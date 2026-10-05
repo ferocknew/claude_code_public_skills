@@ -1,0 +1,7 @@
+allowBuilds:
+  # 构建工具，必须允许
+  esbuild: true
+  # 以下两者为 ssh2 的可选原生加速模块，打包时已外部化，
+  # 禁止编译以避免依赖本机 C++ 工具链
+  cpu-features: false
+  ssh2: false
