@@ -1,7 +1,7 @@
 ---
 name: ssh2-node
 description: 当用户要求"SSH 连接远程主机"、"远程执行命令"、"上传下载文件到服务器"、"SFTP 传输"、"建立 SSH 隧道"、"端口转发"、"跳板机访问内网数据库"、"生成 SSH 密钥"时使用此 skill。基于 ssh2 实现，零依赖打包（node skill.js 直接可用，无需 npm install）。
-version: 261005.101507
+version: 261005.102057
 ---
 
 # SSH 客户端工具（ssh2-node）

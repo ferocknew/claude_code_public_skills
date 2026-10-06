@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SSH 客户端工具 v261005.101507 - 包含所有依赖，无需安装
+// SSH 客户端工具 v261005.102057 - 包含所有依赖，无需安装
 // 基于 ssh2，支持 exec / shell / sftp / tunnel / keygen
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -20822,7 +20822,7 @@ var require_cmd = __commonJS({
 });
 
 // run.js
-var SKILL_VERSION = true ? "261005.101507" : "0.0.1-dev";
+var SKILL_VERSION = true ? "261005.102057" : "0.0.1-dev";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
 var { cmdExec, cmdShell, cmdSftp, cmdTunnel, cmdKeygen } = require_cmd();

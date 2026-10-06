@@ -250,7 +250,7 @@ node skill.js <数据库类型> --ssh <SSH参数> --db <数据库参数> [查询
 node skill.js mysql --ssh host:server.com,user:ubuntu,password:sshpass --db host:localhost,port:3306,user:root,password:dbpass,database:testdb
 
 # PostgreSQL via SSH
-node skill.js pg --ssh host:192.168.1.100,user:admin,password:secret --db host:localhost,port:5432,user:postgres,password:123,database:mydb
+node skill.js pg --ssh host:192.0.2.10,user:admin,password:secret --db host:localhost,port:5432,user:postgres,password:123,database:mydb
 
 # 查询数据
 node skill.js mysql --ssh host:server.com,user:ubuntu,password:sshpass --db host:localhost,port:3306,user:root,password:dbpass,database:testdb "SELECT * FROM users LIMIT 10"
@@ -288,7 +288,7 @@ node skill.js mysql --ssh host:server.com,user:ubuntu,privateKey:/path/to/key.pe
 node skill.js mysql --ssh host:server.com,user:ubuntu,password:sshpass --db host:localhost,port:3306,user:root,password:dbpass,database:testdb
 
 # 远程服务器上的 MySQL（数据库在内网另一台机器）
-node skill.js mysql --ssh host:jump.server.com,user:ubuntu,password:sshpass --db host:192.168.1.50,port:3306,user:root,password:dbpass,database:testdb
+node skill.js mysql --ssh host:jump.server.com,user:ubuntu,password:sshpass --db host:192.0.2.50,port:3306,user:root,password:dbpass,database:testdb
 ```
 
 ### 完整示例

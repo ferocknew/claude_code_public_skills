@@ -101,4 +101,4 @@ console.log(`版本号: ${version}`);
 console.log("\n使用方式:");
 console.log("  node skill.js exec \"uname -a\" --ssh host:1.2.3.4,user:root,password:xxx");
 console.log("  node skill.js sftp put ./dist /var/www --ssh host:1.2.3.4,user:root,key:~/.ssh/id_ed25519");
-console.log("  node skill.js tunnel --local 13306 --remote-host 10.0.0.5 --remote-port 3306 --ssh host:1.2.3.4,user:root,password:xxx");
+console.log("  node skill.js tunnel --local 13306 --remote-host 192.0.2.10 --remote-port 3306 --ssh host:1.2.3.4,user:root,password:xxx");
