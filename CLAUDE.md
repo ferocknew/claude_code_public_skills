@@ -40,6 +40,7 @@
 | `jina_reader` | Agent-only | Jina AI Reader 网页纯文本提取 |
 | `makepad-进化` | Agent-only | 自我改进 Makepad 开发技能 |
 | `mind-map-skill` | Bundled | 心智图 REST API 远程控制 |
+| `memos-node` | Bundled | Memos 实例 REST API 客户端（memo CRUD、归档、评论、表情、附件、用户） |
 | `ms_office_x_editer` | Bundled | Word/Excel 编辑（替换、样式、表格、图片、diff） |
 | `nexus3-skill` | Bundled | Nexus3 REST API（Basic Auth，查询仓库/组件/资产，删除 docker tag/npm/pypi/maven 组件，默认预览+--yes 执行） |
 | `obsidian_cli` | Agent-only | Obsidian 知识库交互（读写、搜索、任务） |

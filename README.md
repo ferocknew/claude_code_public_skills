@@ -39,6 +39,7 @@
 | `wikijs_api` | Wiki.js API Client | Wiki.js GraphQL API 客户端，支持页面 CRUD、搜索、历史查看，支持 YAML 输出节省 Token |
 | `file_code_box` | FileCodeBox | 文件快递柜 - 匿名口令分享文本和文件，上传后返回提取码和分享链接 |
 | `nexus3-skill` | Nexus3 Ops | Nexus3 私服 REST API 操作：查询仓库/组件/资产，删除 docker 镜像指定 tag、npm/pypi/maven 组件（默认预览模式，--yes 才真正执行） |
+| `memos-node` | Memos API Client | 自托管 Memos 实例 REST API 客户端：memo 增删改查/归档/置顶/评论/表情/标签统计、附件上传下载、用户与实例信息 |
 
 ## 项目规范
 
