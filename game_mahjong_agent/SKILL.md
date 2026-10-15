@@ -1,5 +1,5 @@
 ---
-name: game_mahjong_agent
+name: game-mahjong-agent
 description: 麻将游戏 AI Agent 助手。当用户要求"打麻将"、"麻将游戏"、"麻将 AI"、"四川麻将"、"上海麻将"、"扬州麻将"时，或者需要模拟多人麻将游戏对局时使用此 skill。AI 将扮演 2-3 个 agent 与用户对战。
 version: 260319.134235
 ---

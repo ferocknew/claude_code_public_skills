@@ -1,5 +1,5 @@
 ---
-name: x_release_by_agent_browser
+name: x-release-by-agent-browser
 description: Publish tweets on X/Twitter using agent-browser automation. Requires Chrome 146+ with remote debugging, X.com account already logged in.
 ---
 
