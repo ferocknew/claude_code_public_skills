@@ -1,5 +1,5 @@
 ---
-name: ocr_tool
+name: ocr-tool
 description: 当用户需要"识别图片文字"、"OCR"、"图片转文本"、"提取图片/截图中的文字"、"图片翻译"时使用此 skill。按优先级决策：优先 LLM 直接读图，LLM 无法识别时才调用系统 OCR；macOS 用系统自带 Vision 框架（零安装），Windows 用 tesseract.js。对话中的图片必须先落盘到临时目录再识别。
 ---
 

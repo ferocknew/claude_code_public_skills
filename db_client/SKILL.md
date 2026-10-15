@@ -1,5 +1,5 @@
 ---
-name: db_client
+name: db-client
 description: 当用户要求"连接数据库"、"查询 MySQL/PostgreSQL/SQLite"、"执行 SQL 查询"、"使用 Knex"、"数据库客户端"、"获取数据库数据"时，或者需要在 JavaScript/Node.js 环境中连接和操作关系型数据库时使用此 skill。
 version: 260225.101103
 ---

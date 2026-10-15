@@ -1,5 +1,5 @@
 ---
-name: doc_reader
+name: doc-reader
 description: 当用户要求"读取 Word 文档"、"解析 DOCX 文件"、"将 Word 转换为 Markdown"、"提取文档内容"、"读取 docx"时，或者需要在 JavaScript/Node.js 环境中读取 Microsoft Word 文档（.docx）并转换为 Markdown、HTML 或纯文本格式时使用此 skill。
 version: 260225.154019
 ---
