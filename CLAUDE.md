@@ -24,6 +24,7 @@
 | `drawio_nodejs` | Bundled | 私有化 draw.io 远程操作（建图、节点、连接、批量、导出、编辑 URL） |
 | `doc_reader` | Bundled | 读取 .docx 转 Markdown/HTML |
 | `documents_ripgrep` | Bundled | ripgrep + textract 全文搜索（代码+Office） |
+| `deepseek-search` | Bundled | DeepSeek 搜索/抓取（网页搜索 + 网页转 Markdown，key 存 .env） |
 | `excel-alasql` | Bundled | SQL 查询 Excel，支持中文列名 |
 | `financial` | Bundled | 金融信息 API（金银期、A股、K线、新闻） |
 | `figma-code-connect` | Agent-only | Figma 组件与代码映射 |
@@ -144,7 +145,12 @@ Bundled skill 的 `lib/` 有两种模式：
 **2026-07-26**：创建 nodejs-expert agent（内置撰写规范）；
 修复 drawio_nodejs 内网 IP 泄露（`10.0.0.x` 硬编码），
 filter-branch 重写历史 + force push；
-将"隐私红线"写入 agent 和本文件。
+将"隐私红线"写入本文件。
+
+**2026-10-17**：新增 deepseek-search（DeepSeek 官方 Search / Fetch）。
+Key 存 `.env` 不入库，首次使用缺 Key 时主动询问并写入；
+`-k/--api-key` 单次传入；另加 `--dotenv-file` 规避 Node 20.6+ 对
+argv 中 `--env-file` 的内置解析（目标文件不存在时 Node 直接以 9 退出）。
 
 ## GitNexus MCP
 
