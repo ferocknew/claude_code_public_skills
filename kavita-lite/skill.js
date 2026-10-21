@@ -408,17 +408,61 @@ async function main() {
       await kavita.updateMetadata(series.id, metaUpdates);
       console.log('✅ 元数据与简介已成功回填并锁定！');
 
-      // 2. 回填封面
+      // 2. 回填封面 (系列 + 章节)
+      let coverBase64 = null;
       if (detail.cover) {
         console.log(`🎨 正在抓取并回填高清封面: ${detail.cover}...`);
         try {
-          await kavita.uploadCover(series.id, detail.cover);
-          console.log('✅ 封面已成功上传并锁定！');
+          const imgRes = await fetch(detail.cover, { headers: HEADERS });
+          if (imgRes.ok) {
+            const arrayBuffer = await imgRes.arrayBuffer();
+            coverBase64 = Buffer.from(arrayBuffer).toString("base64");
+            await kavita.request("/api/Upload/series", {
+              method: "POST",
+              body: JSON.stringify({ id: series.id, url: coverBase64, lockCover: true })
+            });
+            console.log("✅ 系列封面已成功上传并锁定！");
+          }
         } catch (e) {
           console.warn(`⚠️ 封面上传警告: ${e.message}`);
         }
       }
-      console.log(`\n🎉 搞定！《${series.name}》信息与封面已全部同步完成！`);
+
+      // 3. 级联回填 Chapter 章节元数据与封面
+      try {
+        const sDetail = await kavita.request(`/api/Series/series-detail?seriesId=${series.id}`);
+        const chapters = [
+          ...(sDetail.specials || []),
+          ...(sDetail.chapters || []),
+          ...((sDetail.volumes || []).flatMap(v => v.chapters || []))
+        ];
+        if (chapters.length > 0) {
+          console.log(`📑 正在为底层 ${chapters.length} 个章节文件同步元数据与封面...`);
+          for (const chap of chapters) {
+            await kavita.request("/api/Chapter/update", {
+              method: "POST",
+              body: JSON.stringify({
+                id: chap.id,
+                summary: detail.summary || "",
+                summaryLocked: true,
+                titleName: chap.title || chap.range || series.name,
+                titleNameLocked: true
+              })
+            }).catch(() => {});
+
+            if (coverBase64) {
+              await kavita.request("/api/Upload/chapter", {
+                method: "POST",
+                body: JSON.stringify({ id: chap.id, url: coverBase64, lockCover: true })
+              }).catch(() => {});
+            }
+          }
+          console.log("✅ 章节文件元数据与封面已全量级联更新！");
+        }
+      } catch (err) {
+        console.warn(`⚠️ 章节级联同步警告: ${err.message}`);
+      }
+      console.log(`\n🎉 搞定！《${series.name}》系列与底层文件已全部同步完成！`);
       break;
     }
 
