@@ -225,15 +225,20 @@ class KavitaClient {
   }
 
   async findSeries(nameOrId) {
-    const id = parseInt(nameOrId);
-    if (!isNaN(id)) {
-      try {
-        const metadata = await this.request(`/api/Series/metadata?seriesId=${id}`);
-        return { id, name: metadata.name || `Series #${id}`, seriesMetadata: metadata };
-      } catch (e) {}
+    let targetId = null;
+    const urlMatch = String(nameOrId).match(/series\/(\d+)/i);
+    if (urlMatch) {
+      targetId = parseInt(urlMatch[1]);
+    } else if (/^\d+$/.test(String(nameOrId).trim())) {
+      targetId = parseInt(String(nameOrId).trim());
     }
-    // 按名称搜索
+
     const list = await this.getSeriesList();
+    if (targetId !== null) {
+      const found = list.find(s => s.id === targetId);
+      if (found) return found;
+    }
+
     const query = String(nameOrId).toLowerCase().trim();
     return list.find(s => s.name.toLowerCase() === query || s.originalName?.toLowerCase() === query) ||
            list.find(s => s.name.toLowerCase().includes(query));
