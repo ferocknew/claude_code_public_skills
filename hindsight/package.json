@@ -1,0 +1,13 @@
+{
+  "name": "hindsight",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hindsight MCP 客户端，打包后零依赖",
+  "main": "run.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

@@ -1,0 +1,3 @@
+allowBuilds:
+  # 构建工具，必须允许
+  esbuild: true

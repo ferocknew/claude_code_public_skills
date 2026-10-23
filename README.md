@@ -26,6 +26,7 @@
 | `figma-use` | Figma Plugin API | Figma Plugin API 的 MCP 封装，所有 Figma 写操作的基础技能 |
 | `game_mahjong_agent` | Mahjong Game | AI 多人麻将游戏模拟器，支持上海/四川/扬州麻将规则 |
 | `happy_agent_easy` | Happy Agent Easy | 简化的 Happy Agent 客户端，用于远程管理 Happy Coder Agent 会话，优化输出格式以减少 token 消耗 |
+| `hindsight` | Hindsight Memory | Hindsight 长期记忆 MCP 客户端，支持写入、检索、记忆浏览与维护 |
 | `jina_reader` | Jina Reader | 使用 Jina AI Reader 获取网页纯文本内容，绕过 JavaScript 渲染 |
 | `makepad-进化` | Makepad Evolution | 自我改进的 Makepad 开发技能系统 |
 | `obsidian_cli` | Obsidian CLI | 使用 Obsidian CLI 与本地知识库交互 - 读取笔记、搜索、创建笔记、管理任务、标签、属性 |

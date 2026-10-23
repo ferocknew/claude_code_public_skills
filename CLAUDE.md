@@ -38,6 +38,7 @@
 | `gaode_map` | Bundled | 高德地图（地理编码、POI、路径、路况） |
 | `game_mahjong_agent` | Bundled | AI 多人麻将游戏模拟器 |
 | `happy_agent_easy` | Bundled | Happy Agent 远程会话管理客户端 |
+| `hindsight` | Bundled | Hindsight 长期记忆 MCP 客户端（写入、检索、记忆管理） |
 | `jina_reader` | Agent-only | Jina AI Reader 网页纯文本提取 |
 | `makepad-进化` | Agent-only | 自我改进 Makepad 开发技能 |
 | `mind-map-skill` | Bundled | 心智图 REST API 远程控制 |
