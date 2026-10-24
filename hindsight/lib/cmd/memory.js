@@ -232,9 +232,33 @@ async function cmdInvalidateMemory(positionals, options, ctx) {
   return ctx.client.callTool("invalidate_memory", args);
 }
 
+/**
+ * reflect —— 反思推理并综合记忆
+ */
+async function cmdReflect(positionals, options, ctx) {
+  const query = requireText(positionals, "reflect", "查询词");
+
+  const args = {
+    query,
+  };
+
+  if (options.context !== undefined) args.context = String(options.context);
+  if (options.budget !== undefined) args.budget = String(options.budget);
+  if (options.maxTokens !== undefined) {
+    args.max_tokens = toInt(options.maxTokens, "--max-tokens", { min: 1 });
+  }
+  if (options.tags !== undefined) args.tags = splitCsv(options.tags, "--tags");
+  if (options.tagsMatch !== undefined) args.tags_match = tagsMatch(options.tagsMatch);
+  if (options.includeBasedOn) args.include_based_on = true;
+  if (options.includeTrace) args.include_trace = true;
+
+  return ctx.client.callTool("reflect", args);
+}
+
 module.exports = {
   cmdRetain,
   cmdRecall,
+  cmdReflect,
   cmdListMemories,
   cmdGetMemory,
   cmdUpdateMemory,

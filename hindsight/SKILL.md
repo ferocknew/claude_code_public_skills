@@ -1,12 +1,12 @@
 ---
 name: hindsight
-description: 当用户要求「记住这件事」「保存到长期记忆」「回忆 / 检索之前记录的内容」「列出、查看、修改或作废记忆」「查看心智模型（mental model）」「调用 Hindsight MCP 工具」时使用此 skill。把 Hindsight MCP 封装为零依赖 CLI：异步写入 retain、检索 recall、浏览与维护（list-memories / get-memory / update-memory / invalidate-memory）与心智模型列表；不提供 sync-retain 与 reflect。
-skill_version: 261024.000401
+description: 当用户要求「记住这件事」「保存到长期记忆」「回忆 / 检索之前记录的内容」「反思推理与总结」「列出、查看、修改或作废记忆」「心智模型管理」「文档检索」「标签检索」「知识库操作」时使用此 skill。把 Hindsight MCP 封装为零依赖 CLI：提供记忆读写（retain/recall/reflect）、记忆精细维护、心智模型（list/get）、文档查看（list/get）、标签聚合（list-tags）与知识库管理（kb-tree/kb-search/kb-page/kb-create-folder/kb-create-page/kb-update）。
+skill_version: 261024.014746
 ---
 
 # hindsight
 
-Hindsight 长期记忆服务的零依赖 CLI：一条命令完成记忆写入、语义检索与记忆维护。命令名与 MCP 工具对应，适合脚本化调用，也适合 LLM 直接执行。
+Hindsight 长期记忆与知识沉淀服务的零依赖 CLI：一条命令完成记忆写入、语义检索、深度反思推理、心智模型提取、长文档溯源及知识库管理。命令名与 MCP 工具完全对应（且知识库支持 `kb-*` 便捷短别名），适合脚本化调用，也适合 LLM 直接执行。
 
 **运行方式（无需安装依赖）：**
 
@@ -24,9 +24,10 @@ cp .env.example .env
 # 2) 查看服务端实际暴露的工具（只读）
 node skill.js tools
 
-# 3) 写入一条记忆（写操作）与检索（只读）
+# 3) 写入一条记忆（写操作）与检索、反思
 node skill.js retain "用户偏好：回答使用简体中文" --tags preference,language
 node skill.js recall "用户语言偏好" --max-tokens 2048
+node skill.js reflect "用户在系统架构上有哪些偏好" --budget mid
 
 # 4) 浏览与查看
 node skill.js list-memories --limit 20 --format table
@@ -36,30 +37,49 @@ node skill.js get-memory <memory_id>
 node skill.js update-memory <memory_id> --text "修正后的内容"
 node skill.js invalidate-memory <memory_id> --reason "内容已过时"
 node skill.js invalidate-memory <memory_id> --restore
+
+# 6) 心智模型、标签与文档溯源
+node skill.js list-mental-models --limit 10
+node skill.js get-mental-model <mental_model_id>
+node skill.js list-tags --limit 30 --format table
+node skill.js list-documents --limit 10
+node skill.js get-document <document_id>
+
+# 7) 知识库管理（支持 kb-* 短别名）
+node skill.js kb-tree
+node skill.js kb-search "网络部署架构"
+node skill.js kb-page <page_id>
+node skill.js kb-create-folder "服务部署规范"
+node skill.js kb-create-page "NAS服务架构" "总结 40 NAS 上运行的所有 Docker 服务与端口"
+node skill.js kb-update <node_id> --name "新页面标题"
 ```
 
-> `retain` / `update-memory` / `invalidate-memory` 会修改真实的长期记忆，执行前确认写入内容与目标 `memory_id`。`invalidate-memory` 是软作废，可用 `--restore` 恢复。
->
-> **写入约定：只提供异步 `retain`，不提供同步写入 `sync-retain`。**
->
-> `retain` 返回 `status: accepted` 仅表示服务端已受理；落库与可检索存在延迟（本次实测约 45 秒，时长由服务端决定）。
+> `retain` / `update-memory` / `invalidate-memory` / `kb-create-*` / `kb-update` 会修改真实的长期记忆与知识资产，执行前确认目标参数。`invalidate-memory` 为软作废，可用 `--restore` 恢复。
 
-## 命令总表
+## 命令总表（已对齐当前 18 个 MCP 工具）
 
-| 命令 | 作用 | 写操作 | 常用选项 |
-|------|------|--------|----------|
-| `retain <内容>` | 写入一条记忆（异步） | 是 | `--context` `--tags` `--metadata` `--document-id` `--strategy` `--update-mode` `--content-file` |
-| `recall <查询词>` | 语义检索相关记忆 | 否 | `--max-tokens` `--budget` `--types` `--tags` `--tags-match` `--prefer-observations` |
-| `list-memories` | 分页浏览记忆 | 否 | `--type` `-q/--query` `--limit` `--offset` `--tags` `--tags-match` |
-| `get-memory <memory_id>` | 查看单条记忆 | 否 | 无 |
-| `update-memory <memory_id>` | 修改单条记忆 | 是 | `--text` `--context` `--occurred-start` `--occurred-end` `--fact-type` `--entities` `--no-resolve-entities` |
-| `invalidate-memory <memory_id>` | 软作废 / 恢复单条记忆 | 是 | `--reason` `--restore` |
-| `list-mental-models` | 列出心智模型 | 否 | `--tags` `--limit` `--offset` |
-| `tools` | 列出服务端工具、首行描述、必填参数 | 否 | 无 |
-| `call <tool>` | 通用兜底调用任意工具 | 取决于工具 | `--args <JSON>` / `--args-file <路径>` |
-
-服务端当前暴露 9 个工具：`retain`、`sync_retain`、`recall`、`reflect`、`list_mental_models`、`list_memories`、`get_memory`、`update_memory`、`invalidate_memory`。本 skill 封装其中 7 个，**不封装 `sync_retain`（同步写入）与 `reflect`**（服务端综合耗时超过反代 60 秒，CLI 与 MCP 直连均稳定超时）；其余工具可用 `call` 调用。
-**`get_mental_model`（单条心智模型查询）未暴露**，只能列出，不能按 id 取单条。
+| 分类 | 命令 | 对应 MCP 工具 | 写操作 | 常用选项 |
+|---|---|---|---|---|
+| **核心与记忆** | `retain <内容>` | `retain` | 是 | `--context` `--tags` `--metadata` `--document-id` `--strategy` `--update-mode` `--content-file` |
+| | `recall <查询词>` | `recall` | 否 | `--max-tokens` `--budget` `--types` `--tags` `--tags-match` `--prefer-observations` |
+| | `reflect <查询词>` | `reflect` | 否 | `--context` `--budget` `--max-tokens` `--tags` `--tags-match` `--include-based-on` `--include-trace` |
+| | `list-memories` | `list_memories` | 否 | `--type` `-q/--query` `--limit` `--offset` `--tags` `--tags-match` |
+| | `get-memory <id>` | `get_memory` | 否 | 无 |
+| | `update-memory <id>` | `update_memory` | 是 | `--text` `--context` `--occurred-start` `--occurred-end` `--fact-type` `--entities` `--no-resolve-entities` |
+| | `invalidate-memory <id>` | `invalidate_memory` | 是 | `--reason` `--restore` |
+| **心智模型** | `list-mental-models` | `list_mental_models` | 否 | `--tags` `--limit` `--offset` |
+| | `get-mental-model <id>` | `get_mental_model` | 否 | `--detail` |
+| **文档管理** | `list-documents` | `list_documents` | 否 | `-q/--query` `--limit` `--offset` |
+| | `get-document <id>` | `get_document` | 否 | 无 |
+| **标签聚合** | `list-tags` | `list_tags` | 否 | `-q/--query` `--limit` `--offset` |
+| **知识库** | `kb-tree` | `get_knowledge_base_tree` | 否 | 无 |
+| | `kb-search <查询词>` | `search_knowledge_base` | 否 | `--limit` |
+| | `kb-page <page_id>` | `get_knowledge_page` | 否 | 无 |
+| | `kb-create-folder <名称>` | `create_knowledge_folder` | 是 | `--parent-id` |
+| | `kb-create-page <名称> <词>` | `create_knowledge_page` | 是 | `--parent-id` `--tags` `--max-tokens` |
+| | `kb-update <node_id>` | `update_knowledge_node` | 是 | `--name` `--parent-id` `--source-query` `--tags` `--max-tokens` |
+| **系统底层** | `tools` | 工具列举 | 否 | 无 |
+| | `call <tool>` | 通用底层调用 | 视工具 | `--args <JSON>` / `--args-file <路径>` |
 
 ## 选项表
 
@@ -139,11 +159,11 @@ A：把 `.env.example` 复制为 `.env`，填入完整端点（形如 `https://e
 **Q2：返回 401 / 403？**
 A：令牌无效或与端点中的 bank 不匹配。确认 `HINDSIGHT_TOKEN` 对该 bank 有权限；若服务端使用非 Bearer 方案，改用 `HINDSIGHT_AUTH_HEADER` 传完整头值。
 
-**Q3：为什么 `tools` 只有 9 个工具？**
-A：服务端暴露 9 个工具；本 skill 不封装同步写入 `sync_retain`，`get_mental_model` 也未暴露。`list-mental-models` 只能列出心智模型；用 `call` 调未暴露的工具会被服务端拒绝。
+**Q3：服务端支持多少个工具？**
+A：服务端当前暴露并启用了 18 个工具，覆盖记忆读写、心智模型、文档追溯、标签索引和知识库，本 skill 已提供一等公民命令支持。
 
-**Q4：为什么没有 reflect 命令？**
-A：`reflect` 需要在服务端跑 LLM 综合大量记忆，当前部署实测单次耗时超过反代 60 秒读超时，CLI 与 MCP 直连均稳定超时（504 / 客户端超时），故不封装。需要综合分析时可改用 `recall` 取原始记忆后自行归纳；服务端调大反代读超时后，可用 `call reflect --args '<JSON>'` 调用。
+**Q4：reflect 命令怎么用？**
+A：`reflect` 适合对知识库或记忆进行复杂主题的反思与总结。建议配合 `--budget low` 或 `--budget mid` 使用，可以指定 `--context` 以及 `--include-based-on` 查看推理所依赖的记忆来源。
 
 **Q5：内容很长怎么传？**
 A：用 `--content-file <路径>`（`-` 表示从 stdin 读取），避免命令行长度与转义问题。`call` 的长参数可用 `--args-file`。

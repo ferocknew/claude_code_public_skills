@@ -37,11 +37,28 @@ const FORMATS = ["json", "table"];
 const COMMANDS = {
   retain: { handler: cmd.cmdRetain },
   recall: { handler: cmd.cmdRecall },
+  reflect: { handler: cmd.cmdReflect },
   "list-memories": { handler: cmd.cmdListMemories },
   "get-memory": { handler: cmd.cmdGetMemory },
   "update-memory": { handler: cmd.cmdUpdateMemory },
   "invalidate-memory": { handler: cmd.cmdInvalidateMemory },
   "list-mental-models": { handler: cmd.cmdListMentalModels },
+  "get-mental-model": { handler: cmd.cmdGetMentalModel },
+  "list-documents": { handler: cmd.cmdListDocuments },
+  "get-document": { handler: cmd.cmdGetDocument },
+  "list-tags": { handler: cmd.cmdListTags },
+  "get-knowledge-base-tree": { handler: cmd.cmdGetKnowledgeBaseTree },
+  "kb-tree": { handler: cmd.cmdGetKnowledgeBaseTree },
+  "search-knowledge-base": { handler: cmd.cmdSearchKnowledgeBase },
+  "kb-search": { handler: cmd.cmdSearchKnowledgeBase },
+  "get-knowledge-page": { handler: cmd.cmdGetKnowledgePage },
+  "kb-page": { handler: cmd.cmdGetKnowledgePage },
+  "create-knowledge-folder": { handler: cmd.cmdCreateKnowledgeFolder },
+  "kb-create-folder": { handler: cmd.cmdCreateKnowledgeFolder },
+  "create-knowledge-page": { handler: cmd.cmdCreateKnowledgePage },
+  "kb-create-page": { handler: cmd.cmdCreateKnowledgePage },
+  "update-knowledge-node": { handler: cmd.cmdUpdateKnowledgeNode },
+  "kb-update": { handler: cmd.cmdUpdateKnowledgeNode },
   tools: { handler: cmd.cmdTools },
   call: { handler: cmd.cmdCall },
 };
@@ -57,13 +74,33 @@ Hindsight MCP 客户端 v${SKILL_VERSION}
   node skill.js <command> [args] [options]
 
 命令:
+  [核心与记忆]
   retain <内容>                 写入一条记忆（异步）
   recall <查询词>               检索相关记忆
+  reflect <查询词>              反思推理并综合记忆
   list-memories                 分页列出记忆
   get-memory <memory_id>        查看单条记忆
   update-memory <memory_id>     修改单条记忆（至少提供一个修改字段）
   invalidate-memory <id>        软作废单条记忆；--restore 恢复
+
+  [心智模型与标签]
   list-mental-models            列出心智模型
+  get-mental-model <id>         查看单条心智模型
+  list-tags                     列出标签与频次
+
+  [文档管理]
+  list-documents                分页列出文档
+  get-document <doc_id>         查看单篇文档
+
+  [知识库管理 (支持 kb-* 短别名)]
+  kb-tree                       查看知识库树形目录
+  kb-search <查询词>            搜索知识库页面
+  kb-page <page_id>             读取知识库单页内容
+  kb-create-folder <名称>       创建知识库目录
+  kb-create-page <名称> <词>    创建知识库页面
+  kb-update <node_id>           更新知识库节点
+
+  [系统工具]
   tools                         列出服务端工具（名称、首行描述、必填参数）
   call <tool>                   通用调用，参数用 --args / --args-file 传入 JSON
 
@@ -114,6 +151,32 @@ update-memory 选项:
 invalidate-memory 选项:
   --reason <文本>               作废原因
   --restore                     恢复已作废的记忆
+
+reflect 选项:
+  --context <文本>              反思上下文
+  --budget <级别>               思考预算（low / mid / high）
+  --max-tokens <n>              输出 token 上限
+  --tags <a,b>                  标签过滤
+  --tags-match <模式>           标签匹配模式
+  --include-based-on            包含引用来源
+  --include-trace               包含思考链路
+
+list-documents / list-tags 选项:
+  -q, --query <关键字>          关键字过滤
+  --limit <n>                   条数上限（默认 100）
+  --offset <n>                  偏移量（默认 0）
+
+kb-create-page 选项:
+  --parent-id <id>              父目录节点 ID
+  --tags <a,b>                  标签列表
+  --max-tokens <n>              生成内容长度上限
+
+kb-update 选项:
+  --name <文本>                 新名称
+  --parent-id <id>              移动到指定父节点
+  --source-query <文本>         更新生成的源查询
+  --tags <a,b>                  更新标签
+  --max-tokens <n>              更新 token 上限
 
 list-mental-models 选项:
   --tags <a,b>                  标签过滤

@@ -29,6 +29,9 @@ const BOOLEAN_OPTIONS = new Set([
   "prefer-observations",
   "restore",
   "no-resolve-entities",
+  "detail",
+  "include-based-on",
+  "include-trace",
 ]);
 
 // 可省略值的布尔选项：仅当下一个 token 是布尔字面量时才消费
@@ -74,6 +77,12 @@ const KNOWN_OPTIONS = new Set([
   "restore",
   "args",
   "args-file",
+  "detail",
+  "include-based-on",
+  "include-trace",
+  "parent-id",
+  "source-query",
+  "name",
 ]);
 
 /**

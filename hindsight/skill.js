@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Hindsight MCP 客户端 v261024.000401 - 包含所有依赖，无需安装
+// Hindsight MCP 客户端 v261024.014746 - 包含所有依赖，无需安装
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __commonJS = (cb, mod) => function __require() {
@@ -74,7 +74,7 @@ var require_errors = __commonJS({
 var require_mcp = __commonJS({
   "lib/mcp.js"(exports2, module2) {
     var { runtimeError } = require_errors();
-    var SKILL_VERSION2 = true ? "261024.000401" : "0.0.1-dev";
+    var SKILL_VERSION2 = true ? "261024.014746" : "0.0.1-dev";
     var PROTOCOL_VERSION = "2024-11-05";
     var MAX_ERROR_BODY = 500;
     function parseSseEvents(text) {
@@ -424,7 +424,10 @@ var require_parser = __commonJS({
       "version",
       "prefer-observations",
       "restore",
-      "no-resolve-entities"
+      "no-resolve-entities",
+      "detail",
+      "include-based-on",
+      "include-trace"
     ]);
     var OPTIONAL_BOOLEAN_OPTIONS = /* @__PURE__ */ new Set(["resolve-entities"]);
     var KNOWN_OPTIONS = /* @__PURE__ */ new Set([
@@ -465,7 +468,13 @@ var require_parser = __commonJS({
       "reason",
       "restore",
       "args",
-      "args-file"
+      "args-file",
+      "detail",
+      "include-based-on",
+      "include-trace",
+      "parent-id",
+      "source-query",
+      "name"
     ]);
     function normalizeName(raw) {
       return String(raw).replace(/-([a-z0-9])/gi, (_, ch) => ch.toUpperCase());
@@ -1057,9 +1066,26 @@ var require_memory = __commonJS({
       if (options.restore) args.restore = true;
       return ctx.client.callTool("invalidate_memory", args);
     }
+    async function cmdReflect(positionals, options, ctx) {
+      const query = requireText(positionals, "reflect", "\u67E5\u8BE2\u8BCD");
+      const args = {
+        query
+      };
+      if (options.context !== void 0) args.context = String(options.context);
+      if (options.budget !== void 0) args.budget = String(options.budget);
+      if (options.maxTokens !== void 0) {
+        args.max_tokens = toInt(options.maxTokens, "--max-tokens", { min: 1 });
+      }
+      if (options.tags !== void 0) args.tags = splitCsv(options.tags, "--tags");
+      if (options.tagsMatch !== void 0) args.tags_match = tagsMatch(options.tagsMatch);
+      if (options.includeBasedOn) args.include_based_on = true;
+      if (options.includeTrace) args.include_trace = true;
+      return ctx.client.callTool("reflect", args);
+    }
     module2.exports = {
       cmdRetain,
       cmdRecall,
+      cmdReflect,
       cmdListMemories,
       cmdGetMemory,
       cmdUpdateMemory,
@@ -1072,6 +1098,7 @@ var require_memory = __commonJS({
 var require_mental_model = __commonJS({
   "lib/cmd/mental_model.js"(exports2, module2) {
     var { toInt, splitCsv } = require_parser();
+    var { usageError: usageError2 } = require_errors();
     async function cmdListMentalModels(positionals, options, ctx) {
       const args = {
         limit: options.limit === void 0 ? 100 : toInt(options.limit, "--limit", { min: 1, max: 1e3 }),
@@ -1080,7 +1107,164 @@ var require_mental_model = __commonJS({
       if (options.tags !== void 0) args.tags = splitCsv(options.tags, "--tags");
       return ctx.client.callTool("list_mental_models", args);
     }
-    module2.exports = { cmdListMentalModels };
+    async function cmdGetMentalModel(positionals, options, ctx) {
+      const mentalModelId = (positionals || []).join(" ").trim();
+      if (!mentalModelId) {
+        throw usageError2("get-mental-model \u9700\u8981\u53C2\u6570 mental_model_id", "\u7528\u6CD5\uFF1Anode skill.js get-mental-model <mental_model_id> [--detail]");
+      }
+      const args = { mental_model_id: mentalModelId };
+      if (options.detail) args.detail = true;
+      return ctx.client.callTool("get_mental_model", args);
+    }
+    module2.exports = { cmdListMentalModels, cmdGetMentalModel };
+  }
+});
+
+// lib/cmd/document.js
+var require_document = __commonJS({
+  "lib/cmd/document.js"(exports2, module2) {
+    var { toInt } = require_parser();
+    var { usageError: usageError2 } = require_errors();
+    async function cmdListDocuments(positionals, options, ctx) {
+      const args = {
+        limit: options.limit === void 0 ? 100 : toInt(options.limit, "--limit", { min: 0 }),
+        offset: options.offset === void 0 ? 0 : toInt(options.offset, "--offset", { min: 0 })
+      };
+      if (options.query !== void 0) args.q = String(options.query);
+      return ctx.client.callTool("list_documents", args);
+    }
+    async function cmdGetDocument(positionals, options, ctx) {
+      const documentId = (positionals || []).join(" ").trim();
+      if (!documentId) {
+        throw usageError2("get-document \u9700\u8981\u53C2\u6570 document_id", "\u7528\u6CD5\uFF1Anode skill.js get-document <document_id>");
+      }
+      return ctx.client.callTool("get_document", { document_id: documentId });
+    }
+    module2.exports = {
+      cmdListDocuments,
+      cmdGetDocument
+    };
+  }
+});
+
+// lib/cmd/tag.js
+var require_tag = __commonJS({
+  "lib/cmd/tag.js"(exports2, module2) {
+    var { toInt } = require_parser();
+    async function cmdListTags(positionals, options, ctx) {
+      const args = {
+        limit: options.limit === void 0 ? 100 : toInt(options.limit, "--limit", { min: 0 }),
+        offset: options.offset === void 0 ? 0 : toInt(options.offset, "--offset", { min: 0 })
+      };
+      if (options.query !== void 0) args.q = String(options.query);
+      return ctx.client.callTool("list_tags", args);
+    }
+    module2.exports = {
+      cmdListTags
+    };
+  }
+});
+
+// lib/cmd/knowledge_base.js
+var require_knowledge_base = __commonJS({
+  "lib/cmd/knowledge_base.js"(exports2, module2) {
+    var { toInt, splitCsv } = require_parser();
+    var { usageError: usageError2 } = require_errors();
+    async function cmdGetKnowledgeBaseTree(positionals, options, ctx) {
+      return ctx.client.callTool("get_knowledge_base_tree", {});
+    }
+    async function cmdSearchKnowledgeBase(positionals, options, ctx) {
+      const query = (positionals || []).join(" ").trim();
+      if (!query) {
+        throw usageError2("search-knowledge-base \u9700\u8981\u53C2\u6570 query", "\u7528\u6CD5\uFF1Anode skill.js search-knowledge-base <\u67E5\u8BE2\u8BCD> [--limit <n>]");
+      }
+      const args = { query };
+      if (options.limit !== void 0) args.limit = toInt(options.limit, "--limit", { min: 1 });
+      return ctx.client.callTool("search_knowledge_base", args);
+    }
+    async function cmdGetKnowledgePage(positionals, options, ctx) {
+      const pageId = (positionals || []).join(" ").trim();
+      if (!pageId) {
+        throw usageError2("get-knowledge-page \u9700\u8981\u53C2\u6570 page_id", "\u7528\u6CD5\uFF1Anode skill.js get-knowledge-page <page_id>");
+      }
+      return ctx.client.callTool("get_knowledge_page", { page_id: pageId });
+    }
+    async function cmdCreateKnowledgeFolder(positionals, options, ctx) {
+      const name = options.name !== void 0 ? String(options.name).trim() : (positionals || []).join(" ").trim();
+      if (!name) {
+        throw usageError2("create-knowledge-folder \u9700\u8981\u76EE\u5F55\u540D\u79F0", "\u7528\u6CD5\uFF1Anode skill.js create-knowledge-folder <\u76EE\u5F55\u540D> [--parent-id <id>]");
+      }
+      const args = { name };
+      if (options.parentId !== void 0) args.parent_id = String(options.parentId);
+      return ctx.client.callTool("create_knowledge_folder", args);
+    }
+    async function cmdCreateKnowledgePage(positionals, options, ctx) {
+      let name = options.name !== void 0 ? String(options.name).trim() : "";
+      let sourceQuery = options.sourceQuery !== void 0 ? String(options.sourceQuery).trim() : "";
+      if (!name && positionals && positionals.length > 0) {
+        name = positionals[0];
+        if (!sourceQuery && positionals.length > 1) {
+          sourceQuery = positionals.slice(1).join(" ").trim();
+        }
+      }
+      if (!name || !sourceQuery) {
+        throw usageError2(
+          "create-knowledge-page \u9700\u8981\u9875\u9762\u540D\u79F0\u4E0E source_query",
+          "\u7528\u6CD5\uFF1Anode skill.js create-knowledge-page <\u540D\u79F0> <\u751F\u6210\u67E5\u8BE2\u8BCD> [--parent-id <id>] [--tags <a,b>]"
+        );
+      }
+      const args = {
+        name,
+        source_query: sourceQuery
+      };
+      if (options.parentId !== void 0) args.parent_id = String(options.parentId);
+      if (options.tags !== void 0) args.tags = splitCsv(options.tags, "--tags");
+      if (options.maxTokens !== void 0) args.max_tokens = toInt(options.maxTokens, "--max-tokens", { min: 1 });
+      return ctx.client.callTool("create_knowledge_page", args);
+    }
+    async function cmdUpdateKnowledgeNode(positionals, options, ctx) {
+      const nodeId = (positionals || []).join(" ").trim();
+      if (!nodeId) {
+        throw usageError2("update-knowledge-node \u9700\u8981\u53C2\u6570 node_id", "\u7528\u6CD5\uFF1Anode skill.js update-knowledge-node <node_id> [\u9009\u9879]");
+      }
+      const args = { node_id: nodeId };
+      let changed = false;
+      if (options.name !== void 0) {
+        args.name = String(options.name);
+        changed = true;
+      }
+      if (options.parentId !== void 0) {
+        args.parent_id = String(options.parentId);
+        changed = true;
+      }
+      if (options.sourceQuery !== void 0) {
+        args.source_query = String(options.sourceQuery);
+        changed = true;
+      }
+      if (options.tags !== void 0) {
+        args.tags = splitCsv(options.tags, "--tags");
+        changed = true;
+      }
+      if (options.maxTokens !== void 0) {
+        args.max_tokens = toInt(options.maxTokens, "--max-tokens", { min: 1 });
+        changed = true;
+      }
+      if (!changed) {
+        throw usageError2(
+          "update-knowledge-node \u81F3\u5C11\u9700\u8981\u63D0\u4F9B\u4E00\u4E2A\u4FEE\u6539\u9879",
+          "\u53EF\u7528\uFF1A--name / --parent-id / --source-query / --tags / --max-tokens"
+        );
+      }
+      return ctx.client.callTool("update_knowledge_node", args);
+    }
+    module2.exports = {
+      cmdGetKnowledgeBaseTree,
+      cmdSearchKnowledgeBase,
+      cmdGetKnowledgePage,
+      cmdCreateKnowledgeFolder,
+      cmdCreateKnowledgePage,
+      cmdUpdateKnowledgeNode
+    };
   }
 });
 
@@ -1150,10 +1334,16 @@ var require_cmd = __commonJS({
   "lib/cmd/index.js"(exports2, module2) {
     var memory = require_memory();
     var mentalModel = require_mental_model();
+    var document = require_document();
+    var tag = require_tag();
+    var knowledgeBase = require_knowledge_base();
     var meta = require_meta();
     module2.exports = {
       ...memory,
       ...mentalModel,
+      ...document,
+      ...tag,
+      ...knowledgeBase,
       ...meta
     };
   }
@@ -1171,11 +1361,28 @@ var FORMATS = ["json", "table"];
 var COMMANDS = {
   retain: { handler: cmd.cmdRetain },
   recall: { handler: cmd.cmdRecall },
+  reflect: { handler: cmd.cmdReflect },
   "list-memories": { handler: cmd.cmdListMemories },
   "get-memory": { handler: cmd.cmdGetMemory },
   "update-memory": { handler: cmd.cmdUpdateMemory },
   "invalidate-memory": { handler: cmd.cmdInvalidateMemory },
   "list-mental-models": { handler: cmd.cmdListMentalModels },
+  "get-mental-model": { handler: cmd.cmdGetMentalModel },
+  "list-documents": { handler: cmd.cmdListDocuments },
+  "get-document": { handler: cmd.cmdGetDocument },
+  "list-tags": { handler: cmd.cmdListTags },
+  "get-knowledge-base-tree": { handler: cmd.cmdGetKnowledgeBaseTree },
+  "kb-tree": { handler: cmd.cmdGetKnowledgeBaseTree },
+  "search-knowledge-base": { handler: cmd.cmdSearchKnowledgeBase },
+  "kb-search": { handler: cmd.cmdSearchKnowledgeBase },
+  "get-knowledge-page": { handler: cmd.cmdGetKnowledgePage },
+  "kb-page": { handler: cmd.cmdGetKnowledgePage },
+  "create-knowledge-folder": { handler: cmd.cmdCreateKnowledgeFolder },
+  "kb-create-folder": { handler: cmd.cmdCreateKnowledgeFolder },
+  "create-knowledge-page": { handler: cmd.cmdCreateKnowledgePage },
+  "kb-create-page": { handler: cmd.cmdCreateKnowledgePage },
+  "update-knowledge-node": { handler: cmd.cmdUpdateKnowledgeNode },
+  "kb-update": { handler: cmd.cmdUpdateKnowledgeNode },
   tools: { handler: cmd.cmdTools },
   call: { handler: cmd.cmdCall }
 };
@@ -1187,13 +1394,33 @@ Hindsight MCP \u5BA2\u6237\u7AEF v${SKILL_VERSION}
   node skill.js <command> [args] [options]
 
 \u547D\u4EE4:
+  [\u6838\u5FC3\u4E0E\u8BB0\u5FC6]
   retain <\u5185\u5BB9>                 \u5199\u5165\u4E00\u6761\u8BB0\u5FC6\uFF08\u5F02\u6B65\uFF09
   recall <\u67E5\u8BE2\u8BCD>               \u68C0\u7D22\u76F8\u5173\u8BB0\u5FC6
+  reflect <\u67E5\u8BE2\u8BCD>              \u53CD\u601D\u63A8\u7406\u5E76\u7EFC\u5408\u8BB0\u5FC6
   list-memories                 \u5206\u9875\u5217\u51FA\u8BB0\u5FC6
   get-memory <memory_id>        \u67E5\u770B\u5355\u6761\u8BB0\u5FC6
   update-memory <memory_id>     \u4FEE\u6539\u5355\u6761\u8BB0\u5FC6\uFF08\u81F3\u5C11\u63D0\u4F9B\u4E00\u4E2A\u4FEE\u6539\u5B57\u6BB5\uFF09
   invalidate-memory <id>        \u8F6F\u4F5C\u5E9F\u5355\u6761\u8BB0\u5FC6\uFF1B--restore \u6062\u590D
+
+  [\u5FC3\u667A\u6A21\u578B\u4E0E\u6807\u7B7E]
   list-mental-models            \u5217\u51FA\u5FC3\u667A\u6A21\u578B
+  get-mental-model <id>         \u67E5\u770B\u5355\u6761\u5FC3\u667A\u6A21\u578B
+  list-tags                     \u5217\u51FA\u6807\u7B7E\u4E0E\u9891\u6B21
+
+  [\u6587\u6863\u7BA1\u7406]
+  list-documents                \u5206\u9875\u5217\u51FA\u6587\u6863
+  get-document <doc_id>         \u67E5\u770B\u5355\u7BC7\u6587\u6863
+
+  [\u77E5\u8BC6\u5E93\u7BA1\u7406 (\u652F\u6301 kb-* \u77ED\u522B\u540D)]
+  kb-tree                       \u67E5\u770B\u77E5\u8BC6\u5E93\u6811\u5F62\u76EE\u5F55
+  kb-search <\u67E5\u8BE2\u8BCD>            \u641C\u7D22\u77E5\u8BC6\u5E93\u9875\u9762
+  kb-page <page_id>             \u8BFB\u53D6\u77E5\u8BC6\u5E93\u5355\u9875\u5185\u5BB9
+  kb-create-folder <\u540D\u79F0>       \u521B\u5EFA\u77E5\u8BC6\u5E93\u76EE\u5F55
+  kb-create-page <\u540D\u79F0> <\u8BCD>    \u521B\u5EFA\u77E5\u8BC6\u5E93\u9875\u9762
+  kb-update <node_id>           \u66F4\u65B0\u77E5\u8BC6\u5E93\u8282\u70B9
+
+  [\u7CFB\u7EDF\u5DE5\u5177]
   tools                         \u5217\u51FA\u670D\u52A1\u7AEF\u5DE5\u5177\uFF08\u540D\u79F0\u3001\u9996\u884C\u63CF\u8FF0\u3001\u5FC5\u586B\u53C2\u6570\uFF09
   call <tool>                   \u901A\u7528\u8C03\u7528\uFF0C\u53C2\u6570\u7528 --args / --args-file \u4F20\u5165 JSON
 
@@ -1244,6 +1471,32 @@ update-memory \u9009\u9879:
 invalidate-memory \u9009\u9879:
   --reason <\u6587\u672C>               \u4F5C\u5E9F\u539F\u56E0
   --restore                     \u6062\u590D\u5DF2\u4F5C\u5E9F\u7684\u8BB0\u5FC6
+
+reflect \u9009\u9879:
+  --context <\u6587\u672C>              \u53CD\u601D\u4E0A\u4E0B\u6587
+  --budget <\u7EA7\u522B>               \u601D\u8003\u9884\u7B97\uFF08low / mid / high\uFF09
+  --max-tokens <n>              \u8F93\u51FA token \u4E0A\u9650
+  --tags <a,b>                  \u6807\u7B7E\u8FC7\u6EE4
+  --tags-match <\u6A21\u5F0F>           \u6807\u7B7E\u5339\u914D\u6A21\u5F0F
+  --include-based-on            \u5305\u542B\u5F15\u7528\u6765\u6E90
+  --include-trace               \u5305\u542B\u601D\u8003\u94FE\u8DEF
+
+list-documents / list-tags \u9009\u9879:
+  -q, --query <\u5173\u952E\u5B57>          \u5173\u952E\u5B57\u8FC7\u6EE4
+  --limit <n>                   \u6761\u6570\u4E0A\u9650\uFF08\u9ED8\u8BA4 100\uFF09
+  --offset <n>                  \u504F\u79FB\u91CF\uFF08\u9ED8\u8BA4 0\uFF09
+
+kb-create-page \u9009\u9879:
+  --parent-id <id>              \u7236\u76EE\u5F55\u8282\u70B9 ID
+  --tags <a,b>                  \u6807\u7B7E\u5217\u8868
+  --max-tokens <n>              \u751F\u6210\u5185\u5BB9\u957F\u5EA6\u4E0A\u9650
+
+kb-update \u9009\u9879:
+  --name <\u6587\u672C>                 \u65B0\u540D\u79F0
+  --parent-id <id>              \u79FB\u52A8\u5230\u6307\u5B9A\u7236\u8282\u70B9
+  --source-query <\u6587\u672C>         \u66F4\u65B0\u751F\u6210\u7684\u6E90\u67E5\u8BE2
+  --tags <a,b>                  \u66F4\u65B0\u6807\u7B7E
+  --max-tokens <n>              \u66F4\u65B0 token \u4E0A\u9650
 
 list-mental-models \u9009\u9879:
   --tags <a,b>                  \u6807\u7B7E\u8FC7\u6EE4
