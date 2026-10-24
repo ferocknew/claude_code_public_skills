@@ -82,6 +82,13 @@ external: [
 
 本机曾缺 VC++ Redistributable，禁止这两个包的编译脚本可避免安装报错。
 
+### 7. Windows Git Bash 远端路径还原
+
+Git Bash/MSYS 会在 node 启动前改写 `/` 开头的参数：`/tmp` → `C:/Users/.../Temp`，
+`/var/www` → `C:/Program Files/Git/var/www`。`lib/cmd/sftp.js` 的 `normalizeRemotePath()`
+在 `win32` 且存在 `MSYSTEM` 时，按 `os.tmpdir()` 和 `EXEPATH` 反推回 POSIX 远端路径。
+它只处理 sftp 的远端参数，本地路径不动；新增 sftp 子命令时必须调用。
+
 ## 构建与验证
 
 ```bash

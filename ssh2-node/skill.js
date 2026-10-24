@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SSH 客户端工具 v261005.102057 - 包含所有依赖，无需安装
+// SSH 客户端工具 v261024.233356 - 包含所有依赖，无需安装
 // 基于 ssh2，支持 exec / shell / sftp / tunnel / keygen
 
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -20470,10 +20470,31 @@ var require_shell = __commonJS({
 var require_sftp = __commonJS({
   "lib/cmd/sftp.js"(exports2, module2) {
     var fs = require("fs");
+    var os = require("os");
     var path = require("path");
     var { withConnection, sftp } = require_ssh();
     var { resolveSshConfig, validateSshConfig } = require_env();
     var { handleError: handleError2 } = require_errors();
+    function normalizeRemotePath(p) {
+      if (!p || process.platform !== "win32" || !process.env.MSYSTEM) return p;
+      const win = p.replace(/\//g, "\\");
+      const lower = win.toLowerCase();
+      const tmpRoot = path.win32.normalize(os.tmpdir());
+      const tmpLower = tmpRoot.toLowerCase();
+      if (lower === tmpLower) return "/tmp";
+      if (lower.startsWith(`${tmpLower}\\`)) {
+        return `/tmp/${win.slice(tmpRoot.length + 1).replace(/\\/g, "/")}`;
+      }
+      if (process.env.EXEPATH) {
+        const exeRoot = path.win32.normalize(path.win32.dirname(process.env.EXEPATH));
+        const rootLower = exeRoot.toLowerCase();
+        if (lower === rootLower) return "/";
+        if (lower.startsWith(`${rootLower}\\`)) {
+          return `/${win.slice(exeRoot.length + 1).replace(/\\/g, "/")}`;
+        }
+      }
+      return p;
+    }
     async function putPath(sftp2, local, remote) {
       const stat = fs.statSync(local);
       if (stat.isDirectory()) {
@@ -20497,8 +20518,22 @@ var require_sftp = __commonJS({
         await walk(local, remote);
         return { files, bytes };
       }
-      await fastPut(sftp2, local, remote);
-      return { files: [remote], bytes: stat.size };
+      const target = await resolvePutTarget(sftp2, local, remote);
+      const parent = path.posix.dirname(target);
+      if (parent && parent !== ".") await ensureDir(sftp2, parent);
+      await fastPut(sftp2, local, target);
+      return { files: [target], bytes: stat.size };
+    }
+    async function resolvePutTarget(sftp2, local, remote) {
+      const name = path.basename(local);
+      if (remote.endsWith("/")) return path.posix.join(remote, name);
+      try {
+        const st = await statRemote(sftp2, remote);
+        if (st.isDirectory()) return path.posix.join(remote, name);
+      } catch (e) {
+        if (e.code !== 2) throw e;
+      }
+      return remote;
     }
     function fastPut(sftp2, local, remote) {
       return new Promise((resolve, reject) => {
@@ -20562,9 +20597,19 @@ var require_sftp = __commonJS({
         await walk(remote, local);
         return { files, bytes };
       }
-      fs.mkdirSync(path.dirname(local), { recursive: true });
-      await fastGet(sftp2, remote, local);
-      return { files: [local], bytes: st.size || 0 };
+      const target = resolveGetTarget(remote, local);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      await fastGet(sftp2, remote, target);
+      return { files: [target], bytes: st.size || 0 };
+    }
+    function resolveGetTarget(remote, local) {
+      const name = path.posix.basename(remote);
+      if (local.endsWith("/") || local.endsWith("\\")) return path.join(local, name);
+      try {
+        if (fs.statSync(local).isDirectory()) return path.join(local, name);
+      } catch (e) {
+      }
+      return local;
     }
     async function cmdSftp2(args, options) {
       const sub = args[0];
@@ -20587,17 +20632,19 @@ var require_sftp = __commonJS({
               const [local, remote] = params;
               if (!local || !remote) throw new Error("\u7528\u6CD5: sftp put <\u672C\u5730\u8DEF\u5F84> <\u8FDC\u7A0B\u8DEF\u5F84>");
               if (!fs.existsSync(local)) throw new Error(`\u672C\u5730\u8DEF\u5F84\u4E0D\u5B58\u5728: ${local}`);
-              const r = await putPath(session, local, remote);
-              return { action: "put", local, remote, uploaded: r.files.length, bytes: r.bytes, files: r.files };
+              const remoteTarget = normalizeRemotePath(remote);
+              const r = await putPath(session, local, remoteTarget);
+              return { action: "put", local, remote: remoteTarget, uploaded: r.files.length, bytes: r.bytes, files: r.files };
             }
             case "get": {
               const [remote, local] = params;
               if (!remote || !local) throw new Error("\u7528\u6CD5: sftp get <\u8FDC\u7A0B\u8DEF\u5F84> <\u672C\u5730\u8DEF\u5F84>");
-              const r = await getPath(session, remote, local);
-              return { action: "get", remote, local, downloaded: r.files.length, bytes: r.bytes, files: r.files };
+              const remoteSource = normalizeRemotePath(remote);
+              const r = await getPath(session, remoteSource, local);
+              return { action: "get", remote: remoteSource, local, downloaded: r.files.length, bytes: r.bytes, files: r.files };
             }
             case "ls": {
-              const dir = params[0] || ".";
+              const dir = normalizeRemotePath(params[0] || ".");
               const list = await readdir(session, dir);
               const entries = list.filter((i) => i.filename !== "." && i.filename !== "..").map((i) => ({
                 name: i.filename,
@@ -20608,20 +20655,23 @@ var require_sftp = __commonJS({
               return { action: "ls", dir, count: entries.length, entries };
             }
             case "mkdir": {
-              const dir = params[0];
-              if (!dir) throw new Error("\u7528\u6CD5: sftp mkdir <\u8FDC\u7A0B\u76EE\u5F55>");
+              const rawDir = params[0];
+              if (!rawDir) throw new Error("\u7528\u6CD5: sftp mkdir <\u8FDC\u7A0B\u76EE\u5F55>");
+              const dir = normalizeRemotePath(rawDir);
               await ensureDir(session, dir);
               return { action: "mkdir", dir, ok: true };
             }
             case "rm": {
-              const target = params[0];
-              if (!target) throw new Error("\u7528\u6CD5: sftp rm <\u8FDC\u7A0B\u8DEF\u5F84>");
+              const rawTarget = params[0];
+              if (!rawTarget) throw new Error("\u7528\u6CD5: sftp rm <\u8FDC\u7A0B\u8DEF\u5F84>");
+              const target = normalizeRemotePath(rawTarget);
               await unlinkRemote(session, target);
               return { action: "rm", target, ok: true };
             }
             case "stat": {
-              const target = params[0];
-              if (!target) throw new Error("\u7528\u6CD5: sftp stat <\u8FDC\u7A0B\u8DEF\u5F84>");
+              const rawTarget = params[0];
+              if (!rawTarget) throw new Error("\u7528\u6CD5: sftp stat <\u8FDC\u7A0B\u8DEF\u5F84>");
+              const target = normalizeRemotePath(rawTarget);
               const st = await statRemote(session, target);
               return {
                 action: "stat",
@@ -20822,7 +20872,7 @@ var require_cmd = __commonJS({
 });
 
 // run.js
-var SKILL_VERSION = true ? "261005.102057" : "0.0.1-dev";
+var SKILL_VERSION = true ? "261024.233356" : "0.0.1-dev";
 var { parseArgs } = require_parser();
 var { handleError } = require_errors();
 var { cmdExec, cmdShell, cmdSftp, cmdTunnel, cmdKeygen } = require_cmd();
@@ -20874,6 +20924,7 @@ sftp \u793A\u4F8B:
   node skill.js sftp ls /var/log --ssh host:1.2.3.4,user:root,password:xxx
   node skill.js sftp mkdir /data/backup --ssh host:1.2.3.4,user:root,password:xxx
   node skill.js sftp stat /etc/nginx/nginx.conf --ssh host:1.2.3.4,user:root,password:xxx
+  # Windows Git Bash \u4F1A\u6539\u5199 / \u5F00\u5934\u7684\u8FDC\u7AEF\u8DEF\u5F84\uFF0C\u672C\u5DE5\u5177\u6309 MSYS \u9ED8\u8BA4\u6620\u5C04\u81EA\u52A8\u8FD8\u539F
 
 tunnel \u793A\u4F8B:
   # \u901A\u8FC7\u8DF3\u677F\u673A\u8BBF\u95EE\u5185\u7F51 MySQL\uFF08\u672C\u5730 13306 -> 192.0.2.10:3306\uFF09

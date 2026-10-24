@@ -11,10 +11,40 @@
  */
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { withConnection, sftp } = require("../ssh");
 const { resolveSshConfig, validateSshConfig } = require("../env");
 const { handleError } = require("../errors");
+
+/**
+ * Git Bash/MSYS 会在 node 启动前把 / 开头的参数改写成 Windows 路径。
+ * 按 MSYS 默认挂载映射还原，避免远端 /tmp 被当成 C:/Users/.../Temp。
+ */
+function normalizeRemotePath(p) {
+  if (!p || process.platform !== "win32" || !process.env.MSYSTEM) return p;
+
+  const win = p.replace(/\//g, "\\");
+  const lower = win.toLowerCase();
+
+  const tmpRoot = path.win32.normalize(os.tmpdir());
+  const tmpLower = tmpRoot.toLowerCase();
+  if (lower === tmpLower) return "/tmp";
+  if (lower.startsWith(`${tmpLower}\\`)) {
+    return `/tmp/${win.slice(tmpRoot.length + 1).replace(/\\/g, "/")}`;
+  }
+
+  if (process.env.EXEPATH) {
+    const exeRoot = path.win32.normalize(path.win32.dirname(process.env.EXEPATH));
+    const rootLower = exeRoot.toLowerCase();
+    if (lower === rootLower) return "/";
+    if (lower.startsWith(`${rootLower}\\`)) {
+      return `/${win.slice(exeRoot.length + 1).replace(/\\/g, "/")}`;
+    }
+  }
+
+  return p;
+}
 
 /**
  * 递归上传目录或上传单文件
@@ -48,8 +78,30 @@ async function putPath(sftp, local, remote) {
     return { files, bytes };
   }
 
-  await fastPut(sftp, local, remote);
-  return { files: [remote], bytes: stat.size };
+  const target = await resolvePutTarget(sftp, local, remote);
+  const parent = path.posix.dirname(target);
+  if (parent && parent !== ".") await ensureDir(sftp, parent);
+  await fastPut(sftp, local, target);
+  return { files: [target], bytes: stat.size };
+}
+
+/**
+ * 计算单文件上传的最终远端路径：
+ * 目标是已存在目录或以 / 结尾时，追加本地文件名。
+ */
+async function resolvePutTarget(sftp, local, remote) {
+  const name = path.basename(local);
+  if (remote.endsWith("/")) return path.posix.join(remote, name);
+
+  try {
+    const st = await statRemote(sftp, remote);
+    if (st.isDirectory()) return path.posix.join(remote, name);
+  } catch (e) {
+    // SSH_FX_NO_SUCH_FILE：目标文件尚不存在，按原路径上传
+    if (e.code !== 2) throw e;
+  }
+
+  return remote;
 }
 
 /**
@@ -149,9 +201,27 @@ async function getPath(sftp, remote, local) {
     return { files, bytes };
   }
 
-  fs.mkdirSync(path.dirname(local), { recursive: true });
-  await fastGet(sftp, remote, local);
-  return { files: [local], bytes: st.size || 0 };
+  const target = resolveGetTarget(remote, local);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  await fastGet(sftp, remote, target);
+  return { files: [target], bytes: st.size || 0 };
+}
+
+/**
+ * 计算单文件下载的最终本地路径：
+ * 本地目标是已存在目录或以 /、\ 结尾时，追加远端文件名。
+ */
+function resolveGetTarget(remote, local) {
+  const name = path.posix.basename(remote);
+  if (local.endsWith("/") || local.endsWith("\\")) return path.join(local, name);
+
+  try {
+    if (fs.statSync(local).isDirectory()) return path.join(local, name);
+  } catch (e) {
+    // 本地路径不存在，按原路径处理
+  }
+
+  return local;
 }
 
 /**
@@ -183,19 +253,21 @@ async function cmdSftp(args, options) {
           const [local, remote] = params;
           if (!local || !remote) throw new Error("用法: sftp put <本地路径> <远程路径>");
           if (!fs.existsSync(local)) throw new Error(`本地路径不存在: ${local}`);
-          const r = await putPath(session, local, remote);
-          return { action: "put", local, remote, uploaded: r.files.length, bytes: r.bytes, files: r.files };
+          const remoteTarget = normalizeRemotePath(remote);
+          const r = await putPath(session, local, remoteTarget);
+          return { action: "put", local, remote: remoteTarget, uploaded: r.files.length, bytes: r.bytes, files: r.files };
         }
 
         case "get": {
           const [remote, local] = params;
           if (!remote || !local) throw new Error("用法: sftp get <远程路径> <本地路径>");
-          const r = await getPath(session, remote, local);
-          return { action: "get", remote, local, downloaded: r.files.length, bytes: r.bytes, files: r.files };
+          const remoteSource = normalizeRemotePath(remote);
+          const r = await getPath(session, remoteSource, local);
+          return { action: "get", remote: remoteSource, local, downloaded: r.files.length, bytes: r.bytes, files: r.files };
         }
 
         case "ls": {
-          const dir = params[0] || ".";
+          const dir = normalizeRemotePath(params[0] || ".");
           const list = await readdir(session, dir);
           const entries = list
             .filter((i) => i.filename !== "." && i.filename !== "..")
@@ -209,22 +281,25 @@ async function cmdSftp(args, options) {
         }
 
         case "mkdir": {
-          const dir = params[0];
-          if (!dir) throw new Error("用法: sftp mkdir <远程目录>");
+          const rawDir = params[0];
+          if (!rawDir) throw new Error("用法: sftp mkdir <远程目录>");
+          const dir = normalizeRemotePath(rawDir);
           await ensureDir(session, dir);
           return { action: "mkdir", dir, ok: true };
         }
 
         case "rm": {
-          const target = params[0];
-          if (!target) throw new Error("用法: sftp rm <远程路径>");
+          const rawTarget = params[0];
+          if (!rawTarget) throw new Error("用法: sftp rm <远程路径>");
+          const target = normalizeRemotePath(rawTarget);
           await unlinkRemote(session, target);
           return { action: "rm", target, ok: true };
         }
 
         case "stat": {
-          const target = params[0];
-          if (!target) throw new Error("用法: sftp stat <远程路径>");
+          const rawTarget = params[0];
+          if (!rawTarget) throw new Error("用法: sftp stat <远程路径>");
+          const target = normalizeRemotePath(rawTarget);
           const st = await statRemote(session, target);
           return {
             action: "stat",

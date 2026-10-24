@@ -1,7 +1,7 @@
 ---
 name: ssh2-node
 description: 当用户要求"SSH 连接远程主机"、"远程执行命令"、"上传下载文件到服务器"、"SFTP 传输"、"建立 SSH 隧道"、"端口转发"、"跳板机访问内网数据库"、"生成 SSH 密钥"时使用此 skill。基于 ssh2 实现，零依赖打包（node skill.js 直接可用，无需 npm install）。
-version: 261005.102057
+version: 261024.233356
 ---
 
 # SSH 客户端工具（ssh2-node）
@@ -123,7 +123,10 @@ node skill.js shell \
 node skill.js sftp put ./dist /var/www/html --ssh host:1.2.3.4,user:root,key:~/.ssh/id_ed25519
 ```
 
-目标是目录时会递归上传；目录不存在会自动创建。
+目标是目录时会递归上传，目录不存在会自动创建；单文件上传会自动创建父目录。
+目标为已存在目录或以 `/` 结尾时，文件放入该目录下。
+
+`sftp get` 的本地目标是已存在目录或以 `/` 结尾时，文件保存到该目录下。
 
 ### 5. 通过跳板机访问内网服务
 
@@ -198,6 +201,10 @@ node skill.js exec "uname -a"
 
 **Q: Windows 上传路径报 `ENOENT: C:\tmp\...`？**
 Git Bash 会把 `/tmp/xxx` 转换成 `C:\tmp\xxx`。本地路径请用 `./` 相对路径或完整 Windows 路径。
+
+**Q: Windows Git Bash 下 `sftp ls /tmp` 报 `No such file`？**
+Git Bash 会在 node 启动前把 `/tmp` 改写成 `C:/Users/.../Temp`。本工具会按 MSYS 默认映射自动还原；
+若使用非标准 MSYS 挂载，可加 `MSYS_NO_PATHCONV=1` 后重试。
 
 **Q: 隧道建好后连不上目标？**
 `--remote-host` 是**从 SSH 服务器视角**解析的地址。若目标是服务器本机服务，用 `--remote-host 127.0.0.1`；若是内网其他机器，填其内网 IP。另外确认服务器允许 TCP 转发（`AllowTcpForwarding`）。

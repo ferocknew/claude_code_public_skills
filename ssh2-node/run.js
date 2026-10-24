@@ -73,6 +73,7 @@ sftp 示例:
   node skill.js sftp ls /var/log --ssh host:1.2.3.4,user:root,password:xxx
   node skill.js sftp mkdir /data/backup --ssh host:1.2.3.4,user:root,password:xxx
   node skill.js sftp stat /etc/nginx/nginx.conf --ssh host:1.2.3.4,user:root,password:xxx
+  # Windows Git Bash 会改写 / 开头的远端路径，本工具按 MSYS 默认映射自动还原
 
 tunnel 示例:
   # 通过跳板机访问内网 MySQL（本地 13306 -> 192.0.2.10:3306）
