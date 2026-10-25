@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Claude Code Skills Collection**：Claude Code 可加载的技能集合，每个目录一个技能包。
 
-技能分两类（另有 2 个结构例外）：
+技能分两类（另有 3 个结构例外）：
 - **Bundled**：`run.js` + `build.js` + `package.json`，esbuild 打包为 `skill.js`，
   运行 `node skill.js <args>`。"零依赖"只对部分技能成立，见「构建与版本」。
 - **Agent-only**：仅 `SKILL.md`，LLM 通过 MCP 工具或外部 CLI 驱动。
@@ -85,6 +85,7 @@ head -2 skill.js        # 首行 banner 含版本号
 | `hindsight` | Bundled | Hindsight 长期记忆 MCP 客户端（写入、检索、记忆管理） |
 | `jina_reader` | Agent-only | Jina AI Reader 网页纯文本提取 |
 | `kavita-lite` | Bundled（例外） | 豆瓣图书刮削与 Kavita 元数据回填（手写 ESM skill.js，无构建流程） |
+| `magpie-image-gen` | Scripts（例外） | Magpie 网关 AI 生图（OpenAI 兼容接口，零依赖 Node 脚本） |
 | `makepad-进化` | Agent-only | 自我改进 Makepad 开发技能 |
 | `markitdown_pdf` | Agent-only | PDF 读取（文字型转 Markdown，扫描件转图片走视觉模型） |
 | `mind-map-skill` | Bundled | 心智图 REST API 远程控制 |
@@ -108,7 +109,8 @@ head -2 skill.js        # 首行 banner 含版本号
 | `x_release_by_agent_browser` | Agent-only | X/Twitter 自动发布推文 |
 
 > 结构例外：`kavita-lite` 为手写 ESM `skill.js`（`package.json` 的 `type: module`，无
-> `run.js`/`build.js`）；`ocr_tool` 直接运行 `run.js`（需 `npm install`，无 `build.js`/`skill.js`）。
+> `run.js`/`build.js`）；`ocr_tool` 直接运行 `run.js`（需 `npm install`，无 `build.js`/`skill.js`）；
+> `magpie-image-gen` 为 SKILL.md + 零依赖脚本 `scripts/generate_image.js`（无构建链、非 Bundled）。
 
 > 各 skill 用法和架构详见其目录下 `SKILL.md` 和 `CLAUDE.md`。
 
@@ -228,6 +230,10 @@ argv 中 `--env-file` 的内置解析（目标文件不存在时 Node 直接以 
 **2026-10-24**：同步 CLAUDE.md 与仓库现状——补齐 5 个技能、修正
 `website_security_scan` 类型、加入常用命令与运行时架构、移除失效的 GitNexus 索引说明；
 修复 ssh2-node sftp 在 Windows Git Bash 下的远端绝对路径改写，并补齐单文件父目录与目录目标语义。
+
+**2026-10-25**：新增 magpie-image-gen（Magpie 网关生图，第三种结构形态：
+SKILL.md + 零依赖脚本）；审计修复 5 处内网 IP / 内部路径硬编码（同 drawio 教训），
+补 fetch 超时与错误契约；提交前完成隐私扫描与错误路径验证。
 
 ## GitNexus
 
