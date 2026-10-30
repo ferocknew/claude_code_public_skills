@@ -1,0 +1,6 @@
+# 本目录兜底忽略规则（仓库根 .gitignore 已含同类规则）
+.env
+node_modules/
+*.log
+demo/
+test/

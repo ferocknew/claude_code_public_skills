@@ -7,11 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Claude Code Skills Collection**：Claude Code 可加载的技能集合，每个目录一个技能包。
 
 技能分两类（另有 3 个结构例外）：
-- **Bundled**：`run.js` + `build.js` + `package.json`，esbuild 打包为 `skill.js`，
-  运行 `node skill.js <args>`。"零依赖"只对部分技能成立，见「构建与版本」。
+
+- **Bundled**：`run.js` + `build.js` + `package.json`，esbuild 打包为 `skill.js`，运行 `node skill.js <args>`。"零依赖"只对部分技能成立，见「构建与版本」。
 - **Agent-only**：仅 `SKILL.md`，LLM 通过 MCP 工具或外部 CLI 驱动。
-- **例外**：`kavita-lite` 是手写 ESM `skill.js`（无 `run.js`/`build.js`）；
-  `ocr_tool` 直接运行 `run.js`（需 `npm install`，无 `build.js`/`skill.js`）。
+- **例外**：`kavita-lite` 手写 ESM `skill.js`；`ocr_tool` 直接运行 `run.js`（需 `npm install`）；`magpie-image-gen` 为 SKILL.md + 零依赖脚本。
 
 ## 常用命令
 
@@ -19,18 +18,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 cd <skill-dir>
-pnpm install
-pnpm run build          # 等价于 node build.js，产物 skill.js
-node skill.js --help    # 冒烟验证
-head -2 skill.js        # 首行 banner 含版本号
+pnpm install && pnpm run build   # 等价于 node build.js，产物 skill.js
+node skill.js --help             # 冒烟验证
+head -2 skill.js                 # 首行 banner 含版本号
 ```
 
-- 必须在技能目录内构建：`build.js` 不切换工作目录，`entryPoints` / `outfile` 是相对路径，
-  从仓库根执行会把 `skill.js` 写到根目录。
-- 零依赖验证：把 `skill.js` 复制到空临时目录后运行，确认不依赖 `node_modules`：
-  `tmp=$(mktemp -d) && cp <skill-dir>/skill.js "$tmp"/ && (cd "$tmp" && node skill.js --help)`
-- 没有测试框架、lint、format、类型检查，也没有 CI。变更后的验证以 `--help`、`--version`、
-  一条真实命令和一条错误路径为准；完整清单见 `.claude/agents/nodejs-expert.md`。
+- 必须在技能目录内构建：`build.js` 不切换工作目录，`entryPoints` / `outfile` 是相对路径，从仓库根执行会把 `skill.js` 写到根目录。
+- 零依赖验证：`tmp=$(mktemp -d) && cp <skill-dir>/skill.js "$tmp"/ && (cd "$tmp" && node skill.js --help)`
+- 无测试框架、lint、format、类型检查、CI。变更后验证以 `--help`、`--version`、一条真实命令和一条错误路径为准；完整清单见 `.claude/agents/nodejs-expert.md`。
 - `test/` 被 `.gitignore` 整体忽略，是本地验证草稿区，不是可复现测试套件。
 - 提交前隐私扫描：`git diff --cached | grep -iE "token|password|10\.0\."`
 
@@ -38,20 +33,11 @@ head -2 skill.js        # 首行 banner 含版本号
 
 技能有三种运行形态：
 
-1. **打包 CLI**（29 个标准技能 + `kavita-lite` 手写产物）：`run.js`（可含 `lib/`）经 esbuild
-   打成 `skill.js`，执行 `node skill.js <command> [options]`。参数统一从
-   `process.argv.slice(2)` 进入，但分发方式不统一（COMMANDS 注册表 / switch / if-else /
-   入口内联），不能跨技能假设同一套解析器。
-2. **无打包脚本**：`ocr_tool` 直接 `node run.js`（需 `npm install`）；`kavita-lite` 是手写
-   ESM `skill.js`，没有 `run.js`/`build.js`。
-3. **Agent-only**（18 个）：只有 `SKILL.md`，由 LLM 按其中步骤调用 MCP 工具或外部 CLI。
-   这些文件是可执行运行手册，不是说明文档；依赖的外部能力包括 Figma MCP、`agent-browser`、
-   Obsidian CLI、`curl`、Python venv（`markitdown_pdf`）、外部 `makepad-skills` 仓库等。
+1. **打包 CLI**（30 个标准技能 + `kavita-lite` 手写产物）：`run.js`（可含 `lib/`）经 esbuild 打成 `skill.js`。参数统一从 `process.argv.slice(2)` 进入，但分发方式不统一（COMMANDS 注册表 / switch / if-else / 入口内联），不能跨技能假设同一套解析器。
+2. **无打包脚本**：`ocr_tool` 直接 `node run.js`（需 `npm install`）；`kavita-lite` 手写 ESM `skill.js`。
+3. **Agent-only**（18 个）：只有 `SKILL.md`，是可执行运行手册而非说明文档；依赖 Figma MCP、`agent-browser`、Obsidian CLI、`curl`、Python venv（`markitdown_pdf`）、外部 `makepad-skills` 仓库等。
 
-只有 `hindsight` 具备完整的
-`parseArgs → resolveConfig → McpClient → handler → output → handleError` 调用链，
-其他技能缺少其中一层或多层。文档覆盖也不统一：49 个技能目录中仅 11 个有独立
-`CLAUDE.md`、8 个有 `README.md`，不要假定每个技能都有三文档。
+只有 `hindsight` 具备完整 `parseArgs → resolveConfig → McpClient → handler → output → handleError` 调用链，其他技能缺其中一层或多层。文档覆盖不统一：50 个技能目录中仅 11 个有独立 `CLAUDE.md`、8 个有 `README.md`，不要假定每个技能都有三文档。
 
 ## 当前技能
 
@@ -86,6 +72,7 @@ head -2 skill.js        # 首行 banner 含版本号
 | `jina_reader` | Agent-only | Jina AI Reader 网页纯文本提取 |
 | `kavita-lite` | Bundled（例外） | 豆瓣图书刮削与 Kavita 元数据回填（手写 ESM skill.js，无构建流程） |
 | `magpie-image-gen` | Scripts（例外） | Magpie 网关 AI 生图（OpenAI 兼容接口，零依赖 Node 脚本） |
+| `magpie-tools` | Bundled | Magpie 网关 MCP 插件工具客户端（search1api 搜索/抓取、goanyapi SEO/流量，list 列出、call 调用，.env 认证） |
 | `makepad-进化` | Agent-only | 自我改进 Makepad 开发技能 |
 | `markitdown_pdf` | Agent-only | PDF 读取（文字型转 Markdown，扫描件转图片走视觉模型） |
 | `mind-map-skill` | Bundled | 心智图 REST API 远程控制 |
@@ -108,16 +95,12 @@ head -2 skill.js        # 首行 banner 含版本号
 | `xiaomi-mimo-query` | Bundled | 小米 MiMo CodingPlan 用量查询（本月/计划/补偿 token 用量与百分比） |
 | `x_release_by_agent_browser` | Agent-only | X/Twitter 自动发布推文 |
 
-> 结构例外：`kavita-lite` 为手写 ESM `skill.js`（`package.json` 的 `type: module`，无
-> `run.js`/`build.js`）；`ocr_tool` 直接运行 `run.js`（需 `npm install`，无 `build.js`/`skill.js`）；
-> `magpie-image-gen` 为 SKILL.md + 零依赖脚本 `scripts/generate_image.js`（无构建链、非 Bundled）。
-
-> 各 skill 用法和架构详见其目录下 `SKILL.md` 和 `CLAUDE.md`。
+> 结构例外：`kavita-lite` 手写 ESM `skill.js`（`type: module`，无 `run.js`/`build.js`）；`ocr_tool` 直跑 `run.js`（需 `npm install`）；`magpie-image-gen` 为 SKILL.md + 零依赖脚本。
+> 各 skill 用法详见目录下 `SKILL.md` 与 `CLAUDE.md`。
 
 ## SKILL.md 规范
 
-YAML frontmatter 必须包含 `name`（kebab-case）和 `description`（说明"何时使用"，
-触发词覆盖查询+写入意图）。
+YAML frontmatter 必须包含 `name`（kebab-case）和 `description`（说明"何时使用"，触发词覆盖查询+写入意图）：
 
 ```yaml
 ---
@@ -127,57 +110,31 @@ skill_version: YYMMDD.HHmmSS    # build.js 自动更新，不要手填
 ---
 ```
 
-目录名历史上同时存在下划线与连字符两种；frontmatter 的 `name` 一律 kebab-case，
-与目录名不必相同。
+目录名历史上同时存在下划线与连字符两种；frontmatter 的 `name` 一律 kebab-case，与目录名不必相同。
 
-Bundled skill 采用"瘦索引"模式：快速开始 + 命令总表（必须含写入命令）+
-选项 + 认证 + FAQ，详细案例路由到 `examples/`。
+Bundled skill 采用"瘦索引"模式：快速开始 + 命令总表（必须含写入命令）+ 选项 + 认证 + FAQ，详细案例路由到 `examples/`。
 
 ## 构建与版本
 
-29 个标准 Bundled 技能各自复制同一份 esbuild 模板，没有共享构建脚本：
+30 个标准 Bundled 技能各自复制同一份 esbuild 模板，没有共享构建脚本（构建命令见「常用命令」）。
 
-```bash
-cd <skill-dir>
-pnpm install && pnpm run build   # run.js → skill.js
-node skill.js --help             # 验证
-```
+模板基线：`platform: "node"`、`bundle: true`、`outfile: "skill.js"`、banner 写入版本号。存量 `build.js` 有漂移：`target: "node18"` 只有 16 个、`define: { __VERSION }` 有 26 个；修改时以目标技能的 `build.js` 为准，不要假定配置一致。
 
-模板基线：`platform: "node"`、`bundle: true`、`outfile: "skill.js"`、banner 写入版本号。
-存量 `build.js` 有漂移：`target: "node18"` 只有 16 个、`define: { __VERSION }` 有 26 个；
-修改时以目标技能的 `build.js` 为准，不要假定配置一致。
+版本号 `YYMMDD.HHmmSS`，由 `getTimestamp()` 生成、构建时写回 SKILL.md。存量版本字段不统一（15 个 `skill_version`、12 个 `version`、1 个两者都写）；新增技能统一使用 `skill_version`。
 
-版本号格式 `YYMMDD.HHmmSS`，由 `getTimestamp()` 生成，构建时写回 SKILL.md。
-存量技能的版本字段不统一（15 个用 `skill_version`，12 个用 `version`，1 个两者都写）；
-新增技能统一使用 `skill_version`。
+`external` 只用于 native 或可选模块，且清单因技能而异：`db_client` external 掉数据库驱动（目标机仍需安装）；`ssh2-node` 只 external `cpu-features` 和 `sshcrypto.node`。
+`documents_ripgrep` 的 `rgPath` 指向 `node_modules`，裸拷贝失效并回退系统 `rg`，Office 提取还要 `npx -y textract`。"打包产物零依赖"只对部分技能成立。
 
-`external` 只用于 native 或可选模块，且清单因技能而异：
-`db_client` external 掉数据库驱动（目标机仍需安装）；`ssh2-node` 只 external `cpu-features`
-和 `sshcrypto.node`，`ssh2` 的 JS 本体被打进 bundle；`documents_ripgrep` 的 `rgPath`
-指向 `node_modules`，裸拷贝会失效并回退系统 `rg`，Office 提取还要 `npx -y textract`
-（需要 npm 与网络）。因此"打包产物零依赖"只对部分技能成立。
-
-`skill.js` 是提交到仓库的产物；`node_modules` 被忽略。锁定文件以各目录 `pnpm-lock.yaml`
-为准，仓库没有 pnpm workspace，不要新增根级 workspace。
+`skill.js` 是提交到仓库的产物；`node_modules` 被忽略。锁定文件以各目录 `pnpm-lock.yaml` 为准，仓库没有 pnpm workspace，不要新增根级 workspace。
 
 ## 模块化规范
 
-Bundled skill 的 `lib/` 有三种实际形态：
-- **单文件**（15/29）：全部逻辑在 `run.js`，没有 `lib/`
-- **扁平 `lib/`**（6 个）：按领域拆模块，未必是 `api.js` + `commands.js`
-- **`lib/cmd/`**（8 个）：`lib/cmd/<对象>.js` + `index.js` +
-  `lib/parser.js` + `lib/env.js` + `lib/errors.js` + `lib/output.js`
+`lib/` 三种形态：**单文件**（16/30，全部逻辑在 `run.js`）；**扁平 `lib/`**（6 个，按领域拆模块）；**`lib/cmd/`**（8 个，`lib/cmd/<对象>.js` + `index.js` + `parser.js` + `env.js` + `errors.js` + `output.js`）。
 
-公共模块是各技能内的复制品，不是共享库，行为并不一致（`output.js` 8 份、`parser.js` 7 份、
-`errors.js` 6 份；失败输出有 stderr JSON、stdout JSON、纯文本三种，退出码 0/1/2/3 并存）。
-`lib/cmd/index.js` 只是聚合层，命令分发仍在 `run.js`，命令函数签名因技能而异。
-改某个技能时以该技能的实现为准，不要跨技能套用。
+公共模块是各技能内的复制品，不是共享库，行为不一致（`output.js` 8 份、`parser.js` 7 份、`errors.js` 6 份；失败输出有 stderr JSON、stdout JSON、纯文本三种，退出码 0/1/2/3 并存）。`lib/cmd/index.js` 只是聚合层，命令分发仍在 `run.js`。改某技能时以该技能的实现为准，不要跨技能套用。
 
-新代码编码规范：CommonJS（`require`/`module.exports`）、Node 18+ 全局 `fetch`、
-错误按 `JSON.stringify({ error, message })` 输出、配置从环境变量读取、
-中文注释与输出。`.env` 由各技能手写解析（无 dotenv 依赖），打包后
-`path.join(__dirname, ".env")` 指向技能目录；新代码的配置优先级为
-CLI > 环境变量 > `.env` > 默认值，存量实现有例外。
+新代码编码规范：CommonJS（`require`/`module.exports`）、Node 18+ 全局 `fetch`、错误按 `JSON.stringify({ error, message })` 输出、配置从环境变量读取、中文注释与输出。
+`.env` 由各技能手写解析（无 dotenv），打包后 `path.join(__dirname, ".env")` 指向技能目录；配置优先级 CLI > 环境变量 > `.env` > 默认值（存量有例外）。
 
 ## 隐私红线
 
@@ -187,11 +144,9 @@ CLI > 环境变量 > `.env` > 默认值，存量实现有例外。
 - 默认值用 `localhost` 或占位符，真实地址由 `.env` 注入
 - `.env`/cookie/私钥文件必须被 `.gitignore`
 - `skill.js` 打包会将 `lib/` 源码原样打进 bundle，隐私检查必须在源码层做
-- 提交前扫描：
-  `git diff --cached | grep -iE "token|password|10\.0\."`
+- 提交前扫描：`git diff --cached | grep -iE "token|password|10\.0\."`
 
-> Node.js skill 专家 agent：`.claude/agents/nodejs-expert.md`
-> 内置撰写规范、隐私检查和验证清单。
+> Node.js skill 专家 agent：`.claude/agents/nodejs-expert.md`，内置撰写规范、隐私检查和验证清单。
 
 ## 添加新技能
 
@@ -212,30 +167,23 @@ CLI > 环境变量 > `.env` > 默认值，存量实现有例外。
 | 模块化 | `lib/cmd/*.js` + `lib/cmd/index.js` |
 | 版本号 | `YYMMDD.HHmmSS`，build.js 自动更新 |
 
-子 skill 三文档模型：`SKILL.md`（LLM 运行时）、
-`CLAUDE.md`（开发指导）、`README.md`（人类用户）。
+子 skill 三文档模型：`SKILL.md`（LLM 运行时）、`CLAUDE.md`（开发指导）、`README.md`（人类用户）。
 
 ## Session 历史
 
-**2026-07-26**：创建 nodejs-expert agent（内置撰写规范）；
-修复 drawio_nodejs 内网 IP 泄露（`10.0.0.x` 硬编码），
-filter-branch 重写历史 + force push；
-将"隐私红线"写入本文件。
+**2026-07-26**：创建 nodejs-expert agent（内置撰写规范）；修复 drawio_nodejs 内网 IP 泄露（filter-branch 重写历史 + force push），将"隐私红线"写入本文件。
 
-**2026-10-17**：新增 deepseek-search（DeepSeek 官方 Search / Fetch）。
-Key 存 `.env` 不入库，首次使用缺 Key 时主动询问并写入；
-`-k/--api-key` 单次传入；另加 `--dotenv-file` 规避 Node 20.6+ 对
-argv 中 `--env-file` 的内置解析（目标文件不存在时 Node 直接以 9 退出）。
+**2026-10-17**：新增 deepseek-search。Key 存 `.env` 不入库，缺 Key 时主动询问；`--dotenv-file` 规避 Node 20.6+ 对 argv 中 `--env-file` 的内置解析（目标文件不存在时以 9 退出）。
 
-**2026-10-24**：同步 CLAUDE.md 与仓库现状——补齐 5 个技能、修正
-`website_security_scan` 类型、加入常用命令与运行时架构、移除失效的 GitNexus 索引说明；
-修复 ssh2-node sftp 在 Windows Git Bash 下的远端绝对路径改写，并补齐单文件父目录与目录目标语义。
+**2026-10-24**：同步本文件与仓库现状（补齐 5 个技能、修正类型、加常用命令与运行时架构）；修复 ssh2-node sftp 在 Windows Git Bash 下的远端绝对路径改写与目录目标语义。
 
-**2026-10-25**：新增 magpie-image-gen（Magpie 网关生图，第三种结构形态：
-SKILL.md + 零依赖脚本）；审计修复 5 处内网 IP / 内部路径硬编码（同 drawio 教训），
-补 fetch 超时与错误契约；提交前完成隐私扫描与错误路径验证。
+**2026-10-25**：新增 magpie-image-gen（SKILL.md + 零依赖脚本的第三种结构形态）；审计修复 5 处内网 IP / 内部路径硬编码（同 drawio 教训），补 fetch 超时与错误契约。
+
+**2026-10-31**：新增 magpie-tools（Magpie 网关 MCP 插件工具客户端，Bundled 单文件）。
+踩坑与结论：地址勘误（53080 实为 dsh web 端口，网关 MCP 在 3425）；端点为无状态 streamable HTTP，免 initialize 直调 `tools/list` / `tools/call`；工具集随插件开关动态变化（当前 44 个），代码不枚举工具名。
+协议坑：网关把工具结果二次 JSON 序列化塞进 `content[0].text`，客户端必须解包一层；401 为 OpenAI 风格错误体、未知工具为 HTTP 200 + JSON-RPC -32602。
+真实地址与 key 落技能目录 `.env`（`git add -n` 预演确认不入库）。验证：真实调用余额查询与搜索、6 条错误路径、零依赖空目录运行、隐私扫描零命中；复核修正 SKILL.md 示例错误工具名（search1api_web_search → search1api_search）。
 
 ## GitNexus
 
-GitNexus 是本地可选索引工具：`.gitnexus` 被 `.gitignore` 忽略，仓库不包含其配置或
-相关 skill 文件。需要时按本地安装使用，不要假定仓库内已有索引可用。
+GitNexus 是本地可选索引工具：`.gitnexus` 被 `.gitignore` 忽略，仓库不包含其配置或相关 skill 文件。需要时按本地安装使用，不要假定仓库内已有索引可用。

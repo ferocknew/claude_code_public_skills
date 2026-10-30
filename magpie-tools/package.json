@@ -1,0 +1,12 @@
+{
+  "name": "magpie-tools",
+  "version": "1.0.0",
+  "description": "Magpie 网关 MCP 插件工具客户端（网页搜索、抓取、SEO、域名权重、关键词、credits 余额）",
+  "main": "run.js",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}
