@@ -27,7 +27,7 @@ head -2 skill.js                 # 首行 banner 含版本号
 - 零依赖验证：`tmp=$(mktemp -d) && cp <skill-dir>/skill.js "$tmp"/ && (cd "$tmp" && node skill.js --help)`
 - 无测试框架、lint、format、类型检查、CI。变更后验证以 `--help`、`--version`、一条真实命令和一条错误路径为准；完整清单见 `.claude/agents/nodejs-expert.md`。
 - `test/` 被 `.gitignore` 整体忽略，是本地验证草稿区，不是可复现测试套件。
-- 提交前隐私扫描：`git diff --cached | grep -iE "token|password|10\.0\."`
+- 提交前脱敏检查：见「隐私红线与提交前脱敏（强制）」，三项扫描必须全部零命中。
 
 ## 运行时架构
 
@@ -136,15 +136,33 @@ Bundled skill 采用"瘦索引"模式：快速开始 + 命令总表（必须含�
 新代码编码规范：CommonJS（`require`/`module.exports`）、Node 18+ 全局 `fetch`、错误按 `JSON.stringify({ error, message })` 输出、配置从环境变量读取、中文注释与输出。
 `.env` 由各技能手写解析（无 dotenv），打包后 `path.join(__dirname, ".env")` 指向技能目录；配置优先级 CLI > 环境变量 > `.env` > 默认值（存量有例外）。
 
-## 隐私红线
+## 隐私红线与提交前脱敏（强制）
 
 **禁止将私有信息提交到 GitHub。** 本仓库为公开仓库。
 
-- 代码/SKILL.md/help 不得硬编码内网 IP、token、密码、内部域名
+- 代码 / SKILL.md / help / 示例不得硬编码内网 IP、token、密码、内部域名
 - 默认值用 `localhost` 或占位符，真实地址由 `.env` 注入
-- `.env`/cookie/私钥文件必须被 `.gitignore`
-- `skill.js` 打包会将 `lib/` 源码原样打进 bundle，隐私检查必须在源码层做
-- 提交前扫描：`git diff --cached | grep -iE "token|password|10\.0\."`
+- `.env` / cookie / 私钥文件必须被 `.gitignore`
+- `skill.js` 打包会将 `lib/` 源码原样打进 bundle，隐私检查必须在源码层做，不能只查 `run.js`
+- 每次 `git add` 后、`git commit` 前必须跑完以下三项，命中即停止提交：
+
+```bash
+# 1) 暂存区新增内容里的真实凭据赋值（关键字 + 引号包裹的长值）
+git diff --cached -U0 | grep '^+' | grep -inE "(token|password|passwd|secret|api[_-]?key|authorization|cookie)[\"']?[[:space:]]*[:=][[:space:]]*[\"'][^\"']{8,}"
+
+# 2) 暂存区新增内容里的内网 IP / 本机地址（10/8、172.16/12、192.168/16）
+git diff --cached -U0 | grep '^+' | grep -inE "(^|[^0-9])(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3})([^0-9]|$)"
+
+# 3) 已跟踪文件中的高置信度密钥前缀 / 私钥文件名
+git grep --cached -nIE "gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{40,}"
+git ls-files | grep -iE '(^|/)(id_rsa|id_ed25519|id_ecdsa|.*\.(pem|key|p12|pfx))$'
+```
+
+- 扫描范围必须包含 `skill.js` 与 `examples/`；bundle 会带入 `lib/` 源码。
+- 仓库内只允许占位符：`localhost`、`*.example.com`、文档保留地址 `192.0.2.0/24`、`<token>`、`***`；真实值一律放 `.env`（已被忽略）。
+- `.env`、`*.cookie`、`*.pem`、`id_rsa*`、`.freebuff/`、会话 / 令牌导出文件不得提交。
+- 命中真实凭据：先轮换 / 吊销，再用 `git filter-repo`（或 `filter-branch`）重写历史后推送；不要只用新 commit 覆盖，旧提交仍可查。
+- 历史教训：`drawio_nodejs` 曾硬编码内网 IP，已用 `filter-branch` 重写历史并 force push；同类问题按事故处理。
 
 > Node.js skill 专家 agent：`.claude/agents/nodejs-expert.md`，内置撰写规范、隐私检查和验证清单。
 
