@@ -86,6 +86,7 @@ head -2 skill.js                 # 首行 banner 含版本号
 | `opencode-go-usage` | Bundled | OpenCode Go 订阅用量查询（原生 fetch+完整浏览器头读 SSR 页面，滚动/每周/每月百分比+重置时间，auth cookie 认证） |
 | `sendmail` | Bundled | SMTP 发送邮件（支持附件） |
 | `siyuan_api` | Bundled | 思源笔记 REST API（增删改查、SQL、导出） |
+| `smb-client` | Bundled | SMB/CIFS 局域网共享客户端（双引擎：smbclient+纯JS，支持URL/ls/cat/get/put/mkdir/rm/shares） |
 | `ssh2-node` | Bundled | SSH 客户端（exec/shell/sftp/tunnel/keygen，零依赖打包） |
 | `use_http_mcp` | Bundled | HTTP 请求工具（GET/POST/PUT/DELETE） |
 | `website_security_scan` | Agent-only | 网站安全扫描（HTTP头、CORS、CSP、XSS） |

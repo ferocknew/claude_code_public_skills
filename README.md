@@ -34,6 +34,7 @@
 | `obsidian-bases` | Obsidian Bases | 创建和编辑 Obsidian Bases (.base) 文件，支持视图、过滤器、公式 |
 | `obsidian-json-canvas` | JSON Canvas | 创建和编辑 JSON Canvas (.canvas) 文件，支持节点、边、分组 |
 | `sendmail` | Send Mail | 通过 SMTP 发送邮件，支持纯文本/HTML/Markdown、多收件人、附件 |
+| `smb-client` | SMB Client | SMB/CIFS 局域网共享客户端（双引擎：smbclient + 纯 JS），支持 URL/环境变量配置、ls/cat/get/put/mkdir/rm/shares |
 | `use-http-mcp` | HTTP MCP Tool | HTTP 请求工具，使用 Node.js 原生 fetch API，支持 GET/POST/PUT/DELETE/PATCH、Basic Auth、Bearer Token、文件上传下载 |
 | `website_security_scan` | Security Scan | 网站安全扫描与加固：HTTP 安全头、CORS、CSP、XSS 风险检测 |
 | `where-am-i` | Where Am I | 查询公网 IP 地址、地理位置、ISP 运营商信息 |
