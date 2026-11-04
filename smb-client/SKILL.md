@@ -1,6 +1,11 @@
 ---
 name: smb-client
+version: 1.0.0
+display_name: 局域网共享管家 (SMB/NAS)
+display_name_en: SMB/NAS Client
 description: 当用户要求"连接 SMB"、"访问 Windows 共享"、"查看 NAS 共享文件夹"、"下载/上传 SMB 文件"、"读取远程局域网共享"、"CIFS 文件管理"、"列出服务器共享列表"时使用此 skill。内置双引擎（系统 smbclient + 纯 JS 回退），单文件 skill.js 即开即用。
+description_zh: 零依赖局域网 SMB/CIFS 客户端，支持 Windows 共享与各类 NAS 存储，提供文件浏览、读取、流式上传下载、目录创建与共享列表查询。
+description_en: Zero-dependency SMB/CIFS client for managing network shares and NAS storage, supporting file browsing, reading, streaming upload/download, and share discovery.
 skill_version: 261104.142839
 ---
 
