@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 背景渐变 -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#0F172A" />
+    </linearGradient>
+    <!-- 文件夹主渐变 -->
+    <linearGradient id="folderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <!-- 网络高亮渐变 -->
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F43F5E" />
+      <stop offset="100%" stop-color="#FB7185" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- 圆角背景底板 -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- 装饰网格微光 -->
+  <circle cx="256" cy="220" r="160" fill="#0284C7" opacity="0.12" filter="blur(40px)" />
+
+  <!-- 共享文件夹本体 -->
+  <g filter="url(#shadow)">
+    <!-- 文件夹后盖 -->
+    <path d="M120 160 C120 148, 130 138, 142 138 L210 138 C222 138, 232 146, 238 156 L254 182 L370 182 C382 182, 392 192, 392 204 L392 230 L120 230 Z" fill="#0369A1" />
+    <!-- 文件夹前盖 -->
+    <rect x="110" y="200" width="292" height="170" rx="20" fill="url(#folderGrad)" />
+  </g>
+
+  <!-- 局域网节点共享连线 (SMB Share Nodes) -->
+  <g stroke="#E2E8F0" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 主干垂线 -->
+    <line x1="256" y1="370" x2="256" y2="420" />
+    <!-- 横向总线 -->
+    <line x1="170" y1="420" x2="342" y2="420" />
+    <!-- 分支引线 -->
+    <line x1="170" y1="420" x2="170" y2="445" />
+    <!-- 中间引线 -->
+    <line x1="256" y1="420" x2="256" y2="445" />
+    <!-- 右侧引线 -->
+    <line x1="342" y1="420" x2="342" y2="445" />
+  </g>
+
+  <!-- 局域网终端节点小圆点 -->
+  <circle cx="170" cy="445" r="10" fill="#38BDF8" />
+  <circle cx="256" cy="445" r="10" fill="#38BDF8" />
+  <circle cx="342" cy="445" r="10" fill="#38BDF8" />
+
+  <!-- 文件夹中心 SMB 传输徽章 -->
+  <circle cx="256" cy="285" r="34" fill="#FFFFFF" opacity="0.95" />
+  <!-- 双向同步小箭头 -->
+  <path d="M244 275 L256 263 L268 275 M256 265 L256 305 M268 295 L256 307 L244 295"
+        stroke="#0284C7" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>
